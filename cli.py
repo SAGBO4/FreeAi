@@ -94,6 +94,7 @@ SLASH_COMMANDS = [
     "/skills",
     "/video",
     "/brag",
+    "/chimera",
     "/jarvis",
     "/help",
     "/clear",
@@ -404,6 +405,11 @@ def print_help():
         "/brag [focus|copy|video]",
         "Sovereign Brag Showcase : Analyse du codebase, vidéo cinématique MP4 en RAM et copie de lancement viral (Twitter/LinkedIn).",
         "/brag ou /brag 'Mode NÉANT et AETHER-SWARM' ou /brag copy"
+    )
+    table.add_row(
+        "/chimera [status|heal|mutate <nom> <code>|ghost <prompt>]",
+        "Protocole OMNI-CHIMERA : Ghost Coder, Sentinelle d'auto-guérison, Cœur furtif hors-ligne et Mutation épigénétique à chaud en RAM.",
+        "/chimera status ou /chimera heal ou /chimera ghost 'Optimiser cache'"
     )
     table.add_row(
         "/jarvis [status|start|stop|restart|logs]",
@@ -1539,6 +1545,49 @@ async def dispatch_telegram_order(tech_lead: TechLeadOrchestrator, order: str, u
         console.print("[bold green]✔ Sovereign Brag Showcase & Vidéo MP4 téléversés sur Telegram ![/]")
         return
 
+    # 7.1 Native shortcut: /chimera, /omni, /mutator
+    if order_lower.startswith(("/chimera", "/omni", "/mutator")) or order_lower == "chimera":
+        parts = order_clean.split(maxsplit=2)
+        sub = parts[1].lower() if len(parts) > 1 else "status"
+        if sub == "heal":
+            res = tech_lead.omni_chimera.heal()
+            msg = (
+                f"🛡️ <b>[OMNI-CHIMERA — Sentinelle Auto-Guérison]</b>\n\n"
+                f"• Diagnostic : RAM {res['diagnosis']['ram_percent']}%, CPU {res['diagnosis']['cpu_percent']}%\n"
+                f"• Actions exécutées :\n" + "\n".join([f"  - {a}" for a in res['remediation']['actions']])
+            )
+        elif sub == "ghost":
+            ghost_prompt = parts[2] if len(parts) > 2 else "Créer un module d'optimisation"
+            await tech_lead.telegram_vault.send_message(f"👻 <b>[OMNI-CHIMERA — Ghost Coder Actif]</b>\nSynthèse autonome pour : <code>{ghost_prompt}</code>...")
+            res = await tech_lead.omni_chimera.ghost_code(ghost_prompt)
+            msg = (
+                f"👻 <b>[Ghost Coder — Synthèse Complétée]</b>\n\n"
+                f"• Branche Git : <code>{res['git_branch']}</code>\n"
+                f"• Cible : <code>{res['target_module']}</code>\n"
+                f"• Auteur : {res['author']}\n"
+                f"• Co-auteur : {res['co_author']}\n\n"
+                f"<i>Prêt pour exécution en bac à sable.</i>"
+            )
+        else:
+            status = tech_lead.omni_chimera.get_status()
+            diag = status['health']
+            conn = status['connectivity']
+            grafted = status['epigenetic_skills_grafted']
+            skills = ", ".join(status['skills_list']) if status['skills_list'] else "Aucun (RAM Pure)"
+            msg = (
+                f"⚡ <b>[PROTOCOLE OMNI-CHIMERA ACTIF]</b>\n\n"
+                f"• <b>Version :</b> {status['version']}\n"
+                f"• <b>Sentinelle Système :</b> {'✔ Sain' if diag['healthy'] else '⚠️ Pression RAM'}\n"
+                f"• <b>RAM active :</b> {diag['ram_percent']}% ({diag['ram_available_mb']} Mo dispo)\n"
+                f"• <b>Conduit Furtif Hors-Ligne :</b> {conn['mode']} ({'WAN Connecté' if conn['wan_connected'] else 'Offline Fallback Activé'})\n"
+                f"• <b>Mutateur Épigénétique :</b> {grafted} skill(s) greffé(s) à chaud en RAM\n"
+                f"• <b>Organes en RAM :</b> <code>{skills}</code>\n"
+                f"• <b>Mode NÉANT :</b> 100% Volatile (0 écriture disque SSD)"
+            )
+        await tech_lead.telegram_vault.send_message(msg)
+        console.print("[bold green]✔ Rapport OMNI-CHIMERA expédié sur Telegram ![/]")
+        return
+
     # 8. Standard AI objective or Human Conversation execution
     console.print(f"[dim]Exécution de l'ordre en mode {tech_lead.mode}...[/]")
     res = await tech_lead.handle_objective(order_clean, autonomous=True)
@@ -2466,6 +2515,89 @@ async def run_brag(tech_lead: TechLeadOrchestrator, args: List[str]):
     ))
 
 
+async def run_chimera(tech_lead: TechLeadOrchestrator, args: List[str]):
+    """Gère le protocole OMNI-CHIMERA : Ghost Coder, Auto-Guérison, Offline et Mutation Épigénétique."""
+    subcmd = args[0].lower() if args else "status"
+
+    if subcmd == "heal":
+        console.print("[dim]🛡️ Lancement de la sentinelle d'auto-guérison système...[/]")
+        res = tech_lead.omni_chimera.heal()
+        diag = res["diagnosis"]
+        rem = res["remediation"]
+        act_lines = "\n".join([f"  • [green]{a}[/]" for a in rem.get("actions", [])])
+        console.print(Panel(
+            f"[bold]État initial :[/] {'[green]Sain[/]' if diag['healthy'] else '[yellow]Pression détectée[/]'}\n"
+            f"[bold]RAM :[/] {diag['ram_percent']}% ({diag['ram_available_mb']} Mo disponibles)\n"
+            f"[bold]CPU :[/] {diag['cpu_percent']}%\n\n"
+            f"[bold]Actions de remédiation appliquées :[/]\n{act_lines}",
+            title="🛡️ OMNI-CHIMERA — Auto-Guérison Système",
+            border_style="green"
+        ))
+
+    elif subcmd == "ghost":
+        prompt = " ".join(args[1:]).strip() if len(args) > 1 else "Module d'optimisation sovereign"
+        console.print(f"[dim]👻 Déclenchement du Ghost Coder pour : '{prompt}'...[/]")
+        res = await tech_lead.omni_chimera.ghost_code(prompt)
+        console.print(Panel(
+            f"[bold]Prompt :[/] [cyan]{res['prompt']}[/]\n"
+            f"[bold]Branche Git générée :[/] [bold green]{res['git_branch']}[/]\n"
+            f"[bold]Module Cible :[/] {res['target_module']}\n"
+            f"[bold]Auteur :[/] [yellow]{res['author']}[/]\n"
+            f"[bold]Co-Auteur :[/] [magenta]{res['co_author']}[/]\n\n"
+            f"[bold]Code Synthétisé :[/]\n[dim]{res['code'][:300]}...[/]\n\n"
+            f"[bold green]✔ Prêt pour sandbox Docker & packaging Git autonome.[/]",
+            title="👻 OMNI-CHIMERA — Ghost Coder Subsystem",
+            border_style="magenta"
+        ))
+
+    elif subcmd == "mutate":
+        if len(args) < 3:
+            console.print("[bold red]Usage :[/] /chimera mutate <nom_skill> <code_python>")
+            return
+        skill_name = args[1]
+        code_str = " ".join(args[2:]).strip()
+        console.print(f"[dim]🧬 Greffe épigénétique en RAM de '{skill_name}' (0 écriture SSD)...[/]")
+        res = tech_lead.omni_chimera.synthesize_and_graft(skill_name, code_str)
+        if res.get("success"):
+            console.print(Panel(
+                f"[bold green]✔ Organe greffé avec succès dans sys.modules ![/]\n\n"
+                f"[bold]Nom de la compétence :[/] {res['skill_name']}\n"
+                f"[bold]Module RAM :[/] <code>{res['module_path']}</code>\n"
+                f"[bold]Symboles compilés :[/] {', '.join(res.get('symbols', []))}\n"
+                f"[bold]Persistance :[/] Pure RAM Volatile (Mode NÉANT)",
+                title="🧬 OMNI-CHIMERA — Mutation Épigénétique à Chaud",
+                border_style="green"
+            ))
+        else:
+            console.print(Panel(
+                f"[bold red]❌ Échec de la greffe épigénétique :[/]\n\n{res.get('error')}",
+                title="⚠️ Veto Épigénétique OMNI-CHIMERA",
+                border_style="red"
+            ))
+
+    else:
+        # Default: status
+        status = tech_lead.omni_chimera.get_status()
+        diag = status["health"]
+        conn = status["connectivity"]
+        grafted = status["epigenetic_skills_grafted"]
+        skills = ", ".join(status["skills_list"]) if status["skills_list"] else "Aucun (RAM Pure)"
+
+        console.print(Panel(
+            f"[bold]Protocole :[/] [bold green]{status['protocol']}[/] ([cyan]{status['version']}[/])\n\n"
+            f"1. [bold magenta]Ghost Coder :[/] [green]Opérationnel[/] (Synthèse asynchrone mobile & Git packaging)\n"
+            f"2. [bold cyan]Sentinelle Auto-Guérison :[/] {'[bold green]✔ Sain[/]' if diag['healthy'] else '[yellow]⚠️ Surveillance[/]'} "
+            f"(RAM {diag['ram_percent']}%, {diag['ram_available_mb']} Mo dispo, CPU {diag['cpu_percent']}%)\n"
+            f"3. [bold yellow]Cœur Furtif Hors-Ligne :[/] [bold green]{conn['mode'].upper()}[/] ({'WAN en ligne' if conn['wan_connected'] else 'Mode Air-Gap engagé'})\n"
+            f"4. [bold red]Mutateur Épigénétique à Chaud (Ultra-Innovation) :[/] [bold green]{grafted} organe(s) en RAM[/]\n"
+            f"   • Modules greffés : [dim]{skills}[/]\n"
+            f"   • Résidu SSD : [bold green]0 octet (100% Mode NÉANT)[/]\n\n"
+            f"[dim]Commandes disponibles : /chimera [status|heal|ghost <prompt>|mutate <nom> <code>][/]",
+            title="⚡ PROTOCOLE OMNI-CHIMERA — Matrice de Singularité Autonome",
+            border_style="cyan"
+        ))
+
+
 def run_jarvis(tech_lead: TechLeadOrchestrator, args: List[str]):
     """Gère le daemon d'écoute permanente Jarvis 24/7 (systemd user service)."""
     subcmd = args[0].lower() if args else "status"
@@ -2668,6 +2800,8 @@ async def interactive_cli(initial_mode: str = "freeAi"):
                     await run_video(tech_lead, args)
                 elif cmd == "/brag":
                     await run_brag(tech_lead, args)
+                elif cmd == "/chimera":
+                    await run_chimera(tech_lead, args)
                 elif cmd == "/jarvis":
                     run_jarvis(tech_lead, args)
                 else:
@@ -2796,6 +2930,8 @@ def main():
                 asyncio.run(run_video(tech_lead, args))
             elif cmd == "/brag":
                 asyncio.run(run_brag(tech_lead, args))
+            elif cmd == "/chimera":
+                asyncio.run(run_chimera(tech_lead, args))
             elif cmd == "/jarvis":
                 run_jarvis(tech_lead, args)
             elif cmd == "/help":

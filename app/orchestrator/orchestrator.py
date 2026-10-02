@@ -41,6 +41,7 @@ from app.voice.realtime_call import RealtimeCallGateway
 from app.cognition.synesthetic_canvas import SynestheticCanvasStreamer
 from app.cluster.aether_swarm import AetherSwarmOrchestrator
 from app.tools.brag_engine import BragEngine
+from app.evolution.omni_chimera import OmniChimeraOrchestrator
 
 logger = logging.getLogger("tech_lead_orchestrator")
 
@@ -153,6 +154,9 @@ class TechLeadOrchestrator:
 
         # Aether-Swarm Serverless Multi-Model Cross-Validation & Zero-Strain Cloud Engine
         self.aether_swarm = AetherSwarmOrchestrator(federation=self.free_ai.federation)
+
+        # Protocol OMNI-CHIMERA: Self-Mutating Autonomous Ghost-Fabric (Mode NÉANT)
+        self.omni_chimera = OmniChimeraOrchestrator(federation=self.free_ai.federation)
 
         # Specialized agents under Tech Lead supervision
         self.code_agent = CodeAgent(tool_gateway, forge_bridge=self.forge)
