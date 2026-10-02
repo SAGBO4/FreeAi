@@ -157,6 +157,73 @@ class TestTelegramNeuralVault(unittest.TestCase):
                 self.assertIn("VETO SACRÉ", mock_send.call_args[0][0])
         asyncio.run(_test())
 
+    def test_verify_recovery_passphrase_matching(self):
+        import hashlib
+        salt = "test_phoenix_salt"
+        dummy_pass = "SovereignKey#2026"
+        expected_hash = hashlib.sha256((salt + dummy_pass).encode("utf-8")).hexdigest()
+
+        self.vault.recovery_salt = salt
+        self.vault.recovery_hash = expected_hash
+
+        # Valid passphrase
+        self.assertTrue(self.vault.verify_recovery_passphrase(dummy_pass))
+        self.assertTrue(self.vault.verify_recovery_passphrase("  " + dummy_pass + "  "))
+
+        # Invalid passphrase
+        self.assertFalse(self.vault.verify_recovery_passphrase("WrongPass#9999"))
+        self.assertFalse(self.vault.verify_recovery_passphrase(""))
+
+    def test_phoenix_protocol_new_device_claim(self):
+        async def _test():
+            import hashlib
+            salt = "test_phoenix_salt"
+            dummy_pass = "SovereignKey#2026"
+            expected_hash = hashlib.sha256((salt + dummy_pass).encode("utf-8")).hexdigest()
+
+            self.vault.recovery_salt = salt
+            self.vault.recovery_hash = expected_hash
+            self.vault.chat_id = "111111"
+
+            # Unknown device (new chat ID: 999999) presents claim
+            mock_resp = MagicMock()
+            mock_resp.status_code = 200
+            mock_resp.json.return_value = {
+                "ok": True,
+                "result": [
+                    {
+                        "update_id": 5001,
+                        "message": {
+                            "message_id": 777,
+                            "chat": {"id": 999999},
+                            "text": f"/claim {dummy_pass}",
+                            "from": {"username": "MichaelNewPhone"}
+                        }
+                    }
+                ]
+            }
+
+            with patch("httpx.AsyncClient.get", AsyncMock(return_value=mock_resp)), \
+                 patch.object(self.vault, "delete_message", AsyncMock(return_value=True)) as mock_del, \
+                 patch.object(self.vault, "send_message", AsyncMock(return_value=True)) as mock_send, \
+                 patch.object(self.vault, "_persist_new_chat_id", MagicMock()) as mock_persist, \
+                 patch("httpx.AsyncClient.post", AsyncMock()) as mock_post:
+
+                res = await self.vault.poll_incoming_command()
+                # The claim was handled internally, returns None as command
+                self.assertIsNone(res)
+
+                # Sensitive message was deleted from Telegram
+                mock_del.assert_called_once_with("999999", 777)
+
+                # New chat ID was persisted
+                mock_persist.assert_called_once_with("999999")
+
+                # Welcome confirmation was sent
+                mock_send.assert_called_once()
+                self.assertIn("Protocole Phénix Validé", mock_send.call_args[0][0])
+        asyncio.run(_test())
+
 
 class TestOrchestratorAndCLITelegramIntegration(unittest.TestCase):
     """Verifies TechLeadOrchestrator and CLI slash commands for Telegram Vault."""

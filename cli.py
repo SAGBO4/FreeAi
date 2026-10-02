@@ -93,6 +93,7 @@ SLASH_COMMANDS = [
     "/cyber",
     "/skills",
     "/video",
+    "/brag",
     "/jarvis",
     "/help",
     "/clear",
@@ -398,6 +399,11 @@ def print_help():
         "/video [teaser|scaffold <nom>|status]",
         "Moteur Vidéo Programmatique & Remotion : Génération de projets React Remotion et rendu MP4 cinématique vers Telegram.",
         "/video teaser ou /video scaffold 'MonProjet'"
+    )
+    table.add_row(
+        "/brag [focus|copy|video]",
+        "Sovereign Brag Showcase : Analyse du codebase, vidéo cinématique MP4 en RAM et copie de lancement viral (Twitter/LinkedIn).",
+        "/brag ou /brag 'Mode NÉANT et AETHER-SWARM' ou /brag copy"
     )
     table.add_row(
         "/jarvis [status|start|stop|restart|logs]",
@@ -1514,7 +1520,26 @@ async def dispatch_telegram_order(tech_lead: TechLeadOrchestrator, order: str, u
                 await tech_lead.telegram_vault.send_voice(voice_ogg, caption="🎙️ <i>Aether Swarm Consensus</i>")
         return
 
-    # 7. Standard AI objective or Human Conversation execution
+    # 7. Native shortcut: /brag, /showcase, /launch
+    if order_lower.startswith(("/brag", "/showcase", "/launch")) or order_lower == "brag":
+        custom_focus = order_clean
+        for prefix in ("/brag", "/showcase", "/launch"):
+            if custom_focus.lower().startswith(prefix):
+                custom_focus = custom_focus[len(prefix):].strip()
+        console.print("[dim]⚡ Exécution du Sovereign Brag Engine (Vidéo RAM & Copie de Lancement)...[/]")
+        await tech_lead.telegram_vault.send_message("🎬 <b>[Sovereign Brag Showcase Déclenché]</b>\nAnalyse du projet, synthèse de copie virale et rendu vidéo MP4 en RAM en cours...")
+        brag_res = await tech_lead.execute_brag(export_telegram=True, custom_focus=custom_focus or None)
+        social = brag_res.get("social_copy", {})
+        launch_msg = (
+            f"📢 <b>[COPIE VIRALE DE LANCEMENT PRÊTE À PUBLIER]</b>\n\n"
+            f"<b>Twitter / X :</b>\n<code>{social.get('twitter', '')}</code>\n\n"
+            f"<b>LinkedIn :</b>\n<code>{social.get('linkedin', '')}</code>"
+        )
+        await tech_lead.telegram_vault.send_message(launch_msg)
+        console.print("[bold green]✔ Sovereign Brag Showcase & Vidéo MP4 téléversés sur Telegram ![/]")
+        return
+
+    # 8. Standard AI objective or Human Conversation execution
     console.print(f"[dim]Exécution de l'ordre en mode {tech_lead.mode}...[/]")
     res = await tech_lead.handle_objective(order_clean, autonomous=True)
     is_conv = res.get("assigned_agent") == "conversation" or res.get("result", {}).get("conversational", False)
@@ -2395,6 +2420,52 @@ async def run_video(tech_lead: TechLeadOrchestrator, args: List[str]):
         console.print("[bold red]Usage :[/] /video [status|teaser [titre] [sous-titre]|scaffold <nom>]")
 
 
+async def run_brag(tech_lead: TechLeadOrchestrator, args: List[str]):
+    """Gère la commande /brag : analyse du codebase, synthèse de copie virale et vidéo MP4 en RAM."""
+    focus = " ".join(args).strip() if args else None
+
+    console.print("[dim]🔍 Analyse du codebase et extraction des fonctionnalités maîtresses...[/]")
+    info = tech_lead.brag_engine.inspect_project()
+    social_copy = tech_lead.brag_engine.generate_social_copy(info)
+
+    # Mode copie uniquement
+    if focus and focus.lower() == "copy":
+        console.print(Panel(
+            f"[bold cyan]Twitter / X Launch Thread :[/]\n\n{social_copy['twitter']}\n\n"
+            f"[bold magenta]LinkedIn Professional Announcement :[/]\n\n{social_copy['linkedin']}",
+            title=f"📢 Copie de Lancement Viral — {info['name']}",
+            border_style="cyan"
+        ))
+        return
+
+    console.print("[dim]🎬 Rendu de la vidéo cinématique en RAM volatile (Mode NÉANT, 0 octet SSD)...[/]")
+    res = await tech_lead.execute_brag(export_telegram=True, custom_focus=focus)
+
+    video = res.get("video", {})
+    uploaded = video.get("uploaded_to_telegram", False)
+
+    feat_lines = "\n".join([f"  • [green]{f}[/]" for f in info.get("features", [])])
+
+    console.print(Panel(
+        f"[bold]Projet :[/] [bold green]{info['name']}[/]\n"
+        f"[bold]Accroche :[/] [cyan]{info['tagline']}[/]\n"
+        f"[bold]Architecte :[/] [yellow]{info['author']}[/]\n"
+        f"[bold]Métriques :[/] [bold green]{info['metrics']}[/]\n\n"
+        f"[bold]Prouesses Clés Identifiées :[/]\n{feat_lines}\n\n"
+        f"🎬 [bold]Vidéo MP4 :[/] {video.get('filename')} ({video.get('duration_sec')}s, {video.get('size_kb', 0):.1f} Ko, 100% RAM)\n"
+        f"📱 [bold]Telegram :[/] {'[bold green]✔ Téléversé sur votre smartphone (@LesaintAi_bot)[/]' if uploaded else '[dim]Non téléversé[/]'}",
+        title="⚡ Sovereign Brag Showcase",
+        border_style="green"
+    ))
+
+    console.print(Panel(
+        f"[bold cyan]Twitter / X Launch Thread :[/]\n\n{social_copy['twitter']}\n\n"
+        f"[bold magenta]LinkedIn Professional Announcement :[/]\n\n{social_copy['linkedin']}",
+        title="📢 Copie de Lancement Prête à Publier",
+        border_style="cyan"
+    ))
+
+
 def run_jarvis(tech_lead: TechLeadOrchestrator, args: List[str]):
     """Gère le daemon d'écoute permanente Jarvis 24/7 (systemd user service)."""
     subcmd = args[0].lower() if args else "status"
@@ -2595,6 +2666,8 @@ async def interactive_cli(initial_mode: str = "freeAi"):
                     await run_skills(tech_lead, args)
                 elif cmd == "/video":
                     await run_video(tech_lead, args)
+                elif cmd == "/brag":
+                    await run_brag(tech_lead, args)
                 elif cmd == "/jarvis":
                     run_jarvis(tech_lead, args)
                 else:
@@ -2721,6 +2794,8 @@ def main():
                 asyncio.run(run_skills(tech_lead, args))
             elif cmd == "/video":
                 asyncio.run(run_video(tech_lead, args))
+            elif cmd == "/brag":
+                asyncio.run(run_brag(tech_lead, args))
             elif cmd == "/jarvis":
                 run_jarvis(tech_lead, args)
             elif cmd == "/help":

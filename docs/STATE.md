@@ -5,6 +5,8 @@ Dernière mise à jour : 2026-10-02
 ## Fait
 
 - **F-01 à F-10 Livrés à 100 %** : Orchestrateur Tech Lead, Mode NÉANT, Telegram Neural Vault, VORTEX-AETHER, Continuum Ghost-Worker, Forge/Craft-Suite, Phoenix/LesaintAI, Nexus Tri-Brid Realtime Call, Protocole AETHER-SWARM, et Vision & Vidéo Multimodale Télépathique.
+- **Sovereign Brag Showcase (/brag)** : Reproduction et dépassement de la commande /brag de Claude Code (Latent Spaces) avec inspection automatique du codebase, synthèse de copie de lancement virale (Twitter/X, LinkedIn, Telegram) et rendu direct de vidéo cinématique MP4 en RAM volatile sans écriture SSD (Mode NÉANT) téléversée sur Telegram.
+- **Protocole Phénix & Reconnaissance Maître Souveraine** : Authentification d'urgence par phrase secrète salée SHA-256 en mémoire (zéro stockage en clair ou sur Git), suppression automatique du message Telegram secret (OpSec) et transfert dynamique de l'autorité de contrôle vers le nouvel appareil avec alerte croisée.
 - **Vision & Vidéo Multimodale (F-10)** : Réception et analyse directe d'images et vidéos Telegram en RAM pure (Groq LPU Vision, Qwen 2 VL, analyse forensique), 0 résidu SSD.
 - **Silence Radio Audio Demandé** : Désactivation des notes vocales automatiques, réponses exclusivement textuelles sauf demande explicite ou alerte majeure.
 - **Protocole AETHER-SWARM (F-09)** : Déportation intégrale des calculs lourds vers les serveurs Cloud gratuits mondiaux, zéro charge sur le PC portable (< 45 Mo RAM, 0% CPU), arène de débat contradictoire multi-modèles (Llama 70B, DeepSeek, Qwen) et commande Telegram `/swarm`.

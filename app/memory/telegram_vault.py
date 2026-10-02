@@ -9,7 +9,10 @@ import io
 import json
 import gzip
 import time
+import hashlib
+import hmac
 import logging
+from pathlib import Path
 from typing import Dict, Any, List, Optional, Tuple
 import httpx
 from config.settings import settings
@@ -42,6 +45,57 @@ class TelegramNeuralVault:
         self.sentinel = SacredLifeSentinel(strict_mode=True)
         self.synced_records_count: int = 0
         self._volatile_knowledge_vault: Dict[str, Dict[str, Any]] = {}
+        self.recovery_hash = getattr(settings, "MASTER_RECOVERY_HASH", "") or os.environ.get("MASTER_RECOVERY_HASH", "")
+        self.recovery_salt = getattr(settings, "MASTER_RECOVERY_SALT", "freeai_sovereign_phoenix_salt") or os.environ.get("MASTER_RECOVERY_SALT", "freeai_sovereign_phoenix_salt")
+
+    def verify_recovery_passphrase(self, candidate: str) -> bool:
+        """Verifies candidate passphrase against salted master recovery hash in constant time."""
+        if not candidate or not self.recovery_hash:
+            return False
+        calculated = hashlib.sha256((self.recovery_salt + candidate.strip()).encode("utf-8")).hexdigest()
+        target = self.recovery_hash.replace("sha256:", "").strip()
+        return hmac.compare_digest(calculated, target)
+
+    def _persist_new_chat_id(self, new_chat_id: str) -> None:
+        """Updates authorized chat ID in RAM and persists into gitignored local .env."""
+        self.chat_id = str(new_chat_id)
+        try:
+            settings.TELEGRAM_CHAT_ID = str(new_chat_id)
+        except Exception:
+            pass
+        os.environ["TELEGRAM_CHAT_ID"] = str(new_chat_id)
+        env_path = Path(".env")
+        if env_path.exists():
+            try:
+                lines = env_path.read_text(encoding="utf-8").splitlines()
+                updated = False
+                new_lines = []
+                for line in lines:
+                    if line.strip().startswith("TELEGRAM_CHAT_ID="):
+                        new_lines.append(f"TELEGRAM_CHAT_ID={new_chat_id}")
+                        updated = True
+                    else:
+                        new_lines.append(line)
+                if not updated:
+                    new_lines.append(f"TELEGRAM_CHAT_ID={new_chat_id}")
+                env_path.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
+            except Exception as e:
+                logger.debug(f"[TELEGRAM VAULT] Could not persist chat_id to .env: {e}")
+
+    async def delete_message(self, chat_id: str, message_id: int) -> bool:
+        """Deletes a message from Telegram (0 forensic trace on user chat history)."""
+        if not self.is_configured or not message_id:
+            return False
+        try:
+            async with httpx.AsyncClient(timeout=8.0) as client:
+                res = await client.post(
+                    f"{self.base_url}/deleteMessage",
+                    json={"chat_id": chat_id, "message_id": message_id}
+                )
+                return res.status_code == 200
+        except Exception as e:
+            logger.debug(f"[TELEGRAM VAULT] deleteMessage error: {e}")
+            return False
 
     @property
     def is_configured(self) -> bool:
@@ -276,10 +330,62 @@ class TelegramNeuralVault:
                         if not msg:
                             continue
                         
+                        message_id = msg.get("message_id")
                         sender_chat_id = str(msg["chat"]["id"])
                         user_name = msg.get("from", {}).get("username", "Utilisateur")
                         text = msg.get("text", "").strip()
                         is_voice = False
+
+                        # Protocole Phénix: Vérification de la clé maîtresse de secours
+                        candidate_pass = None
+                        if text:
+                            for prefix in ("/claim ", "/auth ", "/recover ", "/phenix ", "/phénix "):
+                                if text.lower().startswith(prefix):
+                                    candidate_pass = text[len(prefix):].strip()
+                                    break
+                            if not candidate_pass and self.verify_recovery_passphrase(text):
+                                candidate_pass = text.strip()
+
+                        if candidate_pass and self.verify_recovery_passphrase(candidate_pass):
+                            # 1. OpSec: Destruction immédiate du message contenant le mot de passe
+                            if message_id:
+                                await self.delete_message(sender_chat_id, message_id)
+
+                            old_chat_id = self.chat_id
+                            is_migration = bool(old_chat_id and str(old_chat_id) != sender_chat_id)
+
+                            # 2. Liaison souveraine du nouveau compte
+                            self._persist_new_chat_id(sender_chat_id)
+                            logger.info(f"[TELEGRAM VAULT] Protocole Phénix validé pour @{user_name} (Chat ID: {sender_chat_id})")
+
+                            # 3. Notification d'audit sur l'ancien appareil si migration
+                            if is_migration:
+                                migration_notice = (
+                                    f"🔄 <b>[Transfert d'Autorité Souveraine - Protocole Phénix]</b>\n\n"
+                                    f"La clé maîtresse de secours a été validée avec succès par un nouvel appareil :\n"
+                                    f"• Compte Telegram : @{user_name}\n"
+                                    f"• Nouveau Chat ID : <code>{sender_chat_id}</code>\n"
+                                    f"• Horodatage : <code>{time.strftime('%Y-%m-%d %H:%M:%S')}</code>\n\n"
+                                    f"<i>L'autorité de contrôle et d'écoute télépathique a été transférée vers ce compte.</i>"
+                                )
+                                try:
+                                    async with httpx.AsyncClient(timeout=5.0) as old_client:
+                                        await old_client.post(
+                                            f"{self.base_url}/sendMessage",
+                                            json={"chat_id": old_chat_id, "text": migration_notice, "parse_mode": "HTML"}
+                                        )
+                                except Exception:
+                                    pass
+
+                            # 4. Confirmation royale au Maître
+                            welcome_text = (
+                                f"⚡ <b>Maître Michael reconnu ! Protocole Phénix Validé.</b>\n\n"
+                                f"Ravi de vous retrouver, Maître. Votre nouveau compte Telegram (@{user_name}) est désormais authentifié et lié à FreeAI avec les pleins pouvoirs.\n\n"
+                                f"🔒 <i>Votre message secret a été immédiatement détruit du chat pour votre sécurité.</i>\n"
+                                f"📡 <i>Liaison satellite & sentinelle 24/7 actives. Que puis-je faire pour vous ?</i>"
+                            )
+                            await self.send_message(welcome_text)
+                            continue
 
                         # Authentication guard: If chat_id is established, reject and alert on foreign senders
                         if self.chat_id and sender_chat_id != str(self.chat_id):

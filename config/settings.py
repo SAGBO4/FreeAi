@@ -90,6 +90,8 @@ class Settings(BaseModel):
     # Telegram Cloud Neural Vault & Mobile Telepathy
     TELEGRAM_BOT_TOKEN: str = Field(default_factory=lambda: os.getenv("TELEGRAM_BOT_TOKEN", "8716120626:AAHqEDB4r0sn9nmEuguy9PyMEFCQOaSDY84"))
     TELEGRAM_CHAT_ID: str = Field(default_factory=lambda: os.getenv("TELEGRAM_CHAT_ID", ""))
+    MASTER_RECOVERY_HASH: str = Field(default_factory=lambda: os.getenv("MASTER_RECOVERY_HASH", ""))
+    MASTER_RECOVERY_SALT: str = Field(default_factory=lambda: os.getenv("MASTER_RECOVERY_SALT", "freeai_sovereign_phoenix_salt"))
 
 
 settings = Settings()

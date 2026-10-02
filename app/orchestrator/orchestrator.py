@@ -40,6 +40,7 @@ from app.cognition.persona import ConversationalPersona
 from app.voice.realtime_call import RealtimeCallGateway
 from app.cognition.synesthetic_canvas import SynestheticCanvasStreamer
 from app.cluster.aether_swarm import AetherSwarmOrchestrator
+from app.tools.brag_engine import BragEngine
 
 logger = logging.getLogger("tech_lead_orchestrator")
 
@@ -137,6 +138,9 @@ class TechLeadOrchestrator:
 
         # Programmatic Video Presentation Engine (Remotion & FFmpeg)
         self.video_engine = ProgrammaticVideoEngine()
+
+        # Sovereign Brag Engine (Codebase showcase, viral launch copy, RAM video generation)
+        self.brag_engine = BragEngine(workspace_root=str(self.tool_gateway.workspace_root), video_engine=self.video_engine)
 
         # Episodic Vector Memory & Conversational Human Persona
         self.vector_memory = EphemeralVectorMemory()
@@ -556,6 +560,19 @@ class TechLeadOrchestrator:
             title=title,
             subtitle=subtitle,
             duration_sec=duration_sec
+        )
+
+    async def execute_brag(
+        self,
+        export_telegram: bool = True,
+        custom_focus: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Executes full /brag pipeline: project analysis, social launch copy,
+        in-memory video rendering, and Telegram export."""
+        return await self.brag_engine.execute_brag(
+            telegram_vault=self.telegram_vault,
+            export_telegram=export_telegram,
+            custom_focus=custom_focus
         )
 
     def _on_degraded_memory(self):
