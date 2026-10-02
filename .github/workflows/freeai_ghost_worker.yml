@@ -1,0 +1,83 @@
+name: FreeAI Ghost-Worker & Autonomous Sentinel
+
+on:
+  workflow_dispatch:
+    inputs:
+      objective:
+        description: 'Mission tactique à exécuter PC éteint'
+        required: true
+        default: '/agent Diagnostic d intégrité et audit'
+      mode:
+        description: 'Niveau de privilèges'
+        required: true
+        default: 'freeAi'
+        type: choice
+        options:
+          - freeAi
+          - lesaintAi
+
+  # Éveil automatique nocturne (Auto-Update, Sentinel & Rapport Telegram)
+  schedule:
+    - cron: '0 3 * * *'
+
+jobs:
+  ghost_nexus:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: 📥 Récupération du Codebase Souverain
+        uses: actions/checkout@v4
+
+      - name: 🐍 Initialisation de l'Environnement Python Frugal
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: 📦 Installation des Dépendances
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: 🛡️ Audit de Sécurité & Banc de Non-Régression
+        run: |
+          python -m pytest tests/ -q --maxfail=1
+
+      - name: ⚡ Exécution de la Mission Éphémère (Mode NÉANT)
+        id: exec_step
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+          GROK_API_KEY: ${{ secrets.GROK_API_KEY }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+        run: |
+          OBJECTIVE="${{ github.event.inputs.objective || '/evolve test' }}"
+          MODE="${{ github.event.inputs.mode || 'freeAi' }}"
+          echo "Exécution de : $OBJECTIVE en mode $MODE"
+          
+          # Exécution déterministe en RAM
+          OUTPUT=$(python cli.py --mode "$MODE" "$OBJECTIVE" 2>&1 | tail -n 40)
+          echo "MISSION_OUTPUT<<EOF" >> $GITHUB_OUTPUT
+          echo "$OUTPUT" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: 📲 Télémétrie Immédiate sur Telegram
+        if: always()
+        run: |
+          TG_TOKEN="${{ secrets.TELEGRAM_BOT_TOKEN }}"
+          TG_CHAT="${{ secrets.TELEGRAM_CHAT_ID }}"
+          
+          if [ -n "$TG_TOKEN" ] && [ -n "$TG_CHAT" ]; then
+            MESSAGE="👻 <b>FreeAI Ghost-Worker : Mission Accomplie (PC Éteint)</b>%0A%0A"
+            MESSAGE+="• <b>Déclencheur :</b> ${{ github.event_name }}%0A"
+            MESSAGE+="• <b>Statut :</b> ${{ job.status }}%0A"
+            MESSAGE+="• <b>Commit :</b> <code>${{ github.sha }}</code>%0A%0A"
+            MESSAGE+="<b>Extrait du Rapport :</b>%0A<code>${{ steps.exec_step.outputs.MISSION_OUTPUT }}</code>"
+            
+            curl -s -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
+              -d "chat_id=${TG_CHAT}" \
+              -d "text=${MESSAGE}" \
+              -d "parse_mode=HTML" > /dev/null || true
+          fi

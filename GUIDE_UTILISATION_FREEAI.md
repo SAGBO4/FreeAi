@@ -483,7 +483,22 @@ Pour garantir que vos connaissances et apprentissages ne soient jamais perdus m�
 
 ---
 
-## 11. Tableau Récapitulatif des Commandes
+## 11. Continuum Ghost-Worker (Calculs PC Éteint, Zéro VPS) 👻
+
+Pour lancer des missions longues en arrière-plan et **pouvoir éteindre votre PC portable** sans payer de VPS :
+- **Runners Éphémères Gratuits** : FreeAI exploite les 2 000 minutes/mois de calcul Linux offertes sur votre dépôt GitHub privé (2 vCPU, 7 Go RAM, 0 €).
+- **Déclenchement Instantané (`/offload`)** : Déporte la mission sur GitHub Actions, puis vous autorise à éteindre le PC.
+- **Télémétrie Automatique sur Telegram** : Une fois la mission achevée dans le cloud éphémère, le rapport complet et les souvenirs sont envoyés directement sur votre bot **Telegram `@LesaintAi_bot`**.
+- **Veille Nocturne & Auto-Update Automatique** : Tous les soirs à 03h00 UTC, un runner fantôme s'éveille tout seul, lance les 165 tests, vérifie les mises à jour et vous envoie un compte-rendu matinal sur Telegram !
+
+```bash
+# Déporter une mission lourde dans le cloud éphémère (vous pouvez éteindre le PC juste après !)
+/offload /agent "Audit de sécurité des dépendances et compilation"
+```
+
+---
+
+## 12. Tableau Récapitulatif des Commandes
 
 | Commande | Raccourci / Syntaxe | Description |
 | :--- | :--- | :--- |
@@ -492,6 +507,8 @@ Pour garantir que vos connaissances et apprentissages ne soient jamais perdus m�
 | **Agent ReAct Autonome** | `/agent <mission>` | Cycle ReAct Hermes 3 & Claude 3.7 autonome |
 | **Hermes Cognitif** | `/hermes [status\|run\|think]` | Raisonnement étendu et appel d'outils XML structuré |
 | **Passerelle Tor Onion V3** | `/onion [status\|start\|stop\|token]` | Contrôle distant décentralisé éphémère (Mode Sudo `lesaintAi`) |
+| **Déport PC Éteint** | `/offload <mission>` | Déporte une tâche lourde sur le Runner Fantôme (éteignez votre PC !) |
+| **Kit Secours Telegram** | `/telegram backup` | Génère et téléverse le bundle d'auto-clonage sur votre bot Telegram |
 | **Apprentissage Dual-Cloud**| `/learn <connaissance>` | Enregistre un savoir simultanément sur Neon et Telegram |
 | **Scratchpad Cognitif** | `/scratchpad <objectif>` | Décomposition interne `<thinking>` en RAM |
 | **Shadow Docker Root** | `/docker [status\|run [--rw] [--mount] <cmd>]` | Confinement multi-paliers (Docker/Bwrap/Phantom), micro-init, montages |
@@ -504,6 +521,7 @@ Pour garantir que vos connaissances et apprentissages ne soient jamais perdus m�
 | **Consensus Clash** | `/clash <problème>` | Débat contradictoire multi-IA (DeepSeek vs Grok) & arbitrage |
 | **Guide GPUs Libres** | `/gpu` | Catalogue des GPUs/LPUs gratuits (Groq, OpenRouter, Colab) |
 | **Swarm LAN / Distribué** | `/cluster [scan\|list\|add\|ssh]` | Exploitation des autres PC du réseau local et workers GPU |
+| **Auto-Évolution** | `/evolve [check\|apply\|test]` | Auto-mise à jour avec tests et notification Telegram |
 | **Nettoyer l'écran** | `/clear` | Efface le terminal |
 | **Aide** | `/help` | Affiche la liste des commandes |
 | **Quitter** | `/exit` ou `/quit` | Ferme l'application |

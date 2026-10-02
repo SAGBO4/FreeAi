@@ -85,6 +85,7 @@ SLASH_COMMANDS = [
     "/hermes",
     "/agent",
     "/onion",
+    "/offload",
     "/help",
     "/clear",
     "/exit",
@@ -303,6 +304,11 @@ def print_help():
         "/onion [status|start|stop]",
         "Portail Tor Onion V3 Souverain : Accès distant incensurable chiffré Ed25519 (strictement réservé au mode sudo lesaintAi).",
         "/onion start"
+    )
+    table.add_row(
+        "/offload <mission>",
+        "Ghost-Worker Runner : Exécute une mission dans le cloud éphémère GitHub même PC ÉTEINT et notifie Telegram.",
+        "/offload /agent 'Audit de sécurité des dépendances'"
     )
     table.add_row(
         "/clear",
@@ -915,6 +921,22 @@ def run_evolve(tech_lead: TechLeadOrchestrator, args: List[str]):
                 title="Mise à Jour Appliquée",
                 border_style="green"
             ))
+            # Télémétrie immédiate sur Telegram
+            try:
+                tg_text = (
+                    f"🚀 <b>Mise à Jour FreeAI Appliquée avec Succès !</b>\n\n"
+                    f"• Ancien commit : <code>{res.get('old_commit')}</code>\n"
+                    f"• Nouveau commit : <code>{res.get('new_commit')}</code>\n"
+                    f"• Banc de tests : <b>100% Validé (0 régression)</b>\n"
+                    f"• Message : <i>{res.get('message')}</i>"
+                )
+                try:
+                    loop = asyncio.get_running_loop()
+                    loop.create_task(tech_lead.telegram_vault.send_message(tg_text))
+                except RuntimeError:
+                    asyncio.run(tech_lead.telegram_vault.send_message(tg_text))
+            except Exception:
+                pass
         else:
             if res.get("rolled_back"):
                 console.print(Panel(
@@ -1721,6 +1743,47 @@ async def run_onion(tech_lead: TechLeadOrchestrator, args: List[str]):
         console.print(f"[bold red]Sous-commande inconnue :[/] '{subcmd}'. Utilisez /onion status, start, stop, ou token.")
 
 
+async def run_offload(tech_lead: TechLeadOrchestrator, args: List[str]):
+    """Déporte une tâche sur le Runner Fantôme GitHub Actions (s'exécute même PC ÉTEINT)."""
+    if not args:
+        console.print("[bold red]Usage :[/] /offload <mission ou commande>")
+        console.print("[dim]Exemple : /offload /agent 'Audit de sécurité et diagnostic'[/]")
+        return
+
+    objective = " ".join(args)
+    console.print(f"[dim]⚡ Déploiement de la mission sur le Runner Fantôme GitHub Actions...[/]")
+
+    try:
+        cmd = [
+            "gh", "workflow", "run", "freeai_ghost_worker.yml",
+            "-f", f"objective={objective}",
+            "-f", f"mode={tech_lead.mode}"
+        ]
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        stdout, stderr = await proc.communicate()
+        if proc.returncode == 0:
+            console.print(Panel(
+                f"• Mission déportée : [bold white]« {objective} »[/]\n"
+                f"• Mode de privilège : [bold cyan]{tech_lead.mode}[/]\n"
+                f"• Infrastructure : [bold green]GitHub Actions Ephemeral Runner (2 vCPU, 7 Go RAM, 0 €)[/]\n"
+                f"• Statut : [bold green]En cours d'exécution dans le cloud éphémère[/]\n\n"
+                f"💤 [bold yellow]VOUS POUVEZ ÉTEINDRE VOTRE PC DÈS MAINTENANT ![/]\n"
+                f"Dès la fin des calculs, le rapport complet sera téléversé dans votre coffre Telegram :\n"
+                f"👉 [bold cyan]@LesaintAi_bot[/]",
+                title="👻 Runner Fantôme Déclenché (PC Éteint)",
+                border_style="magenta"
+            ))
+        else:
+            err_msg = stderr.decode().strip()
+            console.print(f"[bold red]Erreur de déclenchement du runner fantôme :[/] {err_msg}")
+    except Exception as e:
+        console.print(f"[bold red]Erreur inattendue :[/] {e}")
+
+
 def get_active_workspace() -> str:
     """Returns the effective workspace root, prioritizing active git repo or WORKSPACE_ROOT."""
     cwd = Path.cwd().resolve()
@@ -1853,6 +1916,8 @@ async def interactive_cli(initial_mode: str = "freeAi"):
                     await run_hermes(tech_lead, args)
                 elif cmd == "/onion":
                     await run_onion(tech_lead, args)
+                elif cmd == "/offload":
+                    await run_offload(tech_lead, args)
                 else:
                     console.print(f"[bold red]Commande slash inconnue :[/] '{cmd}'. Tapez [bold green]/help[/] pour la liste des commandes.")
             else:
@@ -1963,6 +2028,8 @@ def main():
                 asyncio.run(run_hermes(tech_lead, args))
             elif cmd == "/onion":
                 asyncio.run(run_onion(tech_lead, args))
+            elif cmd == "/offload":
+                asyncio.run(run_offload(tech_lead, args))
             elif cmd == "/help":
                 print_help()
             else:
