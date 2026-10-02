@@ -239,6 +239,79 @@ class TestCLIFunctionality(unittest.TestCase):
         # /sync
         cli.run_sync(tl)
 
+        # /online (display and switch)
+        cli.run_online_config(tl, [])
+        cli.run_online_config(tl, ["deepseek"])
+        self.assertEqual(tl.free_ai.federation.current_provider, "deepseek")
+        cli.run_online_config(tl, ["grok"])
+        self.assertEqual(tl.free_ai.federation.current_provider, "grok")
+        cli.run_online_config(tl, ["qwen"])
+        self.assertEqual(tl.free_ai.federation.current_provider, "qwen")
+
+        # /ask
+        async def _test_ask():
+            await cli.run_ask_online(tl, ["Explique", "un", "concept"])
+        asyncio.run(_test_ask())
+
+
+class TestRemoteOnlineModels(unittest.TestCase):
+    """Verifies that Grok, DeepSeek, Qwen and OpenRouter operate strictly as remote REST APIs with zero local footprint."""
+
+    def setUp(self):
+        self.rm = ResourceManager()
+        self.gw = ToolGateway(workspace_root=tempfile.gettempdir(), mode="freeAi")
+        self.tl = TechLeadOrchestrator(tool_gateway=self.gw, resource_manager=self.rm)
+
+    def test_catalog_structure(self):
+        catalog = self.tl.list_online_models()
+        self.assertIn("deepseek", catalog)
+        self.assertIn("grok", catalog)
+        self.assertIn("qwen", catalog)
+        self.assertIn("openrouter", catalog)
+        self.assertTrue(catalog["deepseek"]["endpoint"].startswith("https://"))
+        self.assertTrue(catalog["grok"]["endpoint"].startswith("https://"))
+
+    def test_remote_rest_api_invocation_zero_disk(self):
+        """Verifies remote REST API invocation via mock without downloading model weights."""
+        fed = self.tl.free_ai.federation
+        fed.deepseek_api_key = "sk-test-deepseek-mock-key"
+        fed.set_online_target("deepseek", "deepseek-chat")
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "choices": [{"message": {"content": "Solution from remote DeepSeek V3 online API"}}]
+        }
+
+        async def _test():
+            with patch("httpx.AsyncClient.post", return_value=mock_response) as mock_post:
+                res = await self.tl.ask_online_model("Optimise cette requête SQL")
+                self.assertTrue(res["success"])
+                self.assertEqual(res["provider"], "DeepSeek")
+                self.assertEqual(res["response"], "Solution from remote DeepSeek V3 online API")
+
+                # Verify REST request payload & endpoint
+                mock_post.assert_called_once()
+                args, kwargs = mock_post.call_args
+                self.assertEqual(args[0], "https://api.deepseek.com/chat/completions")
+                self.assertEqual(kwargs["headers"]["Authorization"], "Bearer sk-test-deepseek-mock-key")
+                self.assertEqual(kwargs["json"]["model"], "deepseek-chat")
+
+        asyncio.run(_test())
+
+    def test_batch_mode_cli_online_commands(self):
+        """Verifies CLI batch mode execution for /online and /ask."""
+        with patch("sys.argv", ["cli.py", "/online"]):
+            cli.main()
+
+        with patch("sys.argv", ["cli.py", "/online", "grok"]):
+            cli.main()
+
+        mock_ask_res = {"success": True, "provider": "DeepSeek", "response": "Batch answer"}
+        with patch.object(TechLeadOrchestrator, "ask_online_model", return_value=mock_ask_res):
+            with patch("sys.argv", ["cli.py", "/ask", "Test", "question"]):
+                cli.main()
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -51,6 +51,9 @@ SLASH_COMMANDS = [
     "/status",
     "/rollback",
     "/sync",
+    "/online",
+    "/ask",
+    "/asklog",
     "/help",
     "/clear",
     "/exit",
@@ -134,6 +137,21 @@ def print_help():
         "/sync",
         "Synchronise et compresse en GZIP la mémoire essentielle sur Neon PostgreSQL.",
         "/sync"
+    )
+    table.add_row(
+        "/online [nom]",
+        "Affiche ou configure l'IA distante sans filtre (Grok, DeepSeek, Qwen - 100% en ligne, 0 Mo local).",
+        "/online deepseek ou /online grok"
+    )
+    table.add_row(
+        "/ask <question>",
+        "Interroge directement l'IA distante sans filtre (Grok, DeepSeek) sans charger le PC.",
+        "/ask Comment décompiler ce binaire ?"
+    )
+    table.add_row(
+        "/asklog <fichier> [texte]",
+        "Discute avec l'IA en ligne en lui transmettant directement un fichier log pour diagnostic.",
+        "/asklog /var/log/syslog Explique cette erreur"
     )
     table.add_row(
         "/clear",
@@ -382,6 +400,79 @@ def handle_mode_command(tech_lead: TechLeadOrchestrator, args: List[str]):
         ))
 
 
+def run_online_config(tech_lead: TechLeadOrchestrator, args: List[str]):
+    """Configures or displays remote online unrestricted AI models (Grok, DeepSeek, Qwen)."""
+    catalog = tech_lead.list_online_models()
+    active = tech_lead.free_ai.federation
+
+    if not args:
+        table = Table(title="🌐 IA en Ligne Sans Restriction (100% Distantes - 0 Mo Local)", border_style="cyan")
+        table.add_column("Fournisseur / Commande", style="bold yellow")
+        table.add_column("Modèle Distant", style="white")
+        table.add_column("Description", style="green")
+
+        for key, info in catalog.items():
+            table.add_row(f"/online {key}", info["default_model"], info["desc"])
+
+        console.print(table)
+        console.print(f"\n[cyan]Fournisseur actuel :[/] [bold yellow]{active.current_provider.upper()}[/] | [cyan]Modèle :[/] [bold yellow]{active.current_model}[/]")
+        console.print("[dim]Pour changer : /online deepseek ou /online grok ou /online qwen[/]")
+        console.print("[dim]Pour interroger directement : /ask <votre question>[/]")
+        return
+
+    provider = args[0].lower()
+    model = args[1] if len(args) > 1 else None
+    res = tech_lead.set_online_target(provider, model)
+    console.print(f"[bold green]✔ IA en ligne activée :[/] Fournisseur = [bold yellow]{res['provider'].upper()}[/], Modèle = [bold yellow]{res['model']}[/]")
+
+
+async def run_ask_online(tech_lead: TechLeadOrchestrator, args: List[str]):
+    """Directly queries the configured remote unrestricted online model (Grok, DeepSeek, Qwen)."""
+    if not args:
+        console.print("[bold red]Usage :[/] /ask <question ou prompt>")
+        console.print("[dim]Exemple : /ask Explique comment contourner ce filtre WAF sur une injection SQL[/]")
+        return
+
+    question = " ".join(args)
+    active = tech_lead.free_ai.federation
+    with console.status(f"[bold cyan]Interrogation de l'IA en ligne ({active.current_provider.upper()}:{active.current_model})...[/]", spinner="earth"):
+        res = await tech_lead.ask_online_model(question)
+
+    if res.get("success"):
+        console.print(Panel(
+            res.get("response", ""),
+            title=f"🌐 Réponse en Ligne ({res.get('provider', active.current_provider)})",
+            border_style="cyan"
+        ))
+    else:
+        console.print(f"[bold red]❌ Erreur lors de l'appel en ligne :[/] {res.get('error')}")
+
+
+async def run_ask_log(tech_lead: TechLeadOrchestrator, args: List[str]):
+    """Submits a log file along with a prompt to the remote online AI (DeepSeek, Grok, Qwen)."""
+    if not args:
+        console.print("[bold red]Usage :[/] /asklog <chemin_fichier_log> [question ou instruction]")
+        console.print("[dim]Exemple : /asklog error.log Explique l'origine de cette erreur[/]")
+        console.print("[dim]Exemple : /asklog /var/log/syslog Donne la solution pour résoudre ce crash[/]")
+        return
+
+    log_path = args[0]
+    question = " ".join(args[1:]) if len(args) > 1 else "Analyse ce fichier de log, explique l'origine des erreurs et donne la solution technique pour corriger le problème."
+    active = tech_lead.free_ai.federation
+
+    with console.status(f"[bold cyan]Transmission du log '{log_path}' à l'IA en ligne ({active.current_provider.upper()}:{active.current_model})...[/]", spinner="earth"):
+        res = await tech_lead.ask_online_with_log(prompt=question, log_path=log_path)
+
+    if res.get("success"):
+        console.print(Panel(
+            res.get("response", ""),
+            title=f"📋 Analyse de Log en Ligne ({res.get('provider', active.current_provider)}) - {res.get('log_path')} ({res.get('log_lines')} lignes)",
+            border_style="cyan"
+        ))
+    else:
+        console.print(f"[bold red]❌ Erreur lors de l'analyse du log :[/] {res.get('error')}")
+
+
 def get_active_workspace() -> str:
     """Returns the effective workspace root, prioritizing active git repo or WORKSPACE_ROOT."""
     cwd = Path.cwd().resolve()
@@ -462,6 +553,12 @@ async def interactive_cli(initial_mode: str = "freeAi"):
                     run_rollback(tech_lead)
                 elif cmd == "/sync":
                     run_sync(tech_lead)
+                elif cmd == "/online":
+                    run_online_config(tech_lead, args)
+                elif cmd == "/ask":
+                    await run_ask_online(tech_lead, args)
+                elif cmd == "/asklog":
+                    await run_ask_log(tech_lead, args)
                 else:
                     console.print(f"[bold red]Commande slash inconnue :[/] '{cmd}'. Tapez [bold green]/help[/] pour la liste des commandes.")
             else:
@@ -520,6 +617,10 @@ def main():
                 run_search_files(tech_lead, args)
             elif cmd == "/code":
                 run_search_code(tech_lead, args)
+            elif cmd == "/online":
+                run_online_config(tech_lead, args)
+            elif cmd == "/ask":
+                asyncio.run(run_ask_online(tech_lead, args))
             elif cmd == "/help":
                 print_help()
             else:

@@ -76,6 +76,42 @@ class TechLeadOrchestrator:
         """Searches across files on the PC or workspace for code snippets or functions."""
         return self.tool_gateway.search_code(query=query, search_dir=search_dir, file_pattern=file_pattern, max_matches=max_matches)
 
+    def set_online_target(self, provider: str, model: Optional[str] = None) -> Dict[str, Any]:
+        """Configures which remote online AI (DeepSeek, Grok, Qwen, OpenRouter) FreeAI consults."""
+        self.free_ai.federation.set_online_target(provider, model)
+        return {
+            "success": True,
+            "provider": self.free_ai.federation.current_provider,
+            "model": self.free_ai.federation.current_model
+        }
+
+    def list_online_models(self) -> Dict[str, Any]:
+        """Returns the catalog of remote online unrestricted models."""
+        return self.free_ai.federation.list_supported_online_models()
+
+    async def ask_online_model(self, prompt: str, provider: Optional[str] = None, model: Optional[str] = None) -> Dict[str, Any]:
+        """Directly queries remote unrestricted online models (Grok, DeepSeek, Qwen) without local install."""
+        if provider:
+            self.free_ai.federation.set_online_target(provider, model)
+        return await self.free_ai.enrich_with_online_open_models(prompt)
+
+    async def ask_online_with_log(self, prompt: str, log_path: str, max_lines: int = 150) -> Dict[str, Any]:
+        """Reads a log file from anywhere on the PC and submits it to the remote online AI (DeepSeek/Grok/Qwen) with a question."""
+        log_res = self.tool_gateway.read_log_tail(log_path, max_lines=max_lines)
+        if not log_res.get("success"):
+            return log_res
+
+        log_content = log_res.get("content", "")
+        formatted_prompt = (
+            f"Voici un extrait du fichier de log '{log_res.get('path')}' ({log_res.get('returned_lines')}/{log_res.get('total_lines')} lignes) :\n"
+            f"```\n{log_content}\n```\n\n"
+            f"Instruction utilisateur : {prompt}"
+        )
+        res = await self.ask_online_model(formatted_prompt)
+        res["log_path"] = log_res.get("path")
+        res["log_lines"] = log_res.get("returned_lines")
+        return res
+
     def _on_degraded_memory(self):
         logger.warning("[TECH LEAD] Memory warning triggered (> 3.5 GB). Reducing concurrency & trimming context.")
 

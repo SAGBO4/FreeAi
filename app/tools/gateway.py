@@ -214,6 +214,30 @@ class ToolGateway:
         except Exception as e:
             return {"success": False, "error": str(e)}
 
+    def read_log_tail(self, log_path: str, max_lines: int = 150) -> Dict[str, Any]:
+        """Reads the last N lines of a log file from anywhere on the PC for transmission to online AI."""
+        target = self._resolve_target_path(log_path)
+        if not self._is_safe_read_path(target):
+            return {"success": False, "error": f"Path outside allowed read scope: {log_path}"}
+        if not target.exists():
+            return {"success": False, "error": f"Log file not found: {log_path}"}
+        if target.is_dir():
+            return {"success": False, "error": f"Target is a directory, not a log file: {log_path}"}
+        try:
+            with open(target, "r", encoding="utf-8", errors="replace") as f:
+                lines = f.readlines()
+                tail_lines = lines[-max_lines:] if len(lines) > max_lines else lines
+                content = "".join(tail_lines)
+                return {
+                    "success": True,
+                    "path": str(target),
+                    "total_lines": len(lines),
+                    "returned_lines": len(tail_lines),
+                    "content": content
+                }
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
     # --- Terminal Execution ---
     def execute_command(self, command: str, cwd: Optional[str] = None, timeout_sec: int = 30) -> Dict[str, Any]:
         """Executes a shell command with timeout and safety checks."""

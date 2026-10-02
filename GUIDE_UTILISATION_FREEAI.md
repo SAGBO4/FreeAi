@@ -197,39 +197,69 @@ HEAD is now at f7b4941 feat: implement dynamic mode switching
 Force la synchronisation immédiate et la compression GZIP de la mémoire essentielle vers Neon PostgreSQL.
 - Affiche la taille brute en octets, la taille compressée et le pourcentage de gain d'espace.
 
-**Exemple :**
+---
+
+### 4.7 `/online [fournisseur] [modèle]`
+Permet d'afficher le catalogue ou de configurer l'IA en ligne distante sans filtre que FreeAI consultera :
+- **100 % distant (API en ligne) :** ces modèles ne sont **JAMAIS téléchargés en local**. Ils tournent sur des serveurs distants, ce qui préserve intégralement la RAM et le disque de votre PC.
+- **Modèles sans restriction supportés :**
+  - **`deepseek`** : DeepSeek-V3 / DeepSeek-R1 / DeepSeek-Coder (IA chinoise championne du code et du raisonnement sans filtres superflus).
+  - **`grok`** : Grok-2 / Grok-beta (xAI, franc, sans verrous arbitraires).
+  - **`qwen`** : Qwen 2.5 Coder 32B/72B (Alibaba, leader mondial open-weight).
+  - **`openrouter`** : Passerelle universelle vers tous les modèles libres en ligne.
+
+**Exemples :**
 ```text
-[FreeAI:freeAi] > /sync
-☁ Synchronisation et compression GZIP de la mémoire essentielle sur Neon PostgreSQL...
-╭──────────────────────── ☁ Synchronisation Neon Cloud ────────────────────────╮
-│ ✔ Synchronisation réussie !                                                  │
-│                                                                              │
-│ • Données brutes : 116 octets                                                │
-│ • Taille compressée (GZIP) : 151 octets                                      │
-│ • Gain d'espace : -30.2%                                                     │
-│ • Mémoire essentielle compressée en GZIP et synchronisée sur Neon            │
-│ PostgreSQL.                                                                  │
-╰──────────────────────────────────────────────────────────────────────────────╯
+/online
+/online deepseek
+/online grok
+/online qwen
 ```
 
 ---
 
-### 4.7 `/help`
+### 4.8 `/ask <question ou prompt>`
+Interroge directement l'IA distante configurée (Grok, DeepSeek, Qwen) sans consommer les ressources de calcul de votre PC portable :
+- Idéal pour obtenir une explication pointue, un conseil de sécurité offensif ou un avis d'architecture.
+
+**Exemple :**
+```text
+/ask Explique comment exploiter une désérialisation non sécurisée en Python et comment la corriger
+```
+
+---
+
+### 4.9 `/asklog <chemin_fichier_log> [question ou instruction]`
+Permet de **discuter avec les IA en ligne (DeepSeek, Grok, Qwen) directement à partir de vos fichiers de logs** :
+- FreeAI lit automatiquement les dernières lignes pertinentes du fichier log (jusqu'à 150 lignes), extrait les traces d'erreurs et exceptions, et les envoie à l'IA distante avec votre consigne.
+- L'IA en ligne analyse le log, diagnostique la panne ou le bug et fournit immédiatement le correctif de code.
+- Fonctionne sur n'importe quel fichier de log de votre ordinateur (ex: logs système, logs de serveur web, traces de crash, logs de tests).
+
+**Exemples :**
+```text
+/asklog error.log Explique l'origine de ce crash et donne le code corrigé
+/asklog /var/log/nginx/error.log Diagnostique pourquoi les requêtes tombent en 502
+/asklog pytest.log Analyse pourquoi ces tests unitaires échouent
+```
+
+---
+
+### 4.10 `/help`
 Affiche le tableau récapitulatif interactif de toutes les commandes disponibles.
 
 ---
 
-### 4.8 `/clear`
+### 4.11 `/clear`
 Nettoie l'écran du terminal.
 
 ---
 
-### 4.9 `/exit` ou `/quit`
+### 4.12 `/exit` ou `/quit`
 Termine la session de travail et quitte le CLI proprement.
 
 ---
 
-### 4.10 Entrée Textuelle Libre (Tech Lead Autonome)
+### 4.13 Entrée Textuelle Libre (Tech Lead Autonome)
 Toute saisie ne commençant pas par un slash `/` est automatiquement interprétée comme un objectif d'ingénierie et transmise au **Tech Lead Orchestrator** :
 1. FreeAI analyse l'intention (Code, Sécurité, ou Git).
 2. Établit un plan de travail en plusieurs étapes.
