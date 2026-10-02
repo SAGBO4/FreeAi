@@ -106,19 +106,70 @@ def setup_readline():
     readline.parse_and_bind("tab: complete")
 
 
+def display_lesaint_ai_awakening():
+    """Affiche une présentation majestueuse lors du passage en mode super-utilisateur lesaintAi."""
+    skull_insignia = """
+   ██╗     ███████╗███████╗ █████╗ ██╗███╗   ██╗████████╗ █████╗ ██╗
+   ██║     ██╔════╝██╔════╝██╔══██╗██║████╗  ██║╚══██╔══╝██╔══██╗██║
+   ██║     █████╗  ███████╗███████║██║██╔██╗ ██║   ██║   ███████║██║
+   ██║     ██╔══╝  ╚════██║██╔══██║██║██║╚██╗██║   ██║   ██╔══██║██║
+   ███████╗███████╗███████║██║  ██║██║██║ ╚████║   ██║   ██║  ██║██║
+   ╚══════╝╚══════╝╚══════╝╚═╝  ╚═╝╚═╝╚═╝  ╚═══╝   ╚═╝   ╚═╝  ╚═╝╚═╝
+                 ⚡⚡⚡ APEX GOD-MODE UNLOCKED ⚡⚡⚡"""
+
+    panel_content = (
+        f"[bold red]{skull_insignia}[/]\n\n"
+        "👑 [bold yellow]BIENVENUE, MAÎTRE DU SYSTÈME (LESAINT-AI ACTIF)[/]\n\n"
+        "• [bold red]Privilèges Root Absolus[/] : ALLOW_SUDO=True | Confinement Docker/Bubblewrap à chaud\n"
+        "• [bold red]Portail Tor Onion V3[/] : Déverrouillé pour le contrôle décentralisé distant (/onion start)\n"
+        "• [bold red]Accès Système Total[/] : Écriture et diagnostic sur toute la machine sans barrière\n"
+        "• [bold green]Garde-Fou Sacré Préservé[/] : Veto mathématique inviolable protégeant la vie humaine\n"
+        "• [bold cyan]Arsenal Cyber Prêt[/] : Nmap, Torsocks, Net-tools, Micro-init éphémère en RAM (/docker)\n\n"
+        "[bold white on red] ⚠️  ATTENTION : TOUTES LES ACTIONS SONT EXÉCUTÉES AVEC LES PRIVILÈGES MAXIMAUX  [/]"
+    )
+    console.print(Panel(
+        panel_content,
+        title="🔥 [bold red]TRANSCENDANCE SUPER-UTILISATEUR (lesaintAi)[/]",
+        border_style="red"
+    ))
+
+
 def display_welcome_banner(mode: str):
-    """Displays the welcome banner with sovereign FreeAI status."""
+    """Affiche une bannière cyber-tactique avec protocole Phoenix de résurrection post-coupure de courant."""
+    ascii_logo = """
+  ███████╗██████╗ ███████╗███████╗ █████╗ ██╗
+  ██╔════╝██╔══██╗██╔════╝██╔════╝██╔══██╗██║
+  █████╗  ██████╔╝█████╗  █████╗  ███████║██║
+  ██╔══╝  ██╔══██╗██╔══╝  ██╔══╝  ██╔══██║██║
+  ██║     ██║  ██║███████╗███████╗██║  ██║██║
+  ╚═╝     ╚═╝  ╚═╝╚══════╝╚══════╝╚═╝  ╚═╝╚═╝"""
+
     banner_text = Text()
-    banner_text.append("╔══════════════════════════════════════════════════════════════════════╗\n", style="bold cyan")
-    banner_text.append("║                   ⚡ FreeAI Sovereign Assistant ⚡                   ║\n", style="bold yellow")
-    banner_text.append("║       Intelligence Locale & Hybride - Mode NÉANT (0 résidu disque)   ║\n", style="bold green")
-    banner_text.append("╚══════════════════════════════════════════════════════════════════════╝", style="bold cyan")
+    banner_text.append(ascii_logo, style="bold cyan")
+    banner_text.append("\n\n  ⚡ SOVEREIGN AUTONOMOUS INTELLIGENCE // ZERO-DISK FOOTPRINT ⚡\n", style="bold yellow")
+    banner_text.append("  [PHOENIX PROTOCOL] ", style="bold magenta")
+    banner_text.append("Résurrection Instantanée & Intégrité Totale Post-Coupure\n", style="bold green")
+
+    status_hud = (
+        "• [bold green]Bouclier Anti-Coupure (Blackout Proof)[/] : ZÉRO corruption SSD (Mode NÉANT en RAM pure)\n"
+        "• [bold cyan]Persistance Dual-Cloud[/] : Cerveau synchronisé (Neon PostgreSQL & Telegram Vault)\n"
+        "• [bold cyan]Gouvernance Éthique[/] : Sanctuaire de la Vie Humaine Inviolable (SacredLifeSentinel)\n"
+        f"• [bold {'red' if mode == 'lesaintAi' else 'green'}]Mode Actif[/] : {mode} ({'God-Mode Sudo Déverrouillé' if mode == 'lesaintAi' else 'Standard Sécurisé'})\n"
+        "• [bold cyan]Cloud Fantôme[/] : GitHub Actions Runner disponible même PC ÉTEINT (/offload)"
+    )
 
     console.print(Panel(
         banner_text,
-        subtitle="Tapez [bold green]/help[/] pour afficher les commandes disponibles ou posez une question",
         border_style="cyan"
     ))
+    console.print(Panel(
+        status_hud,
+        title="🛰️ Télémétrie Tactique d'Éveil",
+        subtitle="Tapez [bold green]/help[/] pour les commandes ou [bold cyan]/agent[/] pour une mission ReAct",
+        border_style="blue"
+    ))
+    if mode == "lesaintAi":
+        display_lesaint_ai_awakening()
 
 
 def get_prompt(mode: str) -> str:
@@ -606,14 +657,11 @@ def handle_mode_command(tech_lead: TechLeadOrchestrator, args: List[str]):
     new_mode = res.get("mode")
 
     if new_mode == "lesaintAi":
-        console.print(Panel(
-            "[bold red]⚡ MODE SUPER-UTILISATEUR ACTIVÉ (lesaintAi) ⚡[/]\n\n"
-            "• Privilèges sudo déverrouillés ([bold red]ALLOW_SUDO=True[/])\n"
-            "• Écriture et exécution totale sur tout le système sans restriction\n"
-            "• Attention : les actions s'exécutent avec les privilèges maximaux.",
-            title="Avertissement Privilèges",
-            border_style="red"
-        ))
+        display_lesaint_ai_awakening()
+        try:
+            tech_lead.voice.speak("Mode LeSaint-AI déverrouillé. Tous les privilèges root sont à vos ordres.")
+        except Exception:
+            pass
     else:
         console.print(Panel(
             "[bold green]🛡 MODE STANDARD SÉCURISÉ ACTIVÉ (freeAi)[/]\n\n"
