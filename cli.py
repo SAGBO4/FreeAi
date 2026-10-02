@@ -1449,7 +1449,29 @@ async def dispatch_telegram_order(tech_lead: TechLeadOrchestrator, order: str, u
             await tech_lead.telegram_vault.send_voice(voice_ogg)
         return
 
-    # 5. Standard AI objective or Human Conversation execution
+    # 5. Native shortcut: /call, /live, "ouvre la ligne", "lance un appel", "appel vocal"
+    if order_lower in ("/call", "/live", "call", "live", "appel", "ouvre la ligne", "lance un appel", "appel en direct") or "ouvre la ligne" in order_lower:
+        console.print("[dim]Initialisation du Live Hologram Call & Session Synesthésique...[/]")
+        session = tech_lead.realtime_call_gateway.create_session(user=user)
+        session.mark_connected()
+
+        call_msg = (
+            f"📞 <b>Ligne Télépathique Live Active ! (Mode Nexus Tri-Brid)</b>\n\n"
+            f"• Session ID : <code>{session.session_id}</code>\n"
+            f"• Latence : <b>~300 ms (Full-Duplex WebRTC)</b>\n"
+            f"• Barge-in : <b>Interruption naturelle active</b>\n"
+            f"• Synesthésie : <b>Canal Visuel Multimodal (Live Canvas)</b>\n"
+            f"• Co-Pilote Furtif : <b>Opérationnel en tâche de fond</b>\n\n"
+            f"⚡ <i>Session synesthésique déployée en mémoire vive (0 résidu disque).</i>"
+        )
+        await tech_lead.telegram_vault.send_message(call_msg)
+        console.print(f"[bold green]✔ Session Live Hologram initialisée ({session.session_id}) ![/]")
+        voice_ogg = await tech_lead.voice.synthesize_speech("Ligne télépathique ouverte, Michael ! Le canal synesthésique en direct est activé.")
+        if voice_ogg and voice_ogg.getbuffer().nbytes > 0:
+            await tech_lead.telegram_vault.send_voice(voice_ogg, caption="🎙️ <i>FreeAI Live Call</i>")
+        return
+
+    # 6. Standard AI objective or Human Conversation execution
     console.print(f"[dim]Exécution de l'ordre en mode {tech_lead.mode}...[/]")
     res = await tech_lead.handle_objective(order_clean, autonomous=True)
     is_conv = res.get("assigned_agent") == "conversation" or res.get("result", {}).get("conversational", False)

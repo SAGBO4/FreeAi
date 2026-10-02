@@ -21,6 +21,17 @@ class ConversationalPersona {
   +memory
   +chat(user_message, context)
 }
+class SynestheticFrame {
+  +frame_id
+  +frame_type
+  +payload
+  +to_dict()
+}
+class SynestheticCanvasStreamer {
+  +frame_history
+  +generate_frame_from_speech(speech_text)
+}
 StreamOfConsciousnessEngine o-- CognitiveContextSensor
 StreamOfConsciousnessEngine o-- Thought
+SynestheticCanvasStreamer o-- SynestheticFrame
 ```

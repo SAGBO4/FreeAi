@@ -48,10 +48,12 @@ class FreeAIEngine:
             "tu fais quoi", "merci", "raconte", "dis-moi", "tu penses quoi",
             "blague", "avis", "discussion", "parle-moi", "bonjour jarvis", "salut freeai", "vas tu"
         ]
+        words = set(re.findall(r'\b\w+\b', p_lower))
         is_greeting_or_chit_chat = any(t in p_lower for t in conversational_triggers) or (
-            len(prompt.split()) <= 7 and any(p in p_lower for p in ["tu", "toi", "vas", "bien", "ami", "potes", "frère"])
+            len(prompt.split()) <= 7 and bool(words & {"tu", "toi", "vas", "ami", "amis", "pote", "potes", "frère", "frere"})
         )
-        if is_greeting_or_chit_chat and not any(k in p_lower for k in ["code", "fichier", "fonction", "git", "secu", "test", "docker", "script"]):
+        tech_indicators = ["code", "fichier", "fonction", "git", "secu", "sécu", "securite", "sécurité", "scan", "test", "docker", "script", "faille", "audit"]
+        if is_greeting_or_chit_chat and not any(k in p_lower for k in tech_indicators):
             return {
                 "model": self.name,
                 "domain": "conversation",

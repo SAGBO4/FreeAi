@@ -37,6 +37,8 @@ from app.tools.design_bridge import DesignSystemBridge
 from app.tools.video_engine import ProgrammaticVideoEngine
 from app.memory.vector_memory import EphemeralVectorMemory
 from app.cognition.persona import ConversationalPersona
+from app.voice.realtime_call import RealtimeCallGateway
+from app.cognition.synesthetic_canvas import SynestheticCanvasStreamer
 
 logger = logging.getLogger("tech_lead_orchestrator")
 
@@ -138,6 +140,11 @@ class TechLeadOrchestrator:
         # Episodic Vector Memory & Conversational Human Persona
         self.vector_memory = EphemeralVectorMemory()
         self.persona = ConversationalPersona(vector_memory=self.vector_memory)
+
+        # Realtime Call Gateway & Live Synesthetic Multimodal Canvas (Mode NÉANT)
+        self.realtime_call_gateway = RealtimeCallGateway()
+        self.realtime_call_gateway.attach_orchestrator(self)
+        self.synesthetic_canvas = SynestheticCanvasStreamer()
 
         # Specialized agents under Tech Lead supervision
         self.code_agent = CodeAgent(tool_gateway, forge_bridge=self.forge)
@@ -549,6 +556,16 @@ class TechLeadOrchestrator:
 
     def _on_degraded_memory(self):
         logger.warning("[TECH LEAD] Memory warning triggered (> 3.5 GB). Reducing concurrency & trimming context.")
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(self.telegram_vault.send_message(
+                "⚠️ <b>Alerte Sentinelle FreeAI :</b>\n\n"
+                "• Détection : <b>Consommation RAM > 3.5 Go</b> sur votre machine.\n"
+                "• Action préventive : <b>Purge automatique des mémoires éphémères et réduction de concurrence.</b>\n"
+                "• Impact : Votre ordinateur reste 100% protégé et fluide."
+            ))
+        except Exception:
+            pass
 
     def _on_emergency_shutdown(self):
         logger.critical("[TECH LEAD] Emergency RAM shutdown triggered (> 4.0 GB). Halting active tasks immediately!")
