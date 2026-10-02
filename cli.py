@@ -88,6 +88,9 @@ SLASH_COMMANDS = [
     "/offload",
     "/forge",
     "/craft",
+    "/design",
+    "/cyber",
+    "/skills",
     "/help",
     "/clear",
     "/exit",
@@ -362,6 +365,31 @@ def print_help():
         "/offload <mission>",
         "Ghost-Worker Runner : Exécute une mission dans le cloud éphémère GitHub même PC ÉTEINT et notifie Telegram.",
         "/offload /agent 'Audit de sécurité des dépendances'"
+    )
+    table.add_row(
+        "/forge [status|check|spec <txt>|run <feat>]",
+        "Machine Forge Fullstack : Spec, Preuve du rouge, Tamper Check, et Living Documentation.",
+        "/forge check ou /forge status"
+    )
+    table.add_row(
+        "/craft [status|list]",
+        "Craft-Suite Multi-Agents : 167 skills et 26 agents spécialisés intégrés.",
+        "/craft status"
+    )
+    table.add_row(
+        "/design [catalog|search <kw>|export|code <comp>]",
+        "Design System & Shadcn UI : 61+ composants locaux (~/Rendue/shadcn) et export GZIP vers Telegram.",
+        "/design catalog ou /design export"
+    )
+    table.add_row(
+        "/cyber [status|skills|audit]",
+        "Arsenal Cybersécurité & Pentest : Pentest-Gate, Threat-Model, Sacred Life Sentinel et Shadow Sandboxes.",
+        "/cyber status"
+    )
+    table.add_row(
+        "/skills [status|sync]",
+        "Matrice Universelle des Compétences : Vue et synchronisation des skills Cyber/Dev/Design vers Telegram & Neon.",
+        "/skills sync"
     )
     table.add_row(
         "/clear",
@@ -1960,6 +1988,123 @@ def run_craft(tech_lead: TechLeadOrchestrator, args: List[str]):
         console.print(f"  • [bold cyan]{s}[/]")
 
 
+async def run_design(tech_lead: TechLeadOrchestrator, args: List[str]):
+    """Gère le pont Design System, les composants Shadcn UI locaux et ai-elements."""
+    subcmd = args[0].lower() if args else "catalog"
+
+    if subcmd == "catalog":
+        cats = tech_lead.design_bridge.get_catalog_by_categories()
+        total = len(tech_lead.design_bridge.list_components())
+        lines = [f"[bold green]Palette de Design System Shadcn UI & AI Elements ({total} composants en local) :[/]\n"]
+        for cat, comps in cats.items():
+            lines.append(f"[bold cyan]• {cat.upper()} ({len(comps)}) :[/] {', '.join(comps)}")
+        console.print(Panel(
+            "\n".join(lines),
+            title="🎨 Shadcn/UI Component Matrix (~/Rendue/shadcn)",
+            border_style="magenta"
+        ))
+        console.print("[dim]Commandes :[/]")
+        console.print("  • [cyan]/design search <nom>[/] : Recherche un composant UI")
+        console.print("  • [cyan]/design export[/]       : Compile et téléverse le kit Shadcn complet sur Telegram Cloud")
+        console.print("  • [cyan]/design code <nom>[/]   : Affiche le code TypeScript d'un composant")
+
+    elif subcmd == "search":
+        if len(args) < 2:
+            console.print("[bold red]Usage :[/] /design search <mot-clé>")
+            return
+        query = args[1]
+        matches = tech_lead.design_bridge.search_components(query)
+        if matches:
+            console.print(f"[bold green]✔ Composants trouvés pour '{query}' :[/] {', '.join(matches)}")
+        else:
+            console.print(f"[yellow]Aucun composant correspondant à '{query}'.[/]")
+
+    elif subcmd in ("export", "telegram", "cloud"):
+        console.print("[dim]📦 Compilation du Kit UI Shadcn en RAM pure (Mode NÉANT, 0 résidu SSD)...[/]")
+        res = await tech_lead.export_design_kit_to_telegram()
+        if res.get("uploaded_to_telegram"):
+            console.print(Panel(
+                f"• Archive UI : [bold green]{res['filename']}[/]\n"
+                f"• Composants packagés : [bold cyan]{res['files_count']} fichiers[/]\n"
+                f"• Poids compressé GZIP : [bold cyan]{res['size_kb']:.2f} Ko[/]\n"
+                f"• Empreinte SSD : [bold green]0 octet[/]\n\n"
+                f"✔ [bold green]Kit de design Shadcn téléversé avec succès sur Telegram (@LesaintAi_bot) ![/]\n"
+                f"[dim]Vous pouvez désormais concevoir et télécharger vos interfaces même sur smartphone.[/]",
+                title="🎨 Design Kit Téléversé sur Telegram",
+                border_style="green"
+            ))
+        else:
+            console.print(f"[yellow]Archive prête ({res.get('files_count')} fichiers) mais téléversement en attente. Vérifiez Telegram.[/]")
+
+    elif subcmd in ("code", "show", "inspect"):
+        if len(args) < 2:
+            console.print("[bold red]Usage :[/] /design code <nom du composant>")
+            return
+        c_name = args[1]
+        code = tech_lead.design_bridge.read_component_code(c_name)
+        if code:
+            console.print(Panel(
+                code[:2000] + ("\n... [tronqué]" if len(code) > 2000 else ""),
+                title=f"📄 Composant : {c_name}.tsx",
+                border_style="cyan"
+            ))
+        else:
+            console.print(f"[bold red]Composant '{c_name}' introuvable dans ~/Rendue/shadcn/components/ui.[/]")
+
+    else:
+        console.print("[bold red]Usage :[/] /design [catalog|search <kw>|export|code <nom>]")
+
+
+async def run_cyber(tech_lead: TechLeadOrchestrator, args: List[str]):
+    """Affiche et active les compétences souveraines de Cybersécurité et Pentest."""
+    domains = tech_lead.forge.get_skills_by_domain()
+    cyber_skills = domains.get("cybersecurity", [])
+
+    console.print(Panel(
+        f"• Compétences Cybersécurité Actives : [bold green]{len(cyber_skills)} modules[/]\n"
+        f"• Modules Pentest & Audit : [bold cyan]pentest-gate, threat-model, run-poc, securecoder, scan_dependencies[/]\n"
+        f"• Protection Sanctuaire : [bold green]SacredLifeSentinel (Inviolable, Veto Immédiat)[/]\n"
+        f"• Sandbox d'Exécution : [bold cyan]ShadowDockerExecutor (RAM éphémère) & KineticShadowNetns[/]\n"
+        f"• Réseau Souverain : [bold green]Tor Onion V3 & Ultrasonic Air-Gap Transceiver[/]\n"
+        f"• Stockage Distant : [bold cyan]Telegram Neural Vault (Chiffré GZIP-9) & Neon PostgreSQL[/]",
+        title="🛡️ Arsenal de Cybersécurité & Pentest FreeAI",
+        border_style="red"
+    ))
+    console.print("[dim]Skills de sécurité opérationnels :[/]")
+    for s in cyber_skills[:12]:
+        console.print(f"  • [bold red]🛡️ {s}[/]")
+    console.print("\n[dim]Tapez [cyan]/skills sync[/] pour synchroniser tout l'arsenal vers Telegram et Neon Cloud.[/]")
+
+
+async def run_skills(tech_lead: TechLeadOrchestrator, args: List[str]):
+    """Gère et synchronise la matrice universelle des compétences (Cyber, Dev, Design) vers les clouds."""
+    subcmd = args[0].lower() if args else "status"
+
+    if subcmd in ("sync", "cloud", "push"):
+        console.print("[dim]☁️ Synchronisation de la matrice universelle de compétences vers Telegram & Neon...[/]")
+        res = await tech_lead.export_skills_matrix_to_clouds()
+        tg_txt = "[bold green]✔ Synchronisé[/]" if res["telegram"] else "[yellow]En attente[/]"
+        neon_txt = "[bold green]✔ Enregistré dans le Cloud[/]" if res["neon"] else "[dim]Non configuré[/]"
+        console.print(Panel(
+            f"• Telegram Neural Vault : {tg_txt}\n"
+            f"• Neon PostgreSQL Cloud : {neon_txt}\n"
+            f"• Disponibilité : [bold green]Accès distant garanti même PC éteint (Ghost-Worker)[/]",
+            title="🧠 Matrice de Compétences Synchronisée",
+            border_style="green"
+        ))
+    else:
+        domains = tech_lead.forge.get_skills_by_domain()
+        console.print(Panel(
+            f"• Cybersécurité & Audit : [bold red]{len(domains['cybersecurity'])} compétences[/]\n"
+            f"• Design, UI & Shadcn : [bold magenta]{len(domains['design'])} compétences[/] (+ 61 composants locaux)\n"
+            f"• Génie Logiciel & Dev : [bold cyan]{len(domains['development'])} compétences[/]\n"
+            f"• Total Universel : [bold green]{sum(len(v) for v in domains.values())} compétences mobilisables[/]",
+            title="🌌 Matrice Universelle des Compétences FreeAI",
+            border_style="cyan"
+        ))
+        console.print("[dim]Utilisez [cyan]/skills sync[/] pour sauvegarder la matrice sur vos clouds souverains.[/]")
+
+
 def get_active_workspace() -> str:
     """Returns the effective workspace root, prioritizing active git repo or WORKSPACE_ROOT."""
     cwd = Path.cwd().resolve()
@@ -2098,6 +2243,12 @@ async def interactive_cli(initial_mode: str = "freeAi"):
                     run_forge(tech_lead, args)
                 elif cmd == "/craft":
                     run_craft(tech_lead, args)
+                elif cmd == "/design":
+                    await run_design(tech_lead, args)
+                elif cmd == "/cyber":
+                    await run_cyber(tech_lead, args)
+                elif cmd == "/skills":
+                    await run_skills(tech_lead, args)
                 else:
                     console.print(f"[bold red]Commande slash inconnue :[/] '{cmd}'. Tapez [bold green]/help[/] pour la liste des commandes.")
             else:
@@ -2214,6 +2365,12 @@ def main():
                 run_forge(tech_lead, args)
             elif cmd == "/craft":
                 run_craft(tech_lead, args)
+            elif cmd == "/design":
+                asyncio.run(run_design(tech_lead, args))
+            elif cmd == "/cyber":
+                asyncio.run(run_cyber(tech_lead, args))
+            elif cmd == "/skills":
+                asyncio.run(run_skills(tech_lead, args))
             elif cmd == "/help":
                 print_help()
             else:

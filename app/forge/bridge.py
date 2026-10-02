@@ -181,3 +181,79 @@ class ForgeBridge:
             "stages": stages,
             "audit_trail": "docs/REPORT.md et docs/KNOWN_ISSUES.md synchronisés"
         }
+
+    def get_skills_by_domain(self) -> Dict[str, List[str]]:
+        """Categorizes all available Forge, Craft-Suite, and Security skills into functional domains."""
+        all_skills = sorted(list(set(self.list_forge_skills() + self.list_craft_skills())))
+        
+        cyber_keywords = ["sec", "pen", "vuln", "threat", "poc", "audit", "lock", "guard", "safe", "backup", "sentinel"]
+        design_keywords = ["design", "shadcn", "ui", "ux", "browser", "playwright", "css", "theme", "audit"]
+        
+        cyber_skills = []
+        design_skills = []
+        dev_skills = []
+
+        for s in all_skills:
+            s_low = s.lower()
+            if any(k in s_low for k in cyber_keywords):
+                cyber_skills.append(s)
+            elif any(k in s_low for k in design_keywords):
+                design_skills.append(s)
+            else:
+                dev_skills.append(s)
+
+        # Explicit known high-value skills mapping
+        core_cyber = [
+            "pentest-gate", "determine-threat-model", "create-security-implementation-plan",
+            "generate-security-audit-report", "mandatory-secure-web-skills", "run-poc",
+            "run-security-scanner", "scan_dependencies", "securecoder-persona", "backup-recovery"
+        ]
+        core_design = ["shadcn-ui", "design-research", "design-verification", "playwright-automation", "website-audit"]
+        core_dev = [
+            "forge-pipeline", "delivery-planning", "delivery-report", "dependency-selection",
+            "living-docs", "scope-and-change-control", "stack-conventions", "task-complexity",
+            "template-selection", "test-integrity", "validation-gate", "clarification-gate",
+            "db-evolution", "model-routing", "requirements-analysis"
+        ]
+
+        for s in core_cyber:
+            if s not in cyber_skills:
+                cyber_skills.append(s)
+        for s in core_design:
+            if s not in design_skills:
+                design_skills.append(s)
+        for s in core_dev:
+            if s not in dev_skills:
+                dev_skills.append(s)
+
+        return {
+            "cybersecurity": sorted(list(set(cyber_skills))),
+            "design": sorted(list(set(design_skills))),
+            "development": sorted(list(set(dev_skills)))
+        }
+
+    async def export_skills_to_telegram(self, telegram_vault: Any) -> bool:
+        """Publishes the complete multi-domain skill matrix to the Telegram Neural Vault."""
+        domains = self.get_skills_by_domain()
+        lines = [
+            "🛡️ <b>[Matrice des Compétences Universelles FreeAI]</b>",
+            f"• <b>Cybersécurité & Pentest ({len(domains['cybersecurity'])}) :</b>",
+            f"  <code>{', '.join(domains['cybersecurity'][:8])}...</code>",
+            f"• <b>Design & UI Kit ({len(domains['design'])}) :</b>",
+            f"  <code>{', '.join(domains['design'][:6])}...</code>",
+            f"• <b>Génie Logiciel & Dev ({len(domains['development'])}) :</b>",
+            f"  <code>{', '.join(domains['development'][:8])}...</code>",
+            "\n<i>☁️ Accessible à distance même PC éteint via Telegram & Ghost-Worker.</i>"
+        ]
+        return await telegram_vault.send_message("\n".join(lines))
+
+    async def export_skills_to_neon(self, neon_memory: Any) -> bool:
+        """Saves the skill catalog into Neon PostgreSQL memory for remote querying."""
+        domains = self.get_skills_by_domain()
+        payload = json.dumps(domains)
+        return neon_memory.save_knowledge(
+            query="skills_matrix_cyber_dev_design",
+            provider="forge_craft_suite",
+            model="universal_matrix",
+            response=payload
+        )

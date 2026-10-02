@@ -33,6 +33,7 @@ from app.tools.shadow_docker import ShadowDockerExecutor
 from app.cognition.hermes_scratchpad import HermesScratchpadEngine
 from app.network.onion_portal import SovereignOnionPortal
 from app.forge.bridge import ForgeBridge
+from app.tools.design_bridge import DesignSystemBridge
 
 logger = logging.getLogger("tech_lead_orchestrator")
 
@@ -124,6 +125,9 @@ class TechLeadOrchestrator:
 
         # Forge & Craft-Suite Fullstack Engineering Engine
         self.forge = ForgeBridge(workspace_root=self.tool_gateway.workspace_root)
+
+        # Local Shadcn UI & Design System Bridge
+        self.design_bridge = DesignSystemBridge()
 
         # Specialized agents under Tech Lead supervision
         self.code_agent = CodeAgent(tool_gateway, forge_bridge=self.forge)
@@ -494,6 +498,16 @@ class TechLeadOrchestrator:
     def get_telegram_status(self) -> Dict[str, Any]:
         """Returns Telegram Neural Vault configuration and sync statistics."""
         return self.telegram_vault.get_status()
+
+    async def export_design_kit_to_telegram(self) -> Dict[str, Any]:
+        """Packages local shadcn/ui kit and exports it to Telegram."""
+        return await self.design_bridge.export_to_telegram(self.telegram_vault)
+
+    async def export_skills_matrix_to_clouds(self) -> Dict[str, Any]:
+        """Exports Forge, Craft-Suite, Cyber, Design, and Dev skills to Telegram & Neon."""
+        tg_ok = await self.forge.export_skills_to_telegram(self.telegram_vault)
+        neon_ok = await self.forge.export_skills_to_neon(self.neon_memory)
+        return {"telegram": tg_ok, "neon": neon_ok}
 
     def _on_degraded_memory(self):
         logger.warning("[TECH LEAD] Memory warning triggered (> 3.5 GB). Reducing concurrency & trimming context.")
