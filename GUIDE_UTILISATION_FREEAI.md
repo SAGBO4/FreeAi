@@ -351,7 +351,7 @@ L'une des forces majeures de FreeAI est sa capacité à fouiller l'ordinateur en
 
 ---
 
-## 6. La Mémoire NÉANT et la Compression GZIP vers Neon
+## 6. La Mémoire NÉANT et la Synchronisation Dual-Cloud (Neon & Telegram) ☁️🛡️
 
 ### Pourquoi le Mode NÉANT ?
 Sur des machines légères ou à stockage maîtrisé (comme le HP EliteBook sous Kali Linux), l'accumulation de logs volumineux ou de bases de données vectorielles locales dégrade les performances et encombre le disque.
@@ -360,44 +360,164 @@ FreeAI adopte une règle absolue :
 - **0 octet écrit sur le disque local** dans `memory/` et `logs/`.
 - En RAM, seules les données actives sont conservées et purgées automatiquement.
 
-### Comment fonctionne la persistance Neon Cloud ?
-Lorsque vous configurez `NEON_DATABASE_URL` dans votre fichier `.env` :
-1. **Extraction de l'Essentiel** (`NeonMemoryManager.extract_essentials`) :
-   Les traces verbeuses et superflues sont éliminées. Seuls le statut, l'agent, le message clé, les fichiers modifiés et les découvertes de sécurité sont conservés.
-2. **Compression GZIP Maximale** :
-   Le contenu JSON est compressé via `gzip` au niveau 9, puis encodé en Base64 avec l'en-tête `gz:`.
-3. **Stockage Distant Déporté** :
-   Les données sont envoyées à la base de données PostgreSQL Neon.
-4. **Décompression Transparente** :
-   À la lecture (`get_knowledge`), la mémoire est automatiquement décompressée à la volée.
+### Architecture Résiliente Dual-Cloud (Neon PostgreSQL + Telegram Neural Vault)
+Les connaissances acquises et la mémoire essentielle ne dépendent pas d'un seul point de panne :
+1. **Double Miroir Automatique** :
+   Chaque fois qu'une connaissance est apprise (`/learn` ou via l'acquisition d'un modèle en ligne), elle est compressée en GZIP-9 et envoyée simultanément :
+   - Sur **Neon PostgreSQL Cloud** (base relationnelle serverless).
+   - Sur le **Telegram Neural Vault** (`@LesaintAi_bot`) sous forme de notification claire et d'archive brute `.json.gz`.
+2. **Résilience Absolue en cas de Panne Neon** :
+   Si Neon subit une coupure réseau ou une interruption de service, **Telegram prend immédiatement et automatiquement le relais**. Aucune connaissance n'est perdue.
+3. **Récupération Transparente (`get_knowledge`)** :
+   FreeAI interroge Neon en priorité ; si Neon est inaccessible, il bascule instantanément sur le coffre-fort Telegram en mémoire volatile.
+
+```bash
+# Synchroniser manuellement en miroir sur Neon et Telegram
+/sync
+
+# Enregistrer une connaissance spécifique en double sauvegarde
+/learn securite "Politique de filtrage des ports 21 et 23 sur eth0"
+```
 
 ---
 
-## 7. Tableau Récapitulatif des Commandes
+## 7. Shadow-Sandbox Multi-Tier & Confinement Sudo 🐳🛡️
+
+Pour les tâches root ou de diagnostic cyber sensible, FreeAI fournit un bac à sable souverain à confinement multi-paliers :
+- **Architecture Multi-Paliers (Multi-Tier Engine)** :
+  - **Palier 1 (Tier 1)** : Conteneur Docker éphémère (`freeai-shadow:latest`).
+  - **Palier 2 (Tier 2)** : Bubblewrap Linux Namespaces (`bwrap`) — bac à sable noyau démoniaque autonome sans avoir besoin du démon Docker.
+  - **Palier 3 (Tier 3)** : PhantomBusIPC — exécution volatile en RAM pure via descripteurs mémoires `memfd_create`.
+- **Mode Dual-Stockage Volatile** :
+  - *Mode Lecture Seule (par défaut)* : `--read-only` avec montages RAM étendus (`/tmp:64m`, `/run:16m`, `/dev/shm:64m`, `/var/cache:64m`, `/var/log:32m`, `/root:32m`).
+  - *Mode Inscriptible Éphémère (`--rw`)* : Couche d'écriture volatile sans read-only, détruite instantanément dès la fin du processus (`--rm`, 0 résidu SSD).
+- **Shadow Micro-Init (`systemctl` & `service`)** : Shims intégrés interceptant les commandes de services standards (`start`, `stop`, `status`, `restart`) et gérant les daemons en arrière-plan sans planter sur l'absence de systemd PID 1.
+- **Arsenal Cyber Embarqué** : `nmap`, `socat`, `tcpdump`, `dnsutils`, `iptables`, `nftables`, `strace`, `lsof`, `jq`, `openssl`, `python3`.
+- **Pont Workspace Sécurisé (`--mount` / `--mount-rw`)** : Montage dynamique et contrôlé du répertoire de travail dans `/workspace/host` avec validation stricte contre toute tentative de traversée système (`/etc`, `/boot`, etc.).
+- **Sanctuaire Inviolable de la Vie Humaine** : Tout ordre ciblant des infrastructures de santé ou d'armement est rejeté par le `SacredLifeSentinel`.
+
+```bash
+# Vérifier l'état de la sandbox et le palier actif
+/docker status
+
+# Exécuter une commande root confinée en lecture seule avec tmpfs RAM
+/docker run nmap -sT 127.0.0.1 -p 80,443
+
+# Exécuter avec couche d'écriture éphémère en RAM (permettant installations ou créations de fichiers)
+/docker run --rw apt-get update
+
+# Exécuter en montant le dossier courant en lecture seule pour audit de sécurité
+/docker run --mount nmap -iL /workspace/host/targets.txt
+
+# Gérer un service de manière fluide via le micro-init
+/docker run "systemctl start nginx && systemctl status nginx"
+```
+
+### Déploiement Conteneurisé Complet (`docker-compose.yml`)
+FreeAI peut tourner lui-même entièrement dans Docker pour un déploiement souverain clé en main :
+```bash
+docker compose up -d
+```
+
+---
+
+## 8. Agent Cognitif Autonome Hermes 3 & Claude 3.7 🧠
+
+Inspiré des plus grandes avancées de l'ingénierie cognitive (Nous Hermes 3 et Claude 3.7 Extended Thinking) :
+- **Raisonnement Étendu (`<thinking>`)** : Décomposition multi-étape, auto-critique récursive et audit des risques avant exécution.
+- **Appel d'Outils Déterministe (`<tool_call>`)** : Sélection et invocation structurée des capacités système (`shadow_docker`, `shadow_netns`, `phantom_bus`, `gateway`).
+- **Injection du Résultat (`<tool_response>`)** : Prise en compte de la sortie réelle de l'outil pour synthèse finale vérifiée.
+- **Cycle ReAct Complet (`/agent` ou `/hermes run`)** : L'agent planifie, exécute et synthétise de manière autonome en mémoire volatile (< 50 Ko).
+
+```bash
+# Lancer une mission autonome avec cycle ReAct
+/agent "Audite les ports d'écoute locaux et vérifie l'intégrité mémoire"
+
+# Consulter l'état du moteur cognitif
+/hermes status
+
+# Obtenir un arbre de réflexion sans exécution
+/hermes think "Architecture de chiffrement résiliente aux pannes réseau"
+```
+
+---
+
+## 9. Passerelle Souveraine Tor Onion V3 (Contrôle Distant Décentralisé) 🧅
+
+Pour piloter FreeAI à distance de manière 100% souveraine, anonyme et gratuite (alternative aux domaines Unstoppable payants) :
+- **Chiffrement Militaire Ed25519** : Point de terminaison décentralisé `.onion` v3 routé à travers le réseau mondial Tor.
+- **Accès Strictement Confiné au Mode Sudo (`lesaintAi`)** : Impossible à démarrer ou exploiter en mode standard `freeAi`.
+- **Mode NÉANT Inviolable (0 octet SSD)** : Les clés de chiffrement éphémères résident strictement dans `/dev/shm` (RAM). À l'arrêt (`/onion stop` ou `/mode freeAi`), elles sont atomiquement pulvérisées.
+- **Déploiement 100% Autonome (Zéro Configuration)** : FreeAI détecte et lance le démon Tor automatiquement dans son conteneur durci `freeai-shadow` sans aucune intervention manuelle.
+- **Authentification HMAC Bearer Token** : Un jeton cryptographique à haute entropie est généré pour chaque session.
+- **Garde-Fou Sacré (`SacredLifeSentinel`)** : Toute commande entrante est soumise au veto mathématique d'intégrité de la vie humaine.
+
+```bash
+# Vérifier l'état de la passerelle décentralisée
+/onion status
+
+# Démarrer le point de terminaison distant (exige le mode super-utilisateur)
+/mode lesaintAi
+/onion start
+
+# Afficher le jeton Bearer et l'exemple de commande de pilotage distant
+/onion token
+
+# Exemple de requête à distance via le réseau Tor :
+torsocks curl -H "Authorization: Bearer <TON_JETON>" http://<VOTRE_ADRESSE>.onion/status
+
+# Arrêter immédiatement la passerelle et détruire les clés en RAM
+/onion stop
+```
+
+---
+
+## 10. Persistance Dual-Cloud Résiliente (Neon PostgreSQL + Telegram Neural Vault) ☁️
+
+Pour garantir que vos connaissances et apprentissages ne soient jamais perdus même si la base Neon est coupée :
+- **Double Réplication Automatique** : Tout apprentissage ou consigne est persisté simultanément sur Neon PostgreSQL (compressé GZIP) et sur le coffre Telegram Neural Vault.
+- **Commande `/learn`** : Permet d'enseigner explicitement une règle métier ou une connaissance critique à FreeAI.
+```bash
+/learn "Toujours privilégier la compilation statique et le confinement RAM sous /dev/shm"
+```
+
+---
+
+## 11. Tableau Récapitulatif des Commandes
 
 | Commande | Raccourci / Syntaxe | Description |
 | :--- | :--- | :--- |
 | **Changer de mode** | `/mode [nom]` | Bascule entre `freeAi` et `lesaintAi` |
 | **Statut du système** | `/status` | Diagnostic RAM, CPU, Sudo, Neon |
+| **Agent ReAct Autonome** | `/agent <mission>` | Cycle ReAct Hermes 3 & Claude 3.7 autonome |
+| **Hermes Cognitif** | `/hermes [status\|run\|think]` | Raisonnement étendu et appel d'outils XML structuré |
+| **Passerelle Tor Onion V3** | `/onion [status\|start\|stop\|token]` | Contrôle distant décentralisé éphémère (Mode Sudo `lesaintAi`) |
+| **Apprentissage Dual-Cloud**| `/learn <connaissance>` | Enregistre un savoir simultanément sur Neon et Telegram |
+| **Scratchpad Cognitif** | `/scratchpad <objectif>` | Décomposition interne `<thinking>` en RAM |
+| **Shadow Docker Root** | `/docker [status\|run [--rw] [--mount] <cmd>]` | Confinement multi-paliers (Docker/Bwrap/Phantom), micro-init, montages |
 | **Chercher un fichier** | `/search <motif> [dir]` | Recherche de fichiers sur le PC |
 | **Chercher du code** | `/code <texte> [ext] [dir]` | Recherche de code dans les fichiers |
 | **Rollback Git** | `/rollback` | Annulation immédiate (`git reset --hard`) |
 | **Synchroniser Neon** | `/sync` | Compression GZIP et sauvegarde cloud |
+| **Kinetic Tor Netns** | `/shadow <commande>` | Routage furtif sous tunnel Tor SOCKS5 multi-hop |
+| **Transducteur Phantom** | `/phantom <script>` | Exécution volatile en RAM pure via `memfd_create` |
 | **Consensus Clash** | `/clash <problème>` | Débat contradictoire multi-IA (DeepSeek vs Grok) & arbitrage |
 | **Guide GPUs Libres** | `/gpu` | Catalogue des GPUs/LPUs gratuits (Groq, OpenRouter, Colab) |
-| **Swarm LAN / Distribué** | `/cluster [scan|list|add|ssh]` | Exploitation des autres PC du réseau local et workers GPU |
+| **Swarm LAN / Distribué** | `/cluster [scan\|list\|add\|ssh]` | Exploitation des autres PC du réseau local et workers GPU |
 | **Nettoyer l'écran** | `/clear` | Efface le terminal |
 | **Aide** | `/help` | Affiche la liste des commandes |
 | **Quitter** | `/exit` ou `/quit` | Ferme l'application |
 
 ---
 
-## 8. Bonnes Pratiques & Sécurité
+## 10. Bonnes Pratiques & Sécurité
 
 1. **Restez en mode `freeAi` par défaut** : Utilisez le mode `freeAi` pour toutes les tâches usuelles. N'activez `/mode lesaintAi` que lorsque vous avez expressément besoin de privilèges administrateur (`sudo`, installation de paquets système, configuration d'interfaces réseau).
-2. **Vérifiez votre RAM avec `/status`** : Le watchdog veille automatiquement avec un seuil de dégradation à 3,5 GB et un arrêt d'urgence à 4,0 GB. Consulter `/status` vous permet de garder un œil sur la consommation réelle.
-3. **Utilisez `/rollback` en cas de doute** : Si une modification de code ne correspond pas à vos attentes, le rollback instantané remet votre projet dans un état propre et fonctionnel.
-4. **Configurez votre URL Neon** dans `.env` : Pour profiter de la mémoire persistante cloud sans consommer un seul mégaoctet de votre disque dur local.
+2. **Privilégiez `/docker run` pour les commandes root** : Exécuter des opérations root sous `/docker run` garantit une isolation totale en RAM sans modifier l'intégrité du système hôte.
+3. **Exploitez `/agent` pour les missions complexes** : L'agent autonome Hermes-Claude combine la rigueur analytique de Claude et la précision d'exécution d'Hermes pour résoudre vos problèmes sans approximations.
+4. **Vérifiez votre RAM avec `/status`** : Le watchdog veille automatiquement avec un seuil de dégradation à 3,5 GB et un arrêt d'urgence à 4,0 GB. Consulter `/status` vous permet de garder un œil sur la consommation réelle.
+5. **Utilisez `/rollback` en cas de doute** : Si une modification de code ne correspond pas à vos attentes, le rollback instantané remet votre projet dans un état propre et fonctionnel.
+6. **Configurez votre URL Neon** dans `.env` : Pour profiter de la mémoire persistante cloud sans consommer un seul mégaoctet de votre disque dur local.
 
 ---
 

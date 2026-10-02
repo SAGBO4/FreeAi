@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  freeai:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: freeai:latest
+    container_name: freeai_orchestrator
+    stdin_open: true
+    tty: true
+    env_file:
+      - .env
+    environment:
+      - WORKSPACE_ROOT=/workspace
+      - MODE_NEANT=true
+      - OLLAMA_HOST=http://host.docker.internal:11434
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./workspace:/workspace
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /dev/shm:/dev/shm
+    tmpfs:
+      - /tmp:rw,size=64m
+    restart: unless-stopped
+    command: ["--mode", "freeAi"]

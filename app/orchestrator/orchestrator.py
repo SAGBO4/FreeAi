@@ -29,6 +29,9 @@ from app.memory.binary_hologram import BinaryHologramEngine
 from app.cluster.ultrasonic_airgap import UltrasonicAirGapTransceiver
 from app.orchestrator.phantom_bus_ipc import PhantomBusIPC
 from app.tools.kinetic_netns import KineticShadowNetns
+from app.tools.shadow_docker import ShadowDockerExecutor
+from app.cognition.hermes_scratchpad import HermesScratchpadEngine
+from app.network.onion_portal import SovereignOnionPortal
 
 logger = logging.getLogger("tech_lead_orchestrator")
 
@@ -109,6 +112,15 @@ class TechLeadOrchestrator:
         # Kinetic Shadow-Netns (Ephemeral Deep Web & SOCKS5 Routing in RAM)
         self.shadow_netns = KineticShadowNetns()
 
+        # Shadow-Docker Sandbox (Hardened Ephemeral Sudo Execution in RAM with Fallback)
+        self.shadow_docker = ShadowDockerExecutor()
+
+        # Hermes & Claude Cognitive Scratchpad (Extended Thinking & Function Calling)
+        self.hermes_cognition = HermesScratchpadEngine()
+
+        # Sovereign Tor Onion V3 Portal (Remote Cryptographic Gateway - Sudo Locked)
+        self.onion_portal = SovereignOnionPortal(orchestrator=self)
+
         # Specialized agents under Tech Lead supervision
         self.code_agent = CodeAgent(tool_gateway)
         self.security_agent = SecurityAgent(tool_gateway)
@@ -128,6 +140,12 @@ class TechLeadOrchestrator:
             allow_network=getattr(self.tool_gateway, "allow_network", True)
         )
         self.mesh_beacon.allow_network = getattr(self.tool_gateway, "allow_network", True)
+        if self.mode == "freeAi" and getattr(self, "onion_portal", None) and self.onion_portal.is_active:
+            try:
+                loop = asyncio.get_running_loop()
+                loop.create_task(self.onion_portal.stop_portal())
+            except Exception:
+                pass
         logger.info(f"[TECH LEAD] Orchestrator mode switched to: {self.mode}")
         return res
 
@@ -159,6 +177,8 @@ class TechLeadOrchestrator:
             "ultrasonic_airgap": self.ultrasonic_airgap.get_status(),
             "phantom_bus": self.phantom_bus.get_status(),
             "shadow_netns": self.shadow_netns.get_status(),
+            "shadow_docker": self.shadow_docker.get_status(),
+            "hermes_cognition": self.hermes_cognition.get_status(),
             "telegram_vault": self.telegram_vault.get_status(),
             "voice_conduit": self.voice.get_status()
         }
@@ -172,9 +192,116 @@ class TechLeadOrchestrator:
         """Executes a bash command inside an ephemeral anonymous network routing context in RAM."""
         return await self.shadow_netns.execute_anonymous_task(command, timeout_sec=timeout_sec)
 
+    async def execute_sudo_docker(
+        self,
+        script: str,
+        timeout_sec: int = 45,
+        network_enabled: bool = True,
+        writable: bool = False,
+        workspace_mount: Optional[str] = None,
+        mount_mode: str = "ro"
+    ) -> Dict[str, Any]:
+        """Executes a command inside the hardened multi-tier ephemeral Shadow-Docker sandbox."""
+        return await self.shadow_docker.execute_sudo_task(
+            script,
+            timeout_sec=timeout_sec,
+            network_enabled=network_enabled,
+            writable=writable,
+            workspace_mount=workspace_mount,
+            mount_mode=mount_mode
+        )
+
+    def think_hermes(self, objective: str) -> Dict[str, Any]:
+        """Formulates an extended thinking scratchpad in the style of Nous Hermes & Claude."""
+        return self.hermes_cognition.formulate_thought_scratchpad(objective)
+
+    async def run_hermes_agent(self, objective: str, max_turns: int = 3) -> Dict[str, Any]:
+        """Runs an autonomous multi-turn ReAct cognitive mission using Hermes 3 and Claude Extended Thinking."""
+        return await self.hermes_cognition.execute_autonomous_cycle(
+            objective=objective,
+            executor=self,
+            max_turns=max_turns
+        )
+
+    async def start_onion_portal(self) -> Dict[str, Any]:
+        """Launches the Tor Onion V3 portal. Strictly restricted to 'lesaintAi' mode."""
+        return await self.onion_portal.start_portal(mode=self.mode)
+
+    async def stop_onion_portal(self) -> bool:
+        """Stops the Tor Onion V3 portal and obliterates ephemeral keys from RAM."""
+        return await self.onion_portal.stop_portal()
+
+    def get_onion_portal_status(self) -> Dict[str, Any]:
+        """Returns the status and security configuration of the Onion V3 portal."""
+        return self.onion_portal.get_status()
+
     def sync_neon(self, payload: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Synchronizes and compresses essential memory on Neon PostgreSQL."""
         return self.neon_memory.sync_memory(payload)
+
+    async def persist_knowledge(
+        self,
+        query: str,
+        response: str,
+        topic: str = "general",
+        provider: str = "free_online_model",
+        model: str = "federation"
+    ) -> Dict[str, Any]:
+        """Dual-Persists knowledge across both Neon PostgreSQL and Telegram Neural Vault.
+        Guarantees resilience: even if Neon cuts off or is offline, knowledge is preserved in Telegram cloud.
+        """
+        neon_ok = False
+        telegram_ok = False
+
+        # 1. Primary: Neon PostgreSQL (if enabled/available)
+        if self.neon_memory.enabled:
+            try:
+                neon_ok = self.neon_memory.save_knowledge(
+                    query=query,
+                    provider=provider,
+                    model=model,
+                    response=response
+                )
+            except Exception as e:
+                logger.warning(f"[ORCHESTRATOR] Neon knowledge save failed ({e}), relying on Telegram mirror.")
+
+        # 2. Mirror & Fallback: Telegram Neural Vault (ALWAYS attempted)
+        try:
+            telegram_ok = await self.telegram_vault.save_knowledge(
+                topic=topic,
+                query=query,
+                response=response
+            )
+        except Exception as e:
+            logger.warning(f"[ORCHESTRATOR] Telegram knowledge mirror failed: {e}")
+
+        return {
+            "query": query,
+            "topic": topic,
+            "neon_synced": neon_ok,
+            "telegram_synced": telegram_ok,
+            "resilient": neon_ok or telegram_ok
+        }
+
+    def get_knowledge(self, query: str) -> Optional[str]:
+        """Retrieves knowledge with automatic fallback to Telegram Neural Vault if Neon is offline."""
+        # 1. Check Neon PostgreSQL
+        if self.neon_memory.enabled:
+            ans = self.neon_memory.get_knowledge(query)
+            if ans:
+                return ans
+        # 2. Fallback to Telegram in-memory / cloud vault
+        return self.telegram_vault.get_buffered_knowledge(query)
+
+    async def sync_dual_cloud(self, payload: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """Synchronizes and compresses essential memory on BOTH Neon PostgreSQL and Telegram Cloud."""
+        neon_res = self.neon_memory.sync_memory(payload)
+        tg_ok = await self.sync_telegram()
+        return {
+            "neon": neon_res,
+            "telegram_synced": tg_ok,
+            "success": neon_res.get("success", False) or tg_ok
+        }
 
     def rollback(self) -> Dict[str, Any]:
         """Performs instant Git reset to HEAD to undo uncommitted changes."""
@@ -425,15 +552,17 @@ class TechLeadOrchestrator:
         # Notify Stream of Consciousness (asynchronous non-blocking reflexive pulse)
         self.consciousness.notify_action_completed(objective, str(result.get("output", ""))[:200])
 
-        # 5. Offload audit result & knowledge to Neon PostgreSQL (force majeure cloud backup)
+        # 5. Dual-Cloud Resilient Persistence: mirror knowledge to Neon AND Telegram Neural Vault
+        if online_knowledge:
+            await self.persist_knowledge(
+                query=objective,
+                response=online_knowledge,
+                topic="objective_resourcing",
+                provider="free_online_model",
+                model="federation"
+            )
+
         if self.neon_memory.enabled:
-            if online_knowledge:
-                self.neon_memory.save_knowledge(
-                    query=objective,
-                    provider="free_online_model",
-                    model="federation",
-                    response=online_knowledge
-                )
             self.neon_memory.log_audit_event(
                 objective=objective,
                 agent=agent_type,

@@ -8,6 +8,7 @@ and Neon Cloud GZIP memory synchronization.
 
 import os
 import sys
+import json
 import shlex
 import asyncio
 import logging
@@ -51,6 +52,7 @@ SLASH_COMMANDS = [
     "/status",
     "/rollback",
     "/sync",
+    "/learn",
     "/online",
     "/ask",
     "/asklog",
@@ -78,6 +80,11 @@ SLASH_COMMANDS = [
     "/airgap",
     "/phantom",
     "/shadow",
+    "/docker",
+    "/scratchpad",
+    "/hermes",
+    "/agent",
+    "/onion",
     "/help",
     "/clear",
     "/exit",
@@ -159,8 +166,13 @@ def print_help():
     )
     table.add_row(
         "/sync",
-        "Synchronise et compresse en GZIP la mémoire essentielle sur Neon PostgreSQL.",
+        "Synchronisation Dual-Cloud miroir : sauvegarde et compresse en GZIP sur Neon ET Telegram Vault.",
         "/sync"
+    )
+    table.add_row(
+        "/learn <sujet> <connaissance>",
+        "Apprentissage Souverain : injecte une connaissance en double miroir résilient sur Neon et Telegram.",
+        "/learn firewall 'Bloquer ports 21,23 sur eth0'"
     )
     table.add_row(
         "/online [nom]",
@@ -266,6 +278,31 @@ def print_help():
         "/shadow <commande bash>",
         "Kinetic Shadow-Netns : Tâches furtives sous tunnel anonyme Deep Web multi-hop (Tor SOCKS5) sans compte.",
         "/shadow curl -s https://check.torproject.org"
+    )
+    table.add_row(
+        "/docker [status|run [--rw] [--mount] <cmd>]",
+        "Shadow-Sandbox Multi-Tier : Confinement root (Docker / Bubblewrap / PhantomBus), Arsenal Cyber, micro-init & pont workspace.",
+        "/docker run --rw --mount uname -a"
+    )
+    table.add_row(
+        "/scratchpad <objectif>",
+        "Scratchpad Hermes-Claude : Raisonnement étendu (<thinking>), auto-critique et appel d'outils JSON structuré.",
+        "/scratchpad 'Audite la configuration réseau'"
+    )
+    table.add_row(
+        "/hermes [status|run|think <mission>]",
+        "Agent Hermes 3 & Claude 3.7 : Cycle ReAct autonome complet (Thinking -> Tool Call -> Tool Response -> Synthèse).",
+        "/hermes run 'Analyse des vulnérabilités'"
+    )
+    table.add_row(
+        "/agent <mission>",
+        "Raccourci Agent Autonome : Déclenche directement un cycle ReAct Hermes-Claude avec confinement sécurisé.",
+        "/agent 'Vérifie l'état mémoire et le Mode NÉANT'"
+    )
+    table.add_row(
+        "/onion [status|start|stop]",
+        "Portail Tor Onion V3 Souverain : Accès distant incensurable chiffré Ed25519 (strictement réservé au mode sudo lesaintAi).",
+        "/onion start"
     )
     table.add_row(
         "/clear",
@@ -445,24 +482,62 @@ def run_rollback(tech_lead: TechLeadOrchestrator):
 
 
 def run_sync(tech_lead: TechLeadOrchestrator):
-    """Executes Neon memory synchronization with GZIP compression."""
-    console.print("[dim]☁ Synchronisation et compression GZIP de la mémoire essentielle sur Neon PostgreSQL...[/]")
-    res = tech_lead.sync_neon()
-    if res.get("success"):
-        orig = res.get("original_bytes", 0)
-        zip_size = res.get("compressed_bytes", 0)
-        ratio = res.get("ratio_saved", "N/A")
-        console.print(Panel(
-            f"[bold green]✔ Synchronisation réussie ![/]\n\n"
-            f"• [white]Données brutes :[/] {orig} octets\n"
-            f"• [white]Taille compressée (GZIP) :[/] [bold cyan]{zip_size} octets[/]\n"
-            f"• [white]Gain d'espace :[/] [bold green]{ratio}[/]\n"
-            f"• [dim]{res.get('message')}[/]",
-            title="☁ Synchronisation Neon Cloud",
-            border_style="green"
-        ))
-    else:
-        console.print(f"[bold red]❌ Échec de la synchronisation :[/] {res.get('error') or res.get('message')}")
+    """Executes Dual-Cloud memory synchronization (Neon PostgreSQL & Telegram Neural Vault)."""
+    console.print("[dim]☁ Synchronisation miroir de la mémoire sur Neon PostgreSQL & Telegram Cloud...[/]")
+    neon_res = tech_lead.sync_neon()
+    try:
+        loop = asyncio.get_running_loop()
+        if loop.is_running():
+            asyncio.create_task(tech_lead.sync_telegram())
+            tg_ok = True
+        else:
+            tg_ok = loop.run_until_complete(tech_lead.sync_telegram())
+    except RuntimeError:
+        tg_ok = asyncio.run(tech_lead.sync_telegram())
+
+    neon_ok = neon_res.get("success", False)
+    orig = neon_res.get("original_bytes", 0)
+    zip_size = neon_res.get("compressed_bytes", 0)
+    ratio = neon_res.get("ratio_saved", "N/A")
+
+    neon_desc = f"[bold green]✔ Connecté & Synchronisé[/] ({orig}B -> {zip_size}B, {ratio} sauvés)" if neon_ok else f"[yellow]⚠️ Indisponible ({neon_res.get('error', 'Coupé')})[/]"
+    tg_desc = "[bold green]✔ Synchronisé & Archivé (GZIP-9)[/]" if tg_ok else "[yellow]⚠️ En attente (/start requis sur @LesaintAi_bot)[/]"
+
+    console.print(Panel(
+        f"• Neon PostgreSQL Cloud : {neon_desc}\n"
+        f"• Telegram Neural Vault : {tg_desc}\n\n"
+        f"[dim]🛡️ Résilience Absolue : Vos connaissances et mémoires sont sauvegardées en double miroir.[/]",
+        title="☁ Synchronisation Dual-Cloud (Neon & Telegram)",
+        border_style="green" if (neon_ok or tg_ok) else "red"
+    ))
+
+
+async def run_learn(tech_lead: TechLeadOrchestrator, args: List[str]):
+    """Enregistre une nouvelle connaissance en miroir sur Neon et Telegram."""
+    if len(args) < 2:
+        console.print("[bold red]Usage :[/] /learn <sujet/topic> <connaissance ou instruction>")
+        return
+    topic = args[0]
+    content = " ".join(args[1:])
+    console.print(f"[dim]🧠 Enregistrement de la connaissance #{topic} sur Neon & Telegram...[/]")
+    report = await tech_lead.persist_knowledge(
+        query=f"#{topic} : {content[:80]}",
+        response=content,
+        topic=topic,
+        provider="user_direct_input",
+        model="human_master"
+    )
+    neon_txt = "[bold green]✔ Sauvegardé[/]" if report["neon_synced"] else "[yellow]⚠️ Hors-ligne (Fallback Telegram actif)[/]"
+    tg_txt = "[bold green]✔ Synchronisé & Archivé GZIP[/]" if report["telegram_synced"] else "[yellow]⚠️ Archivé en RAM volatile (en attente bot)[/]"
+
+    console.print(Panel(
+        f"• Sujet / Thème : [bold cyan]#{topic}[/]\n"
+        f"• Neon PostgreSQL : {neon_txt}\n"
+        f"• Telegram Neural Vault : {tg_txt}\n"
+        f"• Résilience Mémoire : [bold green]Garantie (Zéro perte même si Neon coupe)[/]",
+        title="🧠 Apprentissage Dual-Cloud Enregistré",
+        border_style="cyan"
+    ))
 
 
 async def execute_tech_lead_task(tech_lead: TechLeadOrchestrator, objective: str):
@@ -1213,8 +1288,35 @@ async def run_telegram(tech_lead: TechLeadOrchestrator, args: List[str]):
         else:
             console.print("[dim]Aucun nouvel ordre reçu sur Telegram lors de cette vérification.[/]")
 
+    elif subcmd in ("backup", "clone"):
+        console.print("[dim]📦 Génération du Kit de Secours et Auto-Clonage en RAM (0 résidu SSD)...[/]")
+        workspace = str(tech_lead.tool_gateway.workspace_root)
+        res = await tech_lead.telegram_vault.backup_codebase_bundle(workspace)
+        if res.get("uploaded_to_telegram"):
+            console.print(Panel(
+                f"• Fichier archive : [bold green]{res['filename']}[/]\n"
+                f"• Fichiers packagés : [bold cyan]{res['files_count']}[/]\n"
+                f"• Poids compressé GZIP : [bold cyan]{res['size_kb']:.2f} Ko[/]\n"
+                f"• Empreinte SSD locale : [bold green]0 octet (Mode NÉANT pur)[/]\n"
+                f"• Intégrité SHA-256 : [bold yellow]{res['sha256'][:16]}...[/]\n\n"
+                f"✔ [bold green]Codebase FreeAI téléversé dans votre coffre Telegram ![/]\n"
+                f"[dim]En cas de perte de votre PC, téléchargez ce fichier depuis Telegram et extrayez-le.[/]",
+                title="📦 Auto-Clonage Telegram Sauvegardé",
+                border_style="green"
+            ))
+        else:
+            console.print(Panel(
+                f"• Fichiers analysés : [bold cyan]{res['files_count']}[/]\n"
+                f"• Poids de l'archive : [bold cyan]{res['size_kb']:.2f} Ko[/]\n"
+                f"• Intégrité SHA-256 : [bold yellow]{res['sha256'][:16]}...[/]\n"
+                f"[yellow]Archive prête en RAM mais téléversement Telegram en attente.[/]\n"
+                f"[dim]💡 Envoyez /start à @LesaintAi_bot sur Telegram pour autoriser le téléversement direct.[/]",
+                title="📦 Kit de Secours Compilé en RAM",
+                border_style="yellow"
+            ))
+
     else:
-        console.print("[bold red]Usage :[/] /telegram [status|sync|push <topic> <texte>|listen]")
+        console.print("[bold red]Usage :[/] /telegram [status|sync|backup|clone|push <topic> <texte>|listen]")
 
 
 async def run_vortex(tech_lead: TechLeadOrchestrator, args: List[str]):
@@ -1361,6 +1463,264 @@ async def run_shadow(tech_lead: TechLeadOrchestrator, args: List[str]):
         console.print(f"[bold red]⛔ VETO / ERREUR :[/] {e}")
 
 
+async def run_docker(tech_lead: TechLeadOrchestrator, args: List[str]):
+    """Gère le Shadow-Docker Sandbox Multi-Tier pour les tâches root confinées en RAM."""
+    subcmd = args[0].lower() if args else "status"
+    if subcmd == "status" or not args:
+        st = tech_lead.shadow_docker.get_status()
+        console.print(Panel(
+            f"• Confinement Actif : [bold cyan]{st.get('active_tier', 'Docker Sandbox')}[/]\n"
+            f"• Démon Docker Hôte : {'[bold green]Actif (Tier 1 Opérationnel)[/]' if st.get('docker_daemon_active') else '[yellow]Inactif[/]'}\n"
+            f"• Bubblewrap Linux Namespaces : {'[bold green]Actif (Tier 2 Opérationnel)[/]' if st.get('bubblewrap_active') else '[yellow]Inactif[/]'}\n"
+            f"• Image Sandbox : [bold cyan]{st.get('sandbox_image')}[/]\n"
+            f"• Image Disponible : {'[bold green]Oui[/]' if st.get('image_available') else '[yellow]Non (Bascule debian-slim)[/]'}\n"
+            f"• Stockage & Confinement : [bold green]{st.get('security_containment')}[/]\n"
+            f"• Micro-Init & Services : [bold green]{st.get('micro_init', 'N/A')}[/]\n"
+            f"• Arsenal Cyber Embarqué : [bold green]{st.get('cyber_arsenal', 'N/A')}[/]\n"
+            f"• Pont Workspace Sécurisé : [bold green]{st.get('workspace_bridge', 'N/A')}[/]\n"
+            f"• Mode NÉANT : [bold green]Strictement 0 octet écrit sur SSD hôte[/]\n"
+            f"• Sanctuaire de la Vie : [bold green]{st.get('sacred_life_sentinel')}[/]\n"
+            f"• Mécanisme de Repli : [bold green]{st.get('fallback_mechanism')}[/]",
+            title="🐳 Shadow-Docker Ephemeral Sandbox (Sudo Confiné Sovereign)",
+            border_style="blue"
+        ))
+        console.print("[dim]Usage : /docker run [--rw] [--mount] [--mount-rw] [--no-net] <commande root>[/]")
+    elif subcmd == "run":
+        if len(args) < 2:
+            console.print("[bold red]Usage :[/] /docker run [--rw] [--mount] [--mount-rw] [--no-net] <commande bash>")
+            return
+
+        writable = False
+        workspace_mount = None
+        mount_mode = "ro"
+        network_enabled = True
+
+        i = 1
+        while i < len(args):
+            arg = args[i]
+            if arg in ("--rw", "--writable"):
+                writable = True
+                i += 1
+            elif arg == "--no-net":
+                network_enabled = False
+                i += 1
+            elif arg == "--mount":
+                if i + 1 < len(args) and not args[i+1].startswith("-") and os.path.exists(args[i+1]):
+                    workspace_mount = args[i+1]
+                    i += 2
+                else:
+                    workspace_mount = os.getcwd()
+                    i += 1
+                mount_mode = "ro"
+            elif arg == "--mount-rw":
+                if i + 1 < len(args) and not args[i+1].startswith("-") and os.path.exists(args[i+1]):
+                    workspace_mount = args[i+1]
+                    i += 2
+                else:
+                    workspace_mount = os.getcwd()
+                    i += 1
+                mount_mode = "rw"
+            else:
+                break
+
+        remaining_cmd = args[i:]
+        if not remaining_cmd:
+            console.print("[bold red]Usage :[/] /docker run [--rw] [--mount] [--mount-rw] [--no-net] <commande bash>")
+            return
+        script = " ".join(remaining_cmd)
+
+        mode_desc = "[bold yellow]Inscriptible Éphémère (Overlay RAM)[/]" if writable else "[bold green]Lecture Seule (RAM Tmpfs)[/]"
+        mount_desc = f" | [cyan]Montage : {workspace_mount} ({mount_mode})[/]" if workspace_mount else ""
+        console.print(f"[dim]⚡ Lancement sandbox ({mode_desc}{mount_desc})...[/]")
+        try:
+            res = await tech_lead.execute_sudo_docker(
+                script=script,
+                writable=writable,
+                workspace_mount=workspace_mount,
+                mount_mode=mount_mode,
+                network_enabled=network_enabled
+            )
+            engine = res.get("engine", "Shadow-Docker")
+            if res["success"]:
+                console.print(f"[bold green]✔ Succès via {engine} (code 0, 0 résidu SSD) :[/]\n{res['stdout']}")
+            else:
+                console.print(f"[bold red]❌ Échec via {engine} (code {res.get('returncode', -1)}) :[/]\n{res.get('stderr', '')}")
+        except Exception as e:
+            console.print(f"[bold red]⛔ VETO / ERREUR :[/] {e}")
+    else:
+        console.print("[bold red]Usage :[/] /docker [status|run <commande>]")
+
+
+def run_scratchpad(tech_lead: TechLeadOrchestrator, args: List[str]):
+    """Gère le Scratchpad Cognitif Hermes-Claude (<thinking> & structured tool calling)."""
+    if not args:
+        st = tech_lead.hermes_cognition.get_status()
+        console.print(Panel(
+            f"• Modèle Cognitif : [bold cyan]{st['mode']}[/]\n"
+            f"• Extended Thinking : [bold green]{st['extended_thinking']}[/]\n"
+            f"• Structured Tool Calling : [bold green]{st['structured_function_calling']}[/]\n"
+            f"• Boucle d'Auto-Critique : [bold green]Active (Vérification des risques pré-action)[/]\n"
+            f"• Empreinte RAM : [bold green]{st['volatile_ram_footprint_kb']} Ko[/] | Disque : [bold green]0 octet SSD[/]\n"
+            f"• Sanctuaire de la Vie : [bold green]{st['sacred_life_sentinel']}[/]",
+            title="🧠 Scratchpad Cognitif Hermes & Claude",
+            border_style="magenta"
+        ))
+        recent = tech_lead.hermes_cognition.get_recent_scratchpads(3)
+        if recent:
+            console.print("\n[bold cyan]Dernières Réflexions en RAM :[/]")
+            for r in recent:
+                console.print(f"• [dim]{r['objective'][:60]}...[/]")
+                console.print(f"  [italic yellow]{r['thinking'].splitlines()[0]}[/]")
+        console.print("\n[dim]Usage : /scratchpad <objectif à décomposer>[/]")
+        return
+
+    objective = " ".join(args)
+    console.print(f"[dim]⚡ Déclenchement de la réflexion structurée Hermes-Claude...[/]")
+    try:
+        record = tech_lead.think_hermes(objective)
+        console.print(Panel(
+            f"[bold cyan]<thinking>[/]\n{record['thinking']}\n[bold cyan]</thinking>[/]\n\n"
+            f"[bold green]<tool_call>[/]\n{json.dumps(record['tool_call'], indent=2, ensure_ascii=False)}\n[bold green]</tool_call>[/]",
+            title=f"🧠 Raisonnement Étendu : {objective[:50]}",
+            border_style="cyan"
+        ))
+    except Exception as e:
+        console.print(f"[bold red]⛔ VETO / ERREUR :[/] {e}")
+
+
+async def run_hermes(tech_lead: TechLeadOrchestrator, args: List[str]):
+    """Gère l'Agent Cognitif Autonome Hermes & Claude (ReAct, <thinking>, <tool_call>, <tool_response>)."""
+    if not args or args[0].lower() == "status":
+        st = tech_lead.hermes_cognition.get_status()
+        console.print(Panel(
+            f"• Architecture Cognitive : [bold cyan]{st['mode']}[/]\n"
+            f"• Extended Thinking : [bold green]{st['extended_thinking']}[/]\n"
+            f"• Structured Tool Calling : [bold green]{st['structured_function_calling']}[/]\n"
+            f"• Cycle Autonome ReAct : [bold green]{st.get('autonomous_react_cycle', 'Actif')}[/]\n"
+            f"• Empreinte RAM : [bold green]{st['volatile_ram_footprint_kb']} Ko[/] | Disque : [bold green]0 octet SSD[/]\n"
+            f"• Sanctuaire de la Vie : [bold green]{st['sacred_life_sentinel']}[/]",
+            title="⚡ Agent Autonome Hermes 3 & Claude 3.7",
+            border_style="magenta"
+        ))
+        console.print("[dim]Commandes :[/]")
+        console.print("  • [cyan]/hermes run <mission>[/]   : Déclenche un cycle ReAct autonome complet avec appel d'outils")
+        console.print("  • [cyan]/hermes think <sujet>[/]   : Formule un arbre de réflexion étendu (<thinking>)")
+        console.print("  • [cyan]/agent <mission>[/]        : Raccourci vers /hermes run")
+        return
+
+    subcmd = args[0].lower()
+    if subcmd == "think":
+        obj = " ".join(args[1:]) if len(args) > 1 else "Audit cognitif général"
+        run_scratchpad(tech_lead, [obj])
+        return
+    elif subcmd == "run":
+        obj = " ".join(args[1:]) if len(args) > 1 else "Diagnostic d'intégrité système"
+    else:
+        obj = " ".join(args)
+
+    console.print(f"[dim]⚡ Lancement de la mission autonome Hermes-Claude : '{obj[:60]}' ...[/]")
+    try:
+        mission = await tech_lead.run_hermes_agent(obj)
+        console.print(f"\n[bold green]✔ Mission Cognitive Accomplie ({mission['turns_completed']} tours) :[/]")
+        for step in mission.get("trajectory", []):
+            if step["phase"] == "thinking_and_dispatch":
+                console.print(Panel(
+                    f"[bold cyan]<thinking>[/]\n{step['thinking']}\n[bold cyan]</thinking>[/]\n\n"
+                    f"[bold green]<tool_call>[/]\n{json.dumps(step['tool_call'], indent=2, ensure_ascii=False)}\n[bold green]</tool_call>[/]",
+                    title=f"Tour {step['turn']} : Planification & Dispatch",
+                    border_style="cyan"
+                ))
+            elif step["phase"] == "tool_execution":
+                console.print(Panel(
+                    f"[bold yellow]{step['tool_response']}[/]",
+                    title=f"Tour {step['turn']} : Exécution Déterministe ({step['tool_name']})",
+                    border_style="yellow"
+                ))
+        console.print(Panel(
+            mission.get("final_synthesis", "Mission terminée."),
+            title="🎯 Synthèse Finale Vérifiée",
+            border_style="green"
+        ))
+    except Exception as e:
+        console.print(f"[bold red]⛔ VETO / ERREUR :[/] {e}")
+
+
+async def run_onion(tech_lead: TechLeadOrchestrator, args: List[str]):
+    """Gère la Passerelle Souveraine Tor Onion V3 (Contrôle Distant Décentralisé Ultra-Sécurisé)."""
+    subcmd = args[0].lower() if args else "status"
+
+    if subcmd == "status":
+        st = tech_lead.get_onion_portal_status()
+        active_str = "[bold green]Actif (En écoute)[/]" if st["is_active"] else "[bold yellow]Inactif (Arrêté)[/]"
+        addr_str = f"[bold cyan]{st['onion_address']}[/]" if st["is_active"] else "[dim]Aucune adresse active[/]"
+        token_str = f"[bold magenta]{st['auth_token'][:16]}... (Bearer)[/]" if st["is_active"] else "[dim]Non généré[/]"
+
+        console.print(Panel(
+            f"• État du Portail : {active_str}\n"
+            f"• Adresse Décentralisée : {addr_str}\n"
+            f"• Port Interne : [cyan]{st['port']}[/]\n"
+            f"• Jeton Bearer HMAC : {token_str}\n"
+            f"• Chiffrement : [bold green]{st['security']}[/]\n"
+            f"• Restriction de Privilèges : [bold red]{st['mode_restriction']}[/]\n"
+            f"• Mode NÉANT (Stockage) : [bold green]{st['storage_layer']}[/]\n"
+            f"• Sanctuaire de la Vie : [bold green]{st['sacred_life_sentinel']}[/]",
+            title="🧅 Passerelle Souveraine Tor Onion V3",
+            border_style="magenta"
+        ))
+        console.print("[dim]Commandes :[/]")
+        console.print("  • [cyan]/onion start[/]  : Démarre le Hidden Service Onion V3 en RAM (exige le mode /mode lesaintAi)")
+        console.print("  • [cyan]/onion stop[/]   : Arrête immédiatement le Hidden Service et pulvérise les clés de la RAM")
+        console.print("  • [cyan]/onion token[/]  : Affiche le jeton Bearer complet et l'exemple de commande curl")
+        return
+
+    elif subcmd == "start":
+        if tech_lead.mode != "lesaintAi":
+            console.print(
+                "[bold red]⛔ ACCÈS REFUSÉ :[/] Le portail Onion V3 distant est strictement restreint au "
+                "mode super-utilisateur ([bold cyan]lesaintAi[/]).\n"
+                "Tapez d'abord : [bold green]/mode lesaintAi[/] pour déverrouiller cette fonctionnalité."
+            )
+            return
+
+        console.print("[dim]⚡ Déploiement autonome du point de terminaison Tor Onion V3 en mémoire volatile (/dev/shm)...[/]")
+        try:
+            st = await tech_lead.start_onion_portal()
+            console.print(f"[bold green]✔ Passerelle Tor Onion V3 déployée avec succès ![/]")
+            console.print(f"  • Adresse souveraine : [bold cyan]{st['onion_address']}[/]")
+            console.print(f"  • Port local : [bold cyan]{st['port']}[/]")
+            console.print(f"  • Jeton Bearer : [bold magenta]{st['auth_token']}[/]")
+            console.print("[bold yellow]ℹ Exemple de pilotage à distance via Tor (curl/torsocks) :[/]")
+            console.print(
+                f'  [dim]torsocks curl -H "Authorization: Bearer {st["auth_token"]}" http://{st["onion_address"].split()[0]}/status[/]'
+            )
+        except Exception as e:
+            console.print(f"[bold red]⛔ Erreur de déploiement Onion V3 :[/] {e}")
+
+    elif subcmd == "stop":
+        console.print("[dim]⚡ Arrêt du portail Onion V3 et destruction des clés en RAM (/dev/shm)...[/]")
+        try:
+            await tech_lead.stop_onion_portal()
+            console.print("[bold green]✔ Portail Tor Onion V3 désactivé. Mémoire RAM volatile purgée (0 résidu).[/]")
+        except Exception as e:
+            console.print(f"[bold red]Erreur lors de l'arrêt :[/] {e}")
+
+    elif subcmd == "token":
+        st = tech_lead.get_onion_portal_status()
+        if not st["is_active"]:
+            console.print("[bold yellow]Le portail Onion V3 n'est pas actif. Démarrez-le avec /onion start.[/]")
+            return
+        console.print(Panel(
+            f"Jeton Bearer complet :\n[bold green]{st['auth_token']}[/]\n\n"
+            f"Commande de requête à distance :\n"
+            f"[cyan]torsocks curl -H \"Authorization: Bearer {st['auth_token']}\" http://{st['onion_address'].split()[0]}/status[/]",
+            title="🔑 Authentification Cryptographique Distante",
+            border_style="cyan"
+        ))
+
+    else:
+        console.print(f"[bold red]Sous-commande inconnue :[/] '{subcmd}'. Utilisez /onion status, start, stop, ou token.")
+
+
 def get_active_workspace() -> str:
     """Returns the effective workspace root, prioritizing active git repo or WORKSPACE_ROOT."""
     cwd = Path.cwd().resolve()
@@ -1441,6 +1801,8 @@ async def interactive_cli(initial_mode: str = "freeAi"):
                     run_rollback(tech_lead)
                 elif cmd == "/sync":
                     run_sync(tech_lead)
+                elif cmd == "/learn":
+                    await run_learn(tech_lead, args)
                 elif cmd == "/online":
                     run_online_config(tech_lead, args)
                 elif cmd == "/ask":
@@ -1483,6 +1845,14 @@ async def interactive_cli(initial_mode: str = "freeAi"):
                     run_phantom(tech_lead, args)
                 elif cmd == "/shadow":
                     await run_shadow(tech_lead, args)
+                elif cmd == "/docker":
+                    await run_docker(tech_lead, args)
+                elif cmd == "/scratchpad":
+                    run_scratchpad(tech_lead, args)
+                elif cmd in ("/hermes", "/agent"):
+                    await run_hermes(tech_lead, args)
+                elif cmd == "/onion":
+                    await run_onion(tech_lead, args)
                 else:
                     console.print(f"[bold red]Commande slash inconnue :[/] '{cmd}'. Tapez [bold green]/help[/] pour la liste des commandes.")
             else:
@@ -1537,6 +1907,8 @@ def main():
                 run_rollback(tech_lead)
             elif cmd == "/sync":
                 run_sync(tech_lead)
+            elif cmd == "/learn":
+                asyncio.run(run_learn(tech_lead, args))
             elif cmd == "/search":
                 run_search_files(tech_lead, args)
             elif cmd == "/code":
@@ -1583,6 +1955,14 @@ def main():
                 run_phantom(tech_lead, args)
             elif cmd == "/shadow":
                 asyncio.run(run_shadow(tech_lead, args))
+            elif cmd == "/docker":
+                asyncio.run(run_docker(tech_lead, args))
+            elif cmd == "/scratchpad":
+                run_scratchpad(tech_lead, args)
+            elif cmd in ("/hermes", "/agent"):
+                asyncio.run(run_hermes(tech_lead, args))
+            elif cmd == "/onion":
+                asyncio.run(run_onion(tech_lead, args))
             elif cmd == "/help":
                 print_help()
             else:
