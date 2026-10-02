@@ -498,12 +498,43 @@ Pour lancer des missions longues en arrière-plan et **pouvoir éteindre votre P
 
 ---
 
-## 12. Tableau Récapitulatif des Commandes
+---
+
+## 12. Forge & Craft-Suite (Machine de Conception Fullstack & 167 Skills) ⚒️
+
+Pour tout ce qui est génération, ingénierie et audit de code, FreeAI s'appuie désormais directement sur **Forge** (`misterkante/forge.git`) et l'écosystème **Craft-Suite** (167 skills et 26 agents spécialisés) :
+- **Preuve du Rouge (Tests d'abord)** : Écriture systématique des tests unitaires avant la génération de code, avec vérification du statut rouge initial.
+- **Contrôle Anti-Affaiblissement (`tamper_check.py`)** : Détection mécanique immédiate de toute tentative d'affaiblir une assertion, de supprimer un test ou d'insérer un `@ts-ignore`.
+- **Living Documentation & Traçabilité** : Tenue automatique de `docs/SPEC.md`, `docs/STATE.md`, `docs/REPORT.md`, et `docs/KNOWN_ISSUES.md`.
+- **Skills Craft-Suite Mobilisables** : 167 skills intégrés dans `~/.gemini/config/skills` couvrant l'ingénierie, la sécurité, le devops et la revue de code.
+
+```bash
+# Vérifier l'état de la machine Forge et les skills Craft-Suite
+/forge status
+
+# Lancer un contrôle d'intégrité (tamper check + audit docs)
+/forge check
+
+# Enregistrer une spécification formelle
+/forge spec "Module d'authentification biométrique"
+
+# Exécuter le cycle de conception vérifié en 5 étapes
+/forge run "Générateur de tokens cryptographiques Ed25519"
+
+# Lister les 167 skills et 26 agents de Craft-Suite
+/craft
+```
+
+---
+
+## 13. Tableau Récapitulatif des Commandes
 
 | Commande | Raccourci / Syntaxe | Description |
 | :--- | :--- | :--- |
 | **Changer de mode** | `/mode [nom]` | Bascule entre `freeAi` et `lesaintAi` |
 | **Statut du système** | `/status` | Diagnostic RAM, CPU, Sudo, Neon |
+| **Machine Forge** | `/forge [status\|check\|spec\|run]` | Machine de conception fullstack (Preuve du rouge, Tamper check, Specs) |
+| **Écosystème Craft** | `/craft` | Explore les 167 skills et 26 agents spécialisés de Craft-Suite |
 | **Agent ReAct Autonome** | `/agent <mission>` | Cycle ReAct Hermes 3 & Claude 3.7 autonome |
 | **Hermes Cognitif** | `/hermes [status\|run\|think]` | Raisonnement étendu et appel d'outils XML structuré |
 | **Passerelle Tor Onion V3** | `/onion [status\|start\|stop\|token]` | Contrôle distant décentralisé éphémère (Mode Sudo `lesaintAi`) |

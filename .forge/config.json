@@ -1,0 +1,19 @@
+{
+  "forge_home": "/home/lesaint/Rendue/forge",
+  "db_phase": "pre-production",
+  "commits": "ask",
+  "docs_dir": "docs",
+  "docs_language": "fr",
+  "design": "",
+  "stack": [
+    "fastapi"
+  ],
+  "validation": "pydantic",
+  "test_runners": [
+    "pytest"
+  ],
+  "orm": "",
+  "package_roots": [
+    "app"
+  ]
+}

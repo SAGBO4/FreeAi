@@ -32,6 +32,7 @@ from app.tools.kinetic_netns import KineticShadowNetns
 from app.tools.shadow_docker import ShadowDockerExecutor
 from app.cognition.hermes_scratchpad import HermesScratchpadEngine
 from app.network.onion_portal import SovereignOnionPortal
+from app.forge.bridge import ForgeBridge
 
 logger = logging.getLogger("tech_lead_orchestrator")
 
@@ -121,8 +122,11 @@ class TechLeadOrchestrator:
         # Sovereign Tor Onion V3 Portal (Remote Cryptographic Gateway - Sudo Locked)
         self.onion_portal = SovereignOnionPortal(orchestrator=self)
 
+        # Forge & Craft-Suite Fullstack Engineering Engine
+        self.forge = ForgeBridge(workspace_root=self.tool_gateway.workspace_root)
+
         # Specialized agents under Tech Lead supervision
-        self.code_agent = CodeAgent(tool_gateway)
+        self.code_agent = CodeAgent(tool_gateway, forge_bridge=self.forge)
         self.security_agent = SecurityAgent(tool_gateway)
         self.git_agent = GitAgent(tool_gateway)
 
@@ -234,6 +238,14 @@ class TechLeadOrchestrator:
     def get_onion_portal_status(self) -> Dict[str, Any]:
         """Returns the status and security configuration of the Onion V3 portal."""
         return self.onion_portal.get_status()
+
+    def get_forge_status(self) -> Dict[str, Any]:
+        """Returns the status and capabilities of the Forge and Craft-Suite integration."""
+        return self.forge.get_status()
+
+    def run_forge_tamper_check(self, base_commit: str = "HEAD~1") -> Dict[str, Any]:
+        """Executes Forge tamper check to prove no test assertions were weakened."""
+        return self.forge.run_tamper_check(base_commit=base_commit)
 
     def sync_neon(self, payload: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Synchronizes and compresses essential memory on Neon PostgreSQL."""

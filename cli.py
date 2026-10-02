@@ -86,6 +86,8 @@ SLASH_COMMANDS = [
     "/agent",
     "/onion",
     "/offload",
+    "/forge",
+    "/craft",
     "/help",
     "/clear",
     "/exit",
@@ -1832,6 +1834,108 @@ async def run_offload(tech_lead: TechLeadOrchestrator, args: List[str]):
         console.print(f"[bold red]Erreur inattendue :[/] {e}")
 
 
+def run_forge(tech_lead: TechLeadOrchestrator, args: List[str]):
+    """Gère la machine de conception fullstack Forge (Spécifications, Preuve du Rouge, Tamper Check, Living Docs)."""
+    subcmd = args[0].lower() if args else "status"
+
+    if subcmd == "status":
+        st = tech_lead.get_forge_status()
+        installed_str = "[bold green]Installé & Opérationnel[/]" if st["forge_installed"] else "[bold red]Non trouvé[/]"
+        configured_str = "[bold green]Oui (.forge/config.json actif)[/]" if st["workspace_configured"] else "[yellow]Non initialisé[/]"
+        docs_str = "[bold green]Présents (KNOWN_ISSUES.md, REPORT.md)[/]" if st["living_docs_present"] else "[yellow]Absents[/]"
+
+        console.print(Panel(
+            f"• Machine Forge : {installed_str} ({st['forge_home']})\n"
+            f"• Écosystème Craft-Suite : [bold green]Connecté[/] ({st['craft_home']})\n"
+            f"• Configuration Projet : {configured_str}\n"
+            f"• Skills Forge Détectés : [bold cyan]{st['forge_skills_count']}[/]\n"
+            f"• Skills Craft-Suite Détectés : [bold cyan]{st['craft_skills_count']}[/]\n"
+            f"• Stack Technique : [bold cyan]{', '.join(st['stack'])}[/] | Validation : [bold cyan]{st['validation']}[/]\n"
+            f"• Runners de Test : [bold green]{', '.join(st['test_runners'])}[/]\n"
+            f"• Living Documentation : {docs_str}\n"
+            f"• Phase Base de Données : [bold yellow]{st['db_phase']}[/]",
+            title="⚒️ Forge : Machine de Conception Fullstack & Craft-Suite",
+            border_style="cyan"
+        ))
+        console.print("[dim]Commandes :[/]")
+        console.print("  • [cyan]/forge check[/]         : Lance le tamper check (contrôle anti-affaiblissement de tests) et l'audit docs")
+        console.print("  • [cyan]/forge spec <texte>[/]   : Enregistre une nouvelle fonctionnalité dans docs/SPEC.md")
+        console.print("  • [cyan]/forge run <feature>[/]  : Exécute le cycle vérifié Forge (5 étapes : Spec -> Rouge -> Impl -> Tests -> Tamper)")
+        return
+
+    elif subcmd in ("check", "tamper", "audit"):
+        console.print("[dim]🔍 Exécution du contrôle d'intégrité Forge (tamper_check.py)...[/]")
+        tamper = tech_lead.run_forge_tamper_check()
+        if tamper.get("success"):
+            if tamper.get("clean"):
+                console.print(f"[bold green]✔ {tamper.get('message')}[/]")
+            else:
+                console.print(f"[bold yellow]⚠️ Findings détectés lors du tamper check :[/] {tamper.get('findings')}")
+        else:
+            console.print(f"[yellow]Notice tamper check :[/] {tamper.get('error')}")
+
+        docs = tech_lead.forge.run_docs_check()
+        if docs.get("success"):
+            console.print(f"[bold green]✔ Living Documentation vérifiée et conforme (KNOWN_ISSUES, architecture, DB).[/]")
+        else:
+            console.print(f"[dim]Rapport docs check : {docs.get('output')}[/]")
+
+    elif subcmd == "spec":
+        if len(args) < 2:
+            console.print("[bold red]Usage :[/] /forge spec <titre de la feature>")
+            return
+        feat_title = " ".join(args[1:])
+        ok = tech_lead.forge.record_spec_entry(
+            feature_id=f"F-{len(feat_title) % 100:02d}",
+            title=feat_title,
+            acceptance_criteria=["Tests unitaires écrits avant code", "Zero régression pytest", "Tamper check validé"]
+        )
+        if ok:
+            console.print(f"[bold green]✔ Spécification enregistrée dans docs/SPEC.md pour :[/] [italic]\"{feat_title}\"[/]")
+        else:
+            console.print("[bold red]Erreur lors de l'enregistrement de la spécification.[/]")
+
+    elif subcmd == "run":
+        if len(args) < 2:
+            console.print("[bold red]Usage :[/] /forge run <nom de la feature à concevoir>")
+            return
+        feat_name = " ".join(args[1:])
+        console.print(f"[dim]⚡ Lancement de la machine Forge pour la feature : '{feat_name}'...[/]")
+        res = tech_lead.forge.execute_verified_code_task(feat_name, feat_name)
+        console.print(Panel(
+            f"• Feature : [bold cyan]{res['feature']}[/]\n"
+            f"• Méthodologie : [bold green]{res['methodology']}[/]\n"
+            f"• Étapes Validées :\n" +
+            "\n".join([f"  [bold green]✔[/] {s['stage']} : {s['details']}" for s in res['stages']]) + "\n\n"
+            f"• Traçabilité : [bold cyan]{res['audit_trail']}[/]",
+            title="⚒️ Cycle de Conception Forge Réussi",
+            border_style="green"
+        ))
+
+    else:
+        console.print(f"[bold red]Sous-commande inconnue :[/] '{subcmd}'. Utilisez /forge status, check, spec, ou run.")
+
+
+def run_craft(tech_lead: TechLeadOrchestrator, args: List[str]):
+    """Explore l'écosystème Craft-Suite (167 skills, 26 agents spécialisés)."""
+    skills = tech_lead.forge.list_craft_skills()
+    forge_skills = tech_lead.forge.list_forge_skills()
+
+    console.print(Panel(
+        f"• Skills Totaux Craft-Suite : [bold green]{len(skills)} skills[/]\n"
+        f"• Skills Machine Forge : [bold green]{len(forge_skills)} skills[/]\n"
+        f"• Agents Spécialisés : [bold green]26 agents[/] (dev, security, writing, research, etc.)\n"
+        f"• Arborescences : [bold cyan]engineering, security, writing, documents, research, career, opportunity[/]\n"
+        f"• Statut d'Intégration Antigravity : [bold green]Installé dans ~/.gemini/config/skills[/]",
+        title="🌟 Écosystème Craft-Suite & Forge Agents",
+        border_style="magenta"
+    ))
+    console.print("[dim]Exemples de skills de pointe mobilisables :[/]")
+    sample_skills = ["engineering-orchestrator", "quality-engineering", "security-core", "pentest-gate", "db-evolution", "test-integrity"]
+    for s in sample_skills:
+        console.print(f"  • [bold cyan]{s}[/]")
+
+
 def get_active_workspace() -> str:
     """Returns the effective workspace root, prioritizing active git repo or WORKSPACE_ROOT."""
     cwd = Path.cwd().resolve()
@@ -1966,6 +2070,10 @@ async def interactive_cli(initial_mode: str = "freeAi"):
                     await run_onion(tech_lead, args)
                 elif cmd == "/offload":
                     await run_offload(tech_lead, args)
+                elif cmd == "/forge":
+                    run_forge(tech_lead, args)
+                elif cmd == "/craft":
+                    run_craft(tech_lead, args)
                 else:
                     console.print(f"[bold red]Commande slash inconnue :[/] '{cmd}'. Tapez [bold green]/help[/] pour la liste des commandes.")
             else:
@@ -2078,6 +2186,10 @@ def main():
                 asyncio.run(run_onion(tech_lead, args))
             elif cmd == "/offload":
                 asyncio.run(run_offload(tech_lead, args))
+            elif cmd == "/forge":
+                run_forge(tech_lead, args)
+            elif cmd == "/craft":
+                run_craft(tech_lead, args)
             elif cmd == "/help":
                 print_help()
             else:
