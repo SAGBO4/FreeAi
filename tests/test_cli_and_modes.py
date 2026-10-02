@@ -2,6 +2,7 @@
 
 import os
 import sys
+import asyncio
 import tempfile
 import unittest
 from pathlib import Path
@@ -22,9 +23,10 @@ class TestDynamicModeSwitching(unittest.TestCase):
     """Verifies dynamic permission switching between freeAi and lesaintAi."""
 
     def setUp(self):
-        self.temp_dir = tempfile.TemporaryDirectory()
+        self.temp_ws = tempfile.TemporaryDirectory()
+        self.temp_outside = tempfile.TemporaryDirectory()
         self.gw = ToolGateway(
-            workspace_root=self.temp_dir.name,
+            workspace_root=self.temp_ws.name,
             allow_sudo=False,
             allow_full_fs_access=False,
             allow_global_read=True,
@@ -34,7 +36,8 @@ class TestDynamicModeSwitching(unittest.TestCase):
         self.orch = TechLeadOrchestrator(tool_gateway=self.gw, resource_manager=self.rm)
 
     def tearDown(self):
-        self.temp_dir.cleanup()
+        self.temp_ws.cleanup()
+        self.temp_outside.cleanup()
 
     def test_default_mode_is_freeai(self):
         self.assertEqual(self.gw.mode, "freeAi")
@@ -69,12 +72,46 @@ class TestDynamicModeSwitching(unittest.TestCase):
         self.assertFalse(res["success"])
         self.assertIn("Sudo is disabled", res["error"])
 
+        # Also test alternative privileged commands
+        for cmd in ["/usr/bin/sudo id", "pkexec id", "doas id", "su -"]:
+            res = self.gw.execute_command(cmd)
+            self.assertFalse(res["success"], f"Failed to block: {cmd}")
+            self.assertIn("Sudo is disabled", res["error"])
+
         # 2. lesaintAi mode: sudo command allowed (reaches execution)
         self.orch.set_mode("lesaintAi")
         # In test environment, sudo might prompt or fail with exit code, but gateway should NOT reject it upfront
         res = self.gw.execute_command("sudo -V || true")
         self.assertTrue(res["success"] or "exit_code" in res)
         self.assertNotIn("Sudo is disabled", res.get("error", ""))
+
+    def test_filesystem_confinement_by_mode(self):
+        outside_target = str(Path(self.temp_outside.name) / "outside_test.txt")
+
+        # 1. In freeAi mode: writing outside workspace is forbidden
+        self.orch.set_mode("freeAi")
+        w_res_free = self.gw.write_file(outside_target, "forbidden write")
+        self.assertFalse(w_res_free["success"])
+        self.assertIn("outside workspace", w_res_free["error"])
+
+        # In freeAi mode: writing inside workspace is allowed
+        inside_target = "inside_test.txt"
+        w_res_inside = self.gw.write_file(inside_target, "allowed write")
+        self.assertTrue(w_res_inside["success"])
+
+        # In freeAi mode: reading outside workspace is permitted (global read)
+        # Prepare a file outside workspace
+        outside_file = Path(self.temp_outside.name) / "readable_outside.txt"
+        outside_file.write_text("global read content", encoding="utf-8")
+        r_res_free = self.gw.read_file(str(outside_file))
+        self.assertTrue(r_res_free["success"])
+        self.assertEqual(r_res_free["content"], "global read content")
+
+        # 2. In lesaintAi mode: writing outside workspace is unlocked (computer-wide)
+        self.orch.set_mode("lesaintAi")
+        w_res_lesaint = self.gw.write_file(outside_target, "unlocked computer-wide write")
+        self.assertTrue(w_res_lesaint["success"])
+        self.assertEqual(Path(outside_target).read_text(encoding="utf-8"), "unlocked computer-wide write")
 
 
 class TestSearchAndRollback(unittest.TestCase):
@@ -114,7 +151,7 @@ class TestSearchAndRollback(unittest.TestCase):
 
 
 class TestCLIFunctionality(unittest.TestCase):
-    """Verifies CLI prompts, helpers, and status output."""
+    """Verifies CLI prompts, helpers, slash commands, quote resilience, and clean EOF termination."""
 
     def test_dynamic_prompt_formatting(self):
         prompt_standard = cli.get_prompt("freeAi")
@@ -141,6 +178,66 @@ class TestCLIFunctionality(unittest.TestCase):
         res = manager.sync_memory({"test": "sync"})
         self.assertFalse(res["success"])
         self.assertIn("not enabled", res["message"])
+
+    def test_cli_handles_clean_eof_exit(self):
+        """Verifies that interactive_cli breaks immediately on EOF without infinite looping."""
+        with patch("builtins.input", side_effect=EOFError):
+            async def _run():
+                await cli.interactive_cli(initial_mode="freeAi")
+            # Must finish without hanging or raising exception
+            asyncio.run(_run())
+
+    def test_cli_handles_exit_command(self):
+        """Verifies that /exit terminates interactive_cli cleanly."""
+        inputs = iter(["/exit"])
+        with patch("builtins.input", side_effect=lambda _: next(inputs)):
+            async def _run():
+                await cli.interactive_cli(initial_mode="freeAi")
+            asyncio.run(_run())
+
+    def test_cli_handles_french_apostrophes_and_quotes(self):
+        """Verifies that natural language with apostrophes does not crash with ValueError."""
+        executed = []
+
+        async def mock_execute(tl, text):
+            executed.append(text)
+
+        inputs = iter(["J'ai un bug d'exécution dans mon script", "/exit"])
+        with patch("builtins.input", side_effect=lambda _: next(inputs)):
+            with patch("cli.execute_tech_lead_task", side_effect=mock_execute):
+                async def _run():
+                    await cli.interactive_cli(initial_mode="freeAi")
+                asyncio.run(_run())
+
+        self.assertEqual(len(executed), 1)
+        self.assertEqual(executed[0], "J'ai un bug d'exécution dans mon script")
+
+    def test_cli_slash_commands_execution(self):
+        """Verifies execution of all slash command handlers."""
+        gw = ToolGateway(workspace_root=tempfile.gettempdir(), mode="freeAi")
+        rm = ResourceManager()
+        tl = TechLeadOrchestrator(tool_gateway=gw, resource_manager=rm)
+
+        # /help
+        cli.print_help()
+
+        # /status
+        cli.print_status(tl)
+
+        # /mode
+        cli.handle_mode_command(tl, ["lesaintAi"])
+        self.assertEqual(tl.mode, "lesaintAi")
+        cli.handle_mode_command(tl, ["freeAi"])
+        self.assertEqual(tl.mode, "freeAi")
+
+        # /search
+        cli.run_search_files(tl, ["*.py", tempfile.gettempdir()])
+
+        # /code
+        cli.run_search_code(tl, ["test", "*.py", tempfile.gettempdir()])
+
+        # /sync
+        cli.run_sync(tl)
 
 
 if __name__ == "__main__":

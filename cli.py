@@ -433,38 +433,47 @@ async def interactive_cli(initial_mode: str = "freeAi"):
             if not user_input:
                 continue
 
-            # Parse input
-            parts = shlex.split(user_input)
-            cmd = parts[0].lower()
-            args = parts[1:]
+            # Slash command handling
+            if user_input.startswith("/"):
+                try:
+                    parts = shlex.split(user_input)
+                except ValueError:
+                    parts = user_input.split()
 
-            if cmd in ("/exit", "/quit"):
-                console.print("[bold cyan]Au revoir ! FreeAI s'est arrêté proprement.[/]")
-                break
-            elif cmd == "/clear":
-                console.clear()
-            elif cmd == "/help":
-                print_help()
-            elif cmd == "/status":
-                print_status(tech_lead)
-            elif cmd == "/mode":
-                handle_mode_command(tech_lead, args)
-            elif cmd == "/search":
-                run_search_files(tech_lead, args)
-            elif cmd == "/code":
-                run_search_code(tech_lead, args)
-            elif cmd == "/rollback":
-                run_rollback(tech_lead)
-            elif cmd == "/sync":
-                run_sync(tech_lead)
-            elif user_input.startswith("/"):
-                console.print(f"[bold red]Commande slash inconnue :[/] '{cmd}'. Tapez [bold green]/help[/] pour la liste des commandes.")
+                cmd = parts[0].lower()
+                args = parts[1:]
+
+                if cmd in ("/exit", "/quit"):
+                    console.print("[bold cyan]Au revoir ! FreeAI s'est arrêté proprement.[/]")
+                    break
+                elif cmd == "/clear":
+                    console.clear()
+                elif cmd == "/help":
+                    print_help()
+                elif cmd == "/status":
+                    print_status(tech_lead)
+                elif cmd == "/mode":
+                    handle_mode_command(tech_lead, args)
+                elif cmd == "/search":
+                    run_search_files(tech_lead, args)
+                elif cmd == "/code":
+                    run_search_code(tech_lead, args)
+                elif cmd == "/rollback":
+                    run_rollback(tech_lead)
+                elif cmd == "/sync":
+                    run_sync(tech_lead)
+                else:
+                    console.print(f"[bold red]Commande slash inconnue :[/] '{cmd}'. Tapez [bold green]/help[/] pour la liste des commandes.")
             else:
-                # Regular natural language query transmitted to Tech Lead
+                # Regular natural language query transmitted to Tech Lead (supports apostrophes, quotes, etc.)
                 await execute_tech_lead_task(tech_lead, user_input)
 
-        except (KeyboardInterrupt, EOFError):
-            console.print("\n[dim]Interruption détectée. Tapez /exit pour quitter.[/]")
+        except EOFError:
+            console.print("\n[bold cyan]Au revoir ! FreeAI s'est arrêté proprement (EOF).[/]")
+            break
+        except KeyboardInterrupt:
+            console.print("\n[dim]Interruption détectée (Ctrl+C). Tapez /exit pour quitter.[/]")
+            continue
         except Exception as e:
             console.print(f"[bold red]Erreur inattendue :[/] {e}")
 
@@ -495,7 +504,10 @@ def main():
 
         if objective_text.startswith("/"):
             # Handle slash command in batch mode
-            parts = shlex.split(objective_text)
+            try:
+                parts = shlex.split(objective_text)
+            except ValueError:
+                parts = objective_text.split()
             cmd = parts[0].lower()
             args = parts[1:]
             if cmd == "/status":

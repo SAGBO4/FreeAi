@@ -19,7 +19,15 @@ logger = logging.getLogger("neon_db")
 
 class NeonMemoryManager:
     def __init__(self, db_url: Optional[str] = None):
-        self.db_url = db_url if db_url is not None else os.getenv("NEON_DATABASE_URL")
+        if db_url is None:
+            db_url = os.getenv("NEON_DATABASE_URL")
+            if not db_url:
+                try:
+                    from config.settings import settings
+                    db_url = settings.NEON_DATABASE_URL
+                except Exception:
+                    pass
+        self.db_url = db_url.strip() if db_url else None
         self.enabled = bool(self.db_url)
         if self.enabled:
             logger.info("[NEON] Neon PostgreSQL memory adapter enabled (off-device compressed storage).")
