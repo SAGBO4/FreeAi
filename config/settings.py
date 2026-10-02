@@ -71,5 +71,9 @@ class Settings(BaseModel):
     LOG_TO_FILE: bool = Field(default_factory=lambda: _get_bool("LOG_TO_FILE", False))
     NEON_DATABASE_URL: str = Field(default_factory=lambda: os.getenv("NEON_DATABASE_URL", ""))
 
+    # Filesystem Permissions (Computer-wide read access & solution search)
+    ALLOW_GLOBAL_READ: bool = Field(default_factory=lambda: _get_bool("ALLOW_GLOBAL_READ", True))
+    ALLOW_FULL_FS_ACCESS: bool = Field(default_factory=lambda: _get_bool("ALLOW_FULL_FS_ACCESS", False))
+
 
 settings = Settings()

@@ -32,9 +32,49 @@ class TechLeadOrchestrator:
         self.security_agent = SecurityAgent(tool_gateway)
         self.git_agent = GitAgent(tool_gateway)
 
+        # Operational mode: freeAi (standard) or lesaintAi (super-user)
+        self.mode = getattr(tool_gateway, "mode", "freeAi")
+
         # Wire degradation & shutdown callbacks
         self.resource_manager.register_degraded_callback(self._on_degraded_memory)
         self.resource_manager.register_shutdown_callback(self._on_emergency_shutdown)
+
+    def set_mode(self, mode_name: str) -> Dict[str, Any]:
+        """Dynamically switches between standard freeAi mode and super-user lesaintAi mode."""
+        res = self.tool_gateway.set_mode(mode_name)
+        self.mode = res["mode"]
+        logger.info(f"[TECH LEAD] Orchestrator mode switched to: {self.mode}")
+        return res
+
+    def get_status(self) -> Dict[str, Any]:
+        """Returns comprehensive real-time system, mode, and Neon DB status."""
+        resource_stats = self.resource_manager.get_system_stats()
+        neon_status = self.neon_memory.get_status()
+        return {
+            "mode": self.mode,
+            "allow_sudo": self.tool_gateway.allow_sudo,
+            "allow_full_fs_access": self.tool_gateway.allow_full_fs_access,
+            "allow_global_read": self.tool_gateway.allow_global_read,
+            "workspace": str(self.tool_gateway.workspace_root),
+            "resources": resource_stats,
+            "neon": neon_status
+        }
+
+    def sync_neon(self, payload: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """Synchronizes and compresses essential memory on Neon PostgreSQL."""
+        return self.neon_memory.sync_memory(payload)
+
+    def rollback(self) -> Dict[str, Any]:
+        """Performs instant Git reset to HEAD to undo uncommitted changes."""
+        return self.tool_gateway.git_rollback()
+
+    def search_files(self, pattern: str, search_dir: Optional[str] = None, max_results: int = 50) -> Dict[str, Any]:
+        """Scours the PC or workspace for files matching the pattern."""
+        return self.tool_gateway.search_files(pattern=pattern, search_dir=search_dir, max_results=max_results)
+
+    def search_code(self, query: str, search_dir: Optional[str] = None, file_pattern: str = "*", max_matches: int = 30) -> Dict[str, Any]:
+        """Searches across files on the PC or workspace for code snippets or functions."""
+        return self.tool_gateway.search_code(query=query, search_dir=search_dir, file_pattern=file_pattern, max_matches=max_matches)
 
     def _on_degraded_memory(self):
         logger.warning("[TECH LEAD] Memory warning triggered (> 3.5 GB). Reducing concurrency & trimming context.")
@@ -49,7 +89,7 @@ class TechLeadOrchestrator:
 
     async def handle_objective(self, objective: str, autonomous: bool = False) -> Dict[str, Any]:
         """Main entry point for handling user objectives with FreeAI."""
-        logger.info(f"[TECH LEAD] Received objective: '{objective}' (autonomous={autonomous})")
+        logger.info(f"[TECH LEAD] Received objective: '{objective}' (mode={self.mode}, autonomous={autonomous})")
 
         # 1. Check RAM budget before execution
         mem_status = self.resource_manager.check_memory_budget()
@@ -66,7 +106,7 @@ class TechLeadOrchestrator:
             self.tool_gateway.git_checkpoint(f"tech-lead-checkpoint: {objective[:30]}")
 
         # 3. FreeAI reasoning & plan
-        reasoning = self.free_ai.reason_and_plan(objective, {"autonomous": autonomous})
+        reasoning = self.free_ai.reason_and_plan(objective, {"autonomous": autonomous, "mode": self.mode})
         agent_type = reasoning["domain"]
 
         # 4. Dynamic Online Resourcing (if FreeAI needs missing information)
@@ -79,6 +119,7 @@ class TechLeadOrchestrator:
                 logger.info(f"[TECH LEAD] FreeAI successfully resourced from {online_res.get('provider')}.")
 
         context = {
+            "mode": self.mode,
             "autonomous": autonomous,
             "memory_status": mem_status,
             "reasoning": reasoning,
@@ -111,6 +152,7 @@ class TechLeadOrchestrator:
         stats = self.resource_manager.get_system_stats()
         return {
             "success": True,
+            "mode": self.mode,
             "model": "FreeAI (Local + Free Online Resourcing)",
             "orchestrator": "Tech Lead",
             "assigned_agent": agent_type,
