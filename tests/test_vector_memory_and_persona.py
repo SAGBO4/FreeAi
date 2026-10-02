@@ -35,6 +35,7 @@ def test_vector_memory_add_and_context():
 def test_conversational_persona_greetings():
     async def run():
         persona = ConversationalPersona()
+        persona.groq_api_key = ""  # Enforce deterministic local unit test
         res = await persona.chat("Comment vas-tu ?")
         assert res["success"] is True
         assert res["conversational"] is True

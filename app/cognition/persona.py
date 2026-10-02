@@ -106,7 +106,7 @@ Tu n'es PAS un robot froid, un script shell ou un automate administratif. Tu as 
         if any(w in norm for w in ["comment vas tu", "comment tu vas", "ça va", "ca va", "comment ca va", "comment ça va", "tu vas bien", "forme"]):
             replies = [
                 "Je vais merveilleusement bien, Michael ! Mes circuits tournent à plein régime et je suis ravi d'entendre ta voix. Et toi, comment se passe ta journée ?",
-                "Ça va super fort ! Les processeurs sont frais, la mémoire est affûtée et je suis paré pour nos prochains coups de génie. Qu'est-ce qu'on construit aujourd'hui ?",
+                "Ça va super fort, Michael ! Les processeurs sont frais, la mémoire est affûtée et je suis paré pour nos prochains coups de génie. Qu'est-ce qu'on construit aujourd'hui ?",
                 "En pleine forme, l'ami ! Toujours fidèle au poste, 100% souverain et prêt à innover avec toi. Raconte-moi, comment vas-tu de ton côté ?"
             ]
             return random.choice(replies)

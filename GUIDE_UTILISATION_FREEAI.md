@@ -623,8 +623,10 @@ FreeAI rassemble 189 compétences modulaires réparties entre la cybersécurité
 
 | Commande | Syntaxe / Paramètres | Description |
 | :--- | :--- | :--- |
-| **Daemon Jarvis 24/7** | `/jarvis [status\|start\|stop\|restart\|logs]` | Service d'arrière-plan Linux permanent d'écoute Telegram sans terminal |
-| **Design System** | `/design [catalog\|search\|code\|export]` | Catalogue Shadcn UI 63 composants et export GZIP vers Telegram |
+| **Daemon Jarvis 24/7** | `/jarvis [status|start|stop|restart|logs]` | Service d'arrière-plan Linux permanent d'écoute Telegram sans terminal |
+| **Appel Live WebRTC** | `/call [start|status|close]` | Pont vocal Full-Duplex WebRTC (Telegram Mini App) & Canvas synesthésique |
+| **Essaim Cloud AETHER** | `/swarm <mission>` | Déportation 100% cloud gratuit (0% CPU local), consensus contradictoire multi-modèles |
+| **Design System** | `/design [catalog|search|code|export]` | Catalogue Shadcn UI 63 composants et export GZIP vers Telegram |
 | **Moteur Vidéo** | `/video [status\|teaser\|scaffold]` | Scaffolds Remotion React & Rendu MP4 cinématique en RAM vers Telegram |
 | **Arsenal Cyber** | `/cyber [status\|skills\|audit]` | Pentest-Gate, Threat-Model, Run-PoC, Sandboxes et Sentinel |
 | **Compétences Cloud**| `/skills [status\|sync]` | Matrice universelle des 189 skills répliquée sur Telegram et Neon |
@@ -663,6 +665,26 @@ FreeAI rassemble 189 compétences modulaires réparties entre la cybersécurité
 4. **Exploitez `/agent` pour les missions complexes** : L'agent autonome Hermes-Claude combine la rigueur analytique de Claude et la précision d'exécution d'Hermes pour résoudre vos problèmes sans approximations.
 5. **Utilisez `/rollback` en cas de doute** : Si une modification de code ne correspond pas à vos attentes, le rollback instantané remet votre projet dans un état propre et fonctionnel.
 6. **Sauvegardez régulièrement avec `/telegram clone`** : L'auto-clonage génère un kit de secours complet en RAM et le transmet directement sur Telegram sans laisser aucune trace sur votre SSD.
+
+---
+
+## 19. Innovations Récentes : AETHER-SWARM, Nexus Call & Vision 🌌
+
+### 19.1 Protocole AETHER-SWARM (Déportation Cloud Sans Fardeau)
+Pour éviter de faire chauffer votre machine ou de consommer votre RAM, FreeAI déporte l'orchestration des tâches lourdes vers un essaim de modèles gratuits mondiaux (Groq LPU, OpenRouter, Together, HuggingFace). L'ordinateur portable conserve 0% de charge CPU et moins de 45 Mo de RAM en veille.
+- Commande : `/swarm <mission ou question>`
+
+### 19.2 Nexus Tri-Brid & Live Hologram Call
+FreeAI contourne l'impossibilité technique des bots Telegram de passer des appels 1-to-1 en générant une **Telegram Mini App (TMA)** WebRTC Full-Duplex en RAM :
+- Commande : `/call`
+- Projette en direct un canvas synesthésique (diagrammes Mermaid, code temps réel, composants Shadcn UI).
+- Politique de silence radio : les réponses vocales automatiques sont coupées par défaut pour ne pas saturer votre messagerie ; la voix est réservée aux sessions `/call` ou aux demandes vocales explicites (*"parle"*, *"vocal"*).
+
+### 19.3 Vision & Vidéo Multimodale en RAM Pure
+Transmettez n'importe quelle image ou vidéo au bot Telegram :
+- Diagnostic de logs, captures d'écrans de bugs ou schémas d'architecture.
+- Analyse immédiate via Groq LPU Vision (`llama-3.2-11b-vision-preview`) ou Qwen 2 VL.
+- Stockage 100% volatile en mémoire vive (`io.BytesIO`), 0 résidu sur disque SSD.
 
 ---
 
