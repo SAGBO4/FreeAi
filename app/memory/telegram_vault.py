@@ -158,6 +158,22 @@ class TelegramNeuralVault:
             logger.debug(f"[TELEGRAM VAULT] sendVoice error: {e}")
             return False
 
+    async def send_video(self, video_data: io.BytesIO, filename: str = "demo.mp4", caption: Optional[str] = None) -> bool:
+        """Sends an in-memory video demo back to Telegram."""
+        if not self.is_configured or not self.chat_id:
+            return False
+        files = {"video": (filename, video_data.getvalue(), "video/mp4")}
+        data_fields = {"chat_id": self.chat_id, "supports_streaming": "true"}
+        if caption:
+            data_fields["caption"] = caption[:1000]
+        try:
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                res = await client.post(f"{self.base_url}/sendVideo", data=data_fields, files=files)
+                return res.status_code == 200
+        except Exception as e:
+            logger.debug(f"[TELEGRAM VAULT] sendVideo error: {e}")
+            return False
+
     async def save_knowledge(self, topic: str, query: str, response: str) -> bool:
         """Stores structured knowledge in Telegram cloud memory with GZIP compression.
         Preserves in volatile RAM vault (Mode NÉANT) and uploads to Telegram cloud.

@@ -34,6 +34,7 @@ from app.cognition.hermes_scratchpad import HermesScratchpadEngine
 from app.network.onion_portal import SovereignOnionPortal
 from app.forge.bridge import ForgeBridge
 from app.tools.design_bridge import DesignSystemBridge
+from app.tools.video_engine import ProgrammaticVideoEngine
 
 logger = logging.getLogger("tech_lead_orchestrator")
 
@@ -128,6 +129,9 @@ class TechLeadOrchestrator:
 
         # Local Shadcn UI & Design System Bridge
         self.design_bridge = DesignSystemBridge()
+
+        # Programmatic Video Presentation Engine (Remotion & FFmpeg)
+        self.video_engine = ProgrammaticVideoEngine()
 
         # Specialized agents under Tech Lead supervision
         self.code_agent = CodeAgent(tool_gateway, forge_bridge=self.forge)
@@ -508,6 +512,20 @@ class TechLeadOrchestrator:
         tg_ok = await self.forge.export_skills_to_telegram(self.telegram_vault)
         neon_ok = await self.forge.export_skills_to_neon(self.neon_memory)
         return {"telegram": tg_ok, "neon": neon_ok}
+
+    async def render_and_export_video_presentation(
+        self,
+        title: str = "FreeAI Sovereign Platform",
+        subtitle: str = "Intelligence Autonome & Mode NÉANT",
+        duration_sec: int = 4
+    ) -> Dict[str, Any]:
+        """Renders cinematic presentation video in RAM and exports to Telegram."""
+        return await self.video_engine.export_video_to_telegram(
+            self.telegram_vault,
+            title=title,
+            subtitle=subtitle,
+            duration_sec=duration_sec
+        )
 
     def _on_degraded_memory(self):
         logger.warning("[TECH LEAD] Memory warning triggered (> 3.5 GB). Reducing concurrency & trimming context.")

@@ -23,4 +23,10 @@ class DesignSystemBridge {
   +package_design_kit_bundle()
   +export_to_telegram(telegram_vault)
 }
+class ProgrammaticVideoEngine {
+  +workspace_root
+  +generate_remotion_scaffold(output_dir, project_name, title, features)
+  +render_cinematic_teaser_in_ram(title, subtitle, duration_sec)
+  +export_video_to_telegram(telegram_vault, title, subtitle, duration_sec)
+}
 ```

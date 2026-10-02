@@ -19,3 +19,4 @@ logs/*.log
 /dev/shm/freeai_*
 models/*.gguf
 scratch/
+video_presentations/

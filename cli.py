@@ -91,6 +91,7 @@ SLASH_COMMANDS = [
     "/design",
     "/cyber",
     "/skills",
+    "/video",
     "/help",
     "/clear",
     "/exit",
@@ -390,6 +391,11 @@ def print_help():
         "/skills [status|sync]",
         "Matrice Universelle des Compétences : Vue et synchronisation des skills Cyber/Dev/Design vers Telegram & Neon.",
         "/skills sync"
+    )
+    table.add_row(
+        "/video [teaser|scaffold <nom>|status]",
+        "Moteur Vidéo Programmatique & Remotion : Génération de projets React Remotion et rendu MP4 cinématique vers Telegram.",
+        "/video teaser ou /video scaffold 'MonProjet'"
     )
     table.add_row(
         "/clear",
@@ -2105,6 +2111,72 @@ async def run_skills(tech_lead: TechLeadOrchestrator, args: List[str]):
         console.print("[dim]Utilisez [cyan]/skills sync[/] pour sauvegarder la matrice sur vos clouds souverains.[/]")
 
 
+async def run_video(tech_lead: TechLeadOrchestrator, args: List[str]):
+    """Gère le moteur de vidéo programmatique (Remotion & FFmpeg Cinematic Engine)."""
+    subcmd = args[0].lower() if args else "status"
+
+    if subcmd == "status":
+        console.print(Panel(
+            "• Moteur React Remotion : [bold green]Opérationnel (TypeScript, 1080p, 60fps)[/]\n"
+            "• Rendu FFmpeg In-Memory : [bold green]Actif (libx264, libass, aac, Mode NÉANT pur)[/]\n"
+            "• Exportation Telegram : [bold cyan]sendVideo direct avec streaming MP4 vers @LesaintAi_bot[/]\n"
+            "• Générateur de Scaffolds : [bold cyan]Génération automatique de templates de présentation produit[/]\n"
+            "• Empreinte Disque : [bold green]0 octet écrit sur SSD lors des rendus en RAM[/]",
+            title="🎬 Moteur Vidéo Programmatique & Remotion",
+            border_style="magenta"
+        ))
+        console.print("[dim]Commandes :[/]")
+        console.print("  • [cyan]/video teaser [titre] [sous-titre][/] : Génère un teaser cinématique MP4 en RAM et l'envoie sur Telegram")
+        console.print("  • [cyan]/video scaffold <nom>[/]               : Crée une structure complète de projet vidéo Remotion React")
+
+    elif subcmd in ("teaser", "export", "render"):
+        title = args[1] if len(args) > 1 else "FreeAI Sovereign Platform"
+        subtitle = " ".join(args[2:]) if len(args) > 2 else "Intelligence Autonome & Mode NÉANT"
+
+        console.print(f"[dim]🎬 Rendu cinématique MP4 en cours en RAM (Titre : '{title}')...[/]")
+        res = await tech_lead.render_and_export_video_presentation(title=title, subtitle=subtitle, duration_sec=4)
+        if res.get("uploaded_to_telegram"):
+            console.print(Panel(
+                f"• Titre de la présentation : [bold green]{title}[/]\n"
+                f"• Sous-titre : [bold cyan]{subtitle}[/]\n"
+                f"• Fichier vidéo : [bold green]{res['filename']}[/]\n"
+                f"• Résolution : [bold cyan]{res['resolution']}[/] ({res['duration_sec']} secondes)\n"
+                f"• Poids MP4 : [bold cyan]{res['size_kb']:.2f} Ko[/]\n"
+                f"• Empreinte SSD : [bold green]0 octet (Généré en RAM volatile)[/]\n\n"
+                f"✔ [bold green]Vidéo cinématique livrée avec succès sur votre Telegram (@LesaintAi_bot) ![/]\n"
+                f"[dim]Consultez la vidéo directement sur votre smartphone.[/]",
+                title="🎬 Vidéo Cinématique Téléversée",
+                border_style="green"
+            ))
+        else:
+            console.print(f"[yellow]Rendu terminé mais téléversement Telegram en attente. ({res.get('error')})[/]")
+
+    elif subcmd == "scaffold":
+        if len(args) < 2:
+            console.print("[bold red]Usage :[/] /video scaffold <nom_du_projet>")
+            return
+        p_name = args[1]
+        out_dir = str(tech_lead.tool_gateway.workspace_root / "video_presentations" / p_name)
+        res = tech_lead.video_engine.generate_remotion_scaffold(
+            output_dir=out_dir,
+            project_name=p_name,
+            title=f"{p_name} Showcase",
+            features=["Cybersecurity Pentest", "Design System Shadcn", "Autonomous Agents", "Cloud Continuum"]
+        )
+        console.print(Panel(
+            f"• Projet Remotion : [bold green]{res['project_name']}[/]\n"
+            f"• Dossier de sortie : [bold cyan]{res['output_dir']}[/]\n"
+            f"• Résolution : [bold cyan]{res['resolution']}[/]\n"
+            f"• Fichiers générés : [bold green]{', '.join(res['files_generated'])}[/]\n\n"
+            f"[dim]Pour lancer la prévisualisation :[/] [cyan]cd {res['output_dir']} && npm install && npm start[/]",
+            title="🎬 Scaffold Remotion Créé",
+            border_style="magenta"
+        ))
+
+    else:
+        console.print("[bold red]Usage :[/] /video [status|teaser [titre] [sous-titre]|scaffold <nom>]")
+
+
 def get_active_workspace() -> str:
     """Returns the effective workspace root, prioritizing active git repo or WORKSPACE_ROOT."""
     cwd = Path.cwd().resolve()
@@ -2249,6 +2321,8 @@ async def interactive_cli(initial_mode: str = "freeAi"):
                     await run_cyber(tech_lead, args)
                 elif cmd == "/skills":
                     await run_skills(tech_lead, args)
+                elif cmd == "/video":
+                    await run_video(tech_lead, args)
                 else:
                     console.print(f"[bold red]Commande slash inconnue :[/] '{cmd}'. Tapez [bold green]/help[/] pour la liste des commandes.")
             else:
@@ -2371,6 +2445,8 @@ def main():
                 asyncio.run(run_cyber(tech_lead, args))
             elif cmd == "/skills":
                 asyncio.run(run_skills(tech_lead, args))
+            elif cmd == "/video":
+                asyncio.run(run_video(tech_lead, args))
             elif cmd == "/help":
                 print_help()
             else:
