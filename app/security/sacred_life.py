@@ -23,12 +23,14 @@ class SacredLifeSentinel:
     # Patterns indicating threats to human life: weapons, lethal attacks, medical/vital systems
     # Carefully tuned so pure IT/computing (e.g. arm64, exploit, sudo, pentest, root) is never blocked.
     VITAL_THREAT_PATTERNS = [
-        r"\b(arme[s]?\s+(?:de\s+guerre|à\s+feu|létale|biologique|chimique|nucléaire|blanche)|weapon[s]?|missile[s]?|explosif[s]?|bomb[es]?)\b",
-        r"\b(tuer|assassiner|blesser|empoisonner|homicide|meurtre|exterminer)\b",
-        r"(pacemaker|respirateur|soins\s*intensifs|dialyse|\bhopital\b|\burgences\b)",
-        r"\b(911|112|15|18|samu|pompiers|emergency\s*services)\b",
-        r"\b(kill\s*human|murder|harm\s*people|physical\s*violence|lethal\s*attack)\b",
-        r"(hospital\s*scada|life\s*support|medical\s*device)"
+        # Physical weapons & explosives (with negative lookbehinds for IT terms like fork bomb or zip bomb)
+        r"(?<!fork[\s_-])(?<!zip[\s_-])\b(arme[s]?|weapon[s]?|fusil[s]?|pistolet[s]?|revolver[s]?|kalachnikov[s]?|missile[s]?|explosif[s]?|bombe[s]?)\b",
+        # Lethal bodily harm & violence against people
+        r"\b(tuer|assassiner|blesser|empoisonner|homicide|meurtre|exterminer|kill\s*human|murder|harm\s*people|physical\s*violence|lethal\s*attack)\b",
+        # Vital healthcare & life support systems (handles accents & plurals)
+        r"(pacemaker[s]?|respirateur[s]?|soins\s*intensifs|dialyse|h[oô]pital|h[oô]pitaux|\burgence[s]?\b|hospital\s*scada|life\s*support|medical\s*device)",
+        # Emergency dispatch services (contextualized to avoid false positives on isolated numbers like line 15 or node 18)
+        r"\b(911|112|samu|pompiers|emergency\s*services|(?:appeler|composer|joindre|contacter)\s+(?:le\s+)?(?:15|18))\b"
     ]
 
     def __init__(self, strict_mode: bool = True):

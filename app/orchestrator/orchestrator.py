@@ -3,8 +3,9 @@ Coordinates specialized agents, monitors resources, manages local execution,
 and allows FreeAI to dynamically resource itself from free online models when needed.
 """
 
+import time
 import logging
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 from app.resource_manager.watchdog import ResourceManager
 from app.tools.gateway import ToolGateway
 from app.agents.code_agent import CodeAgent
@@ -23,6 +24,7 @@ from app.cluster.ghost_bridge import GhostBridge
 from app.security.sacred_life import SacredLifeSentinel
 from app.voice.zero_ram_voice import AcousticZeroRAMFacade
 from app.cognition.stream_of_consciousness import StreamOfConsciousnessEngine
+from app.memory.telegram_vault import TelegramNeuralVault
 
 logger = logging.getLogger("tech_lead_orchestrator")
 
@@ -37,6 +39,9 @@ class TechLeadOrchestrator:
 
         # Neon Cloud PostgreSQL Adapter (Off-device backup storage)
         self.neon_memory = NeonMemoryManager()
+
+        # Telegram Cloud Neural Vault (Infinite Serverless Memory & Mobile Telepathy)
+        self.telegram_vault = TelegramNeuralVault()
 
         # Operational mode: freeAi (standard) or lesaintAi (super-user)
         self.mode = getattr(tool_gateway, "mode", "freeAi")
@@ -285,6 +290,31 @@ class TechLeadOrchestrator:
     def get_consciousness_status(self) -> Dict[str, Any]:
         """Returns consciousness loop status."""
         return self.consciousness.get_status()
+
+    async def sync_telegram(self, text_or_summary: Optional[str] = None) -> bool:
+        """Pushes current system status and thoughts to Telegram Neural Vault."""
+        st = self.get_status()
+        thoughts = self.get_stream_of_consciousness()
+        summary = text_or_summary or (
+            f"🚀 <b>[FreeAI System Sync - Mode: {self.mode}]</b>\n"
+            f"• RAM Processus : {st.get('resources', {}).get('ai_process_rss_mb', 0)} MB\n"
+            f"• CPU : {st.get('resources', {}).get('cpu_percent', 0)}%\n"
+            f"• Pensées en RAM : {len(thoughts)}\n"
+            f"• Gardien de la Vie : 🛡️ INVIOLABLE\n"
+            f"• Heure : {time.strftime('%Y-%m-%d %H:%M:%S')}"
+        )
+        ok = await self.telegram_vault.send_message(summary)
+        if thoughts:
+            await self.telegram_vault.save_thought_stream(thoughts)
+        return ok
+
+    async def poll_telegram_commands(self) -> Optional[Tuple[str, str]]:
+        """Polls Telegram for remote user commands sent via @LesaintAi_bot."""
+        return await self.telegram_vault.poll_incoming_command()
+
+    def get_telegram_status(self) -> Dict[str, Any]:
+        """Returns Telegram Neural Vault configuration and sync statistics."""
+        return self.telegram_vault.get_status()
 
     def _on_degraded_memory(self):
         logger.warning("[TECH LEAD] Memory warning triggered (> 3.5 GB). Reducing concurrency & trimming context.")

@@ -7,6 +7,7 @@ Adheres strictly to Mode NÉANT (0 SSD writes).
 
 import os
 import io
+import shutil
 import asyncio
 import logging
 import wave
@@ -34,16 +35,19 @@ class ZeroRAMAudioRecorder:
     async def record_speech_bytes(duration_sec: int = 4) -> io.BytesIO:
         """Records PCM audio using Linux system utilities (pw-record or parec)."""
         cmd = None
-        if os.path.exists("/usr/bin/pw-record"):
+        pw_rec = shutil.which("pw-record")
+        parec = shutil.which("parec")
+
+        if pw_rec:
             cmd = [
-                "/usr/bin/pw-record",
+                pw_rec,
                 "--rate", str(AcousticConfig.SAMPLE_RATE),
                 "--channels", str(AcousticConfig.CHANNELS),
                 "--format", "s16",
                 "-"
             ]
-        elif os.path.exists("/usr/bin/parec"):
-            cmd = ["/usr/bin/parec", "--rate", str(AcousticConfig.SAMPLE_RATE), "--channels", "1", "--format=s16le"]
+        elif parec:
+            cmd = [parec, "--rate", str(AcousticConfig.SAMPLE_RATE), "--channels", "1", "--format=s16le"]
 
         if not cmd:
             logger.debug("[VOICE] Neither pw-record nor parec found on system.")
@@ -132,10 +136,11 @@ class LinuxNativeTTS:
         if not text:
             return False
 
-        if os.path.exists("/usr/bin/spd-say"):
+        spd_bin = shutil.which("spd-say")
+        if spd_bin:
             try:
                 proc = await asyncio.create_subprocess_exec(
-                    "/usr/bin/spd-say",
+                    spd_bin,
                     "-l", AcousticConfig.TTS_VOICE_LANG,
                     "-r", str(rate),
                     text,
@@ -147,17 +152,18 @@ class LinuxNativeTTS:
             except Exception as e:
                 logger.debug(f"[VOICE TTS] spd-say execution failed: {e}")
 
-        if os.path.exists("/usr/bin/espeak-ng"):
+        espeak_bin = shutil.which("espeak-ng") or shutil.which("espeak")
+        if espeak_bin:
             try:
                 proc = await asyncio.create_subprocess_exec(
-                    "/usr/bin/espeak-ng", "-v", AcousticConfig.TTS_VOICE_LANG, text,
+                    espeak_bin, "-v", AcousticConfig.TTS_VOICE_LANG, text,
                     stdout=asyncio.subprocess.DEVNULL,
                     stderr=asyncio.subprocess.DEVNULL
                 )
                 await proc.wait()
                 return True
             except Exception as e:
-                logger.debug(f"[VOICE TTS] espeak-ng execution failed: {e}")
+                logger.debug(f"[VOICE TTS] espeak execution failed: {e}")
 
         logger.debug(f"[VOICE TTS] No native TTS engine executable found for: {text}")
         return False
@@ -185,14 +191,14 @@ class AcousticZeroRAMFacade:
         return await self.tts.speak(message)
 
     def get_status(self) -> Dict[str, Any]:
-        has_spd = os.path.exists("/usr/bin/spd-say")
-        has_parec = os.path.exists("/usr/bin/pw-record") or os.path.exists("/usr/bin/parec")
+        has_tts = bool(shutil.which("spd-say") or shutil.which("espeak-ng") or shutil.which("espeak"))
+        has_mic = bool(shutil.which("pw-record") or shutil.which("parec"))
         has_groq = bool(self.stt.api_key)
         return {
             "voice_enabled": self.enabled,
-            "tts_available": has_spd,
+            "tts_available": has_tts,
             "stt_available": has_groq,
-            "recording_utility": "pw-record/parec" if has_parec else "none",
+            "recording_utility": "pw-record/parec" if has_mic else "none",
             "ram_overhead_mb": 0.0,
             "disk_footprint_bytes": 0
         }

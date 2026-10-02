@@ -72,6 +72,7 @@ SLASH_COMMANDS = [
     "/ghost",
     "/voice",
     "/think",
+    "/telegram",
     "/help",
     "/clear",
     "/exit",
@@ -232,6 +233,11 @@ def print_help():
         "/think pulse ou /think stream"
     )
     table.add_row(
+        "/telegram [status|sync|push <topic> <txt>|listen]",
+        "Telegram Neural Vault : Mémoire cloud infinie, chiffrée GZIP-9 et télépathie mobile (@LesaintAi_bot).",
+        "/telegram status ou /telegram sync ou /telegram listen"
+    )
+    table.add_row(
         "/clear",
         "Nettoie l'affichage du terminal.",
         "/clear"
@@ -317,6 +323,11 @@ def print_status(tech_lead: TechLeadOrchestrator):
     # Stream of Consciousness
     c_stat = tech_lead.get_consciousness_status()
     table.add_row("Flux de Conscience", f"[bold cyan]{c_stat.get('thoughts_count', 0)} pensée(s) en RAM[/] (Mode NÉANT) | Proactif: {'Oui' if c_stat.get('proactive_speech') else 'Non'}")
+
+    # Telegram Cloud Neural Vault
+    tg_stat = tech_lead.get_telegram_status()
+    tg_cfg = "[bold green]Connecté (@LesaintAi_bot)[/]" if tg_stat.get("configured") else "[yellow]Désactivé[/]"
+    table.add_row("Telegram Neural Vault", f"{tg_cfg} | Chat: {tg_stat.get('chat_id')} | Syncs: {tg_stat.get('synced_records')}")
 
     console.print(table)
 
@@ -1116,6 +1127,66 @@ async def run_think(tech_lead: TechLeadOrchestrator, args: List[str]):
         console.print("[bold red]Usage :[/] /think [status|pulse|stream|speech on|off]")
 
 
+async def run_telegram(tech_lead: TechLeadOrchestrator, args: List[str]):
+    """Manages Telegram Cloud Neural Vault & Mobile Telepathy."""
+    subcmd = args[0].lower() if args else "status"
+
+    if subcmd == "status":
+        st = tech_lead.get_telegram_status()
+        console.print(Panel(
+            f"• Bot Telegram : [bold cyan]@{st.get('bot_username')}[/]\n"
+            f"• Identifiant Chat (chat_id) : [bold yellow]{st.get('chat_id')}[/]\n"
+            f"• Statut Connexion : {'[bold green]Connecté (Prêt à synchroniser)[/]' if st.get('configured') else '[yellow]En attente de token[/]'}\n"
+            f"• Synchronisations Réalisées : [bold green]{st.get('synced_records')}[/]\n"
+            f"• Stockage Cloud : [bold green]100% Telegram MTProto (Mode NÉANT, 0 octet local)[/]\n"
+            f"• Empreinte RAM Permanente : [bold green]0 Mo (Zéro RAM)[/]\n"
+            f"• Compression : [bold cyan]GZIP Niveau 9 (En mémoire)[/]",
+            title="☁️ Telegram Cloud Neural Vault",
+            border_style="blue"
+        ))
+        if not st.get("configured") or "En attente" in str(st.get("chat_id")):
+            console.print("[dim]💡 Astuce : Ouvrez [bold cyan]t.me/LesaintAi_bot[/] sur votre Telegram et envoyez [bold green]/start[/] pour lier votre compte instantanément ![/]")
+
+    elif subcmd == "sync":
+        msg = " ".join(args[1:]) if len(args) > 1 else None
+        console.print("[dim]⚡ Synchronisation du cerveau FreeAI sur Telegram Cloud...[/]")
+        ok = await tech_lead.sync_telegram(text_or_summary=msg)
+        if ok:
+            console.print("[bold green]✔ Cerveau FreeAI et pensées synchronisés avec succès sur Telegram Cloud ![/]")
+        else:
+            console.print("[yellow]Notice : Impossible de synchroniser. Avez-vous envoyé un message à @LesaintAi_bot ?[/]")
+
+    elif subcmd == "push":
+        if len(args) < 3:
+            console.print("[bold red]Usage :[/] /telegram push <topic> <texte>")
+            return
+        topic = args[1]
+        content = " ".join(args[2:])
+        console.print(f"[dim]📦 Archivage de la connaissance #{topic} sur Telegram Cloud...[/]")
+        ok = await tech_lead.telegram_vault.save_knowledge(topic=topic, query=topic, response=content)
+        if ok:
+            console.print(f"[bold green]✔ Connaissance #{topic} archivée et compressée (GZIP-9) sur Telegram Cloud ![/]")
+        else:
+            console.print("[yellow]Échec de l'envoi vers Telegram. Vérifiez votre liaison bot.[/]")
+
+    elif subcmd == "listen":
+        console.print("[bold cyan]📡 Écoute télépathique Telegram activée... Envoyez un ordre à @LesaintAi_bot depuis votre smartphone ![/]")
+        cmd_info = await tech_lead.poll_telegram_commands()
+        if cmd_info:
+            order, user = cmd_info
+            console.print(f"[bold green]✔ Ordre reçu de @{user} :[/] [bold white]« {order} »[/]")
+            console.print(f"[dim]Exécution de l'ordre en mode {tech_lead.mode}...[/]")
+            res = await tech_lead.handle_objective(order, autonomous=True)
+            res_summary = str(res.get("result", {}).get("output", "Objectif traité"))[:500]
+            await tech_lead.telegram_vault.send_message(f"✅ <b>Rapport d'exécution :</b>\n<code>{res_summary}</code>")
+            console.print("[bold green]✔ Rapport transmis au smartphone via Telegram ![/]")
+        else:
+            console.print("[dim]Aucun nouvel ordre reçu sur Telegram lors de cette vérification.[/]")
+
+    else:
+        console.print("[bold red]Usage :[/] /telegram [status|sync|push <topic> <texte>|listen]")
+
+
 def get_active_workspace() -> str:
     """Returns the effective workspace root, prioritizing active git repo or WORKSPACE_ROOT."""
     cwd = Path.cwd().resolve()
@@ -1226,6 +1297,8 @@ async def interactive_cli(initial_mode: str = "freeAi"):
                     await run_voice(tech_lead, args)
                 elif cmd == "/think":
                     await run_think(tech_lead, args)
+                elif cmd == "/telegram":
+                    await run_telegram(tech_lead, args)
                 else:
                     console.print(f"[bold red]Commande slash inconnue :[/] '{cmd}'. Tapez [bold green]/help[/] pour la liste des commandes.")
             else:
@@ -1314,6 +1387,8 @@ def main():
                 asyncio.run(run_voice(tech_lead, args))
             elif cmd == "/think":
                 asyncio.run(run_think(tech_lead, args))
+            elif cmd == "/telegram":
+                asyncio.run(run_telegram(tech_lead, args))
             elif cmd == "/help":
                 print_help()
             else:
