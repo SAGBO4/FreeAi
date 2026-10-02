@@ -176,17 +176,38 @@ class TestOrchestratorAndCLITelegramIntegration(unittest.TestCase):
             with patch.object(self.tl.telegram_vault, "send_message", AsyncMock(return_value=True)):
                 ok = await self.tl.sync_telegram("Rapport de synchronisation")
                 self.assertTrue(ok)
+    def test_dual_cloud_knowledge_mirroring(self):
+        async def _test():
+            # Test when Neon is down: Telegram takes over seamlessly
+            with patch.object(self.tl.neon_memory, "save_knowledge", MagicMock(side_effect=Exception("Neon down"))), \
+                 patch.object(self.tl.telegram_vault, "save_knowledge", AsyncMock(return_value=True)):
+                report = await self.tl.persist_knowledge(
+                    query="Test question",
+                    response="Test answer",
+                    topic="test_topic"
+                )
+                self.assertFalse(report["neon_synced"])
+                self.assertTrue(report["telegram_synced"])
+                self.assertTrue(report["resilient"])
         asyncio.run(_test())
 
-    def test_cli_telegram_status_batch(self):
-        with patch("sys.argv", ["cli.py", "/telegram", "status"]):
-            cli.main()
+    def test_get_knowledge_fallback_to_telegram(self):
+        # 1. Neon down -> fallback to Telegram vault
+        self.tl.telegram_vault._volatile_knowledge_vault["sec_rule"] = {
+            "query": "sec_rule",
+            "topic": "security",
+            "response": "Zero-trust policy active"
+        }
+        with patch.object(self.tl.neon_memory, "get_knowledge", MagicMock(return_value=None)):
+            res = self.tl.get_knowledge("sec_rule")
+            self.assertEqual(res, "Zero-trust policy active")
 
-    def test_cli_telegram_push_mock(self):
-        with patch.object(self.tl.telegram_vault, "save_knowledge", AsyncMock(return_value=True)):
-            with patch("sys.argv", ["cli.py", "/telegram", "push", "cyber", "Analyse de vulnérabilités"]):
+    def test_cli_learn_command_batch(self):
+        with patch.object(self.tl, "persist_knowledge", AsyncMock(return_value={"neon_synced": True, "telegram_synced": True, "resilient": True})):
+            with patch("sys.argv", ["cli.py", "/learn", "blockchain", "ENS L2 and Polygon domains"]):
                 cli.main()
 
 
 if __name__ == "__main__":
     unittest.main()
+

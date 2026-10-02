@@ -1,0 +1,57 @@
+# Ultra-frugal, hardened ephemeral sandbox for FreeAI root/sudo tasks
+# Mode NÉANT compliant: Intended to run with --read-only / tmpfs RAM or volatile writable overlay
+# Enriched with Cyber Arsenal, Diagnostics, and Micro-Init (systemctl/service) shims
+
+FROM debian:bookworm-slim
+
+# Prevent interactive prompts
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+# Install comprehensive core utilities for IT, networking, pentest & diagnostics
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    bash \
+    curl \
+    wget \
+    iproute2 \
+    net-tools \
+    iputils-ping \
+    traceroute \
+    dnsutils \
+    socat \
+    netcat-traditional \
+    nmap \
+    tcpdump \
+    iptables \
+    nftables \
+    procps \
+    psmisc \
+    strace \
+    lsof \
+    jq \
+    openssl \
+    file \
+    binutils \
+    git \
+    python3 \
+    python3-pip \
+    ca-certificates \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+# Cyber & Anonymity tooling: nmap, tor, torsocks
+RUN apt-get update && apt-get install -y --no-install-recommends nmap tor torsocks \
+    && apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+WORKDIR /workspace
+
+# Install transparent sudo compatibility shim for scripts expecting sudo (runs natively as root)
+RUN printf '#!/bin/sh\nexec "$@"\n' > /usr/local/bin/sudo && chmod +x /usr/local/bin/sudo
+
+# Install Virtual Service & systemctl shim (Shadow Micro-Init)
+COPY app/tools/shadow_init.sh /usr/local/bin/systemctl
+RUN chmod +x /usr/local/bin/systemctl && ln -sf /usr/local/bin/systemctl /usr/local/bin/service
+
+# Default command
+CMD ["/bin/bash"]
