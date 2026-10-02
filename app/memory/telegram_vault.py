@@ -279,28 +279,44 @@ class TelegramNeuralVault:
                         text = msg.get("text", "").strip()
                         is_voice = False
 
-                        # Pairing hook: allow /start to bind new session
-                        if text == "/start":
+                        # Authentication guard: If chat_id is established, reject and alert on foreign senders
+                        if self.chat_id and sender_chat_id != str(self.chat_id):
+                            logger.critical(
+                                f"[TELEGRAM VAULT] Intrusion interceptée ! Expéditeur non autorisé: @{user_name} "
+                                f"(Chat ID: {sender_chat_id}, Attendu: {self.chat_id})"
+                            )
+                            # Alert legitimate master on his smartphone immediately
+                            alert_text = (
+                                f"🚨 <b>[ALERTE SÉCURITÉ SOUVERAINE]</b>\n\n"
+                                f"Tentative d'intrusion interceptée sur votre bot Telegram !\n"
+                                f"• Utilisateur pirate : @{user_name}\n"
+                                f"• Chat ID rejeté : <code>{sender_chat_id}</code>\n"
+                                f"• Message bloqué : <i>{text[:100] if text else '[Audio non autorisé]'}</i>\n\n"
+                                f"🛡️ <i>Accès hermétiquement verrouillé. Seul votre smartphone a l'autorité.</i>"
+                            )
+                            try:
+                                async with httpx.AsyncClient(timeout=5.0) as alert_client:
+                                    await alert_client.post(
+                                        f"{self.base_url}/sendMessage",
+                                        json={"chat_id": self.chat_id, "text": alert_text, "parse_mode": "HTML"}
+                                    )
+                            except Exception:
+                                pass
+                            continue
+
+                        # First connection: bind only if self.chat_id is completely unset
+                        if not self.chat_id:
                             self.chat_id = sender_chat_id
+                            logger.info(f"[TELEGRAM VAULT] Liaison initiale établie avec le Chat ID: {self.chat_id}")
+
+                        # Pairing greeting only on legitimate first /start
+                        if text == "/start":
                             await self.send_message(
                                 "⚡ <b>FreeAI Jarvis Connecté & Prêt !</b>\n\n"
                                 "Je suis votre assistant souverain. Envoyez-moi un message texte "
                                 "ou appuyez sur le micro pour me parler par note vocale !"
                             )
                             continue
-
-                        # Authentication guard: If chat_id is established, reject foreign senders
-                        if self.chat_id and sender_chat_id != self.chat_id:
-                            logger.warning(
-                                f"[TELEGRAM VAULT] Rejet d'ordre émis par un expéditeur non autorisé "
-                                f"(ID: {sender_chat_id}, Attendu: {self.chat_id})"
-                            )
-                            continue
-
-                        # First connection: bind chat_id
-                        if not self.chat_id:
-                            self.chat_id = sender_chat_id
-                            logger.info(f"[TELEGRAM VAULT] Liaison établie avec le Chat ID: {self.chat_id}")
 
                         # Handle Voice Notes or Audio (Bidirectional Telepathy)
                         voice_meta = msg.get("voice") or msg.get("audio")

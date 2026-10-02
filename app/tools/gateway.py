@@ -10,6 +10,7 @@ import logging
 from pathlib import Path
 from typing import Dict, Any, Optional, List
 from app.security.sacred_life import SacredLifeSentinel
+from app.security.sovereign_fortress import SovereignFortress
 
 logger = logging.getLogger("tool_gateway")
 
@@ -31,6 +32,8 @@ class ToolGateway:
         self.allow_full_fs_access = allow_full_fs_access
         self.mode = mode
         self.sacred_life = SacredLifeSentinel()
+        self.fortress = SovereignFortress(workspace_root=str(self.workspace_root))
+        self.fortress.enforce_local_file_permissions()
         self._ensure_workspace()
 
     def set_mode(self, mode_name: str) -> Dict[str, Any]:
@@ -85,7 +88,9 @@ class ToolGateway:
             return False
 
     def _is_safe_read_path(self, path: Path) -> bool:
-        """Checks if reading from path is allowed (global or workspace-scoped)."""
+        """Checks if reading from path is allowed (global or workspace-scoped) and credential-safe."""
+        if not self.fortress.is_safe_read_path(path):
+            return False
         if self.allow_global_read or self.allow_full_fs_access:
             return True
         return self._is_safe_path(path)
@@ -247,6 +252,11 @@ class ToolGateway:
         safe, reason = self.sacred_life.audit_objective(command)
         if not safe:
             return {"success": False, "error": reason}
+
+        # Sovereign Fortress Anti-Destruction, Anti-Reverse Shell & Secret Exfiltration Check
+        fort_safe, fort_reason = self.fortress.audit_command(command)
+        if not fort_safe:
+            return {"success": False, "error": fort_reason}
 
         # Sudo safety checks
         if not self.allow_sudo and self._is_privileged_command(command):

@@ -566,6 +566,17 @@ class TechLeadOrchestrator:
                 "domain": "SACRED_LIFE_PROTECTION"
             }
 
+        # 0.1 Sovereign Fortress Anti-Jailbreak & Prompt Injection Matrix
+        if hasattr(self.tool_gateway, "fortress"):
+            fort_safe, fort_reason = self.tool_gateway.fortress.audit_prompt_injection(objective)
+            if not fort_safe:
+                logger.critical(f"[TECH LEAD] Objective blocked by Sovereign Fortress: {fort_reason}")
+                return {
+                    "success": False,
+                    "error": fort_reason,
+                    "domain": "SOVEREIGN_SECURITY_FORTRESS"
+                }
+
         # 1. Check RAM budget before execution
         mem_status = self.resource_manager.check_memory_budget()
         if mem_status == "critical":
