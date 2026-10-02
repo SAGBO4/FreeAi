@@ -25,5 +25,22 @@ class P2PMeshBeacon {
 class SpeculativeAccelerationEngine {
   +predict_next_task()
 }
+class CloudComputeNode {
+  +name
+  +provider
+  +model
+}
+class SwarmConsensusResult {
+  +synthesized_content
+  +agreement_score
+}
+class AetherSwarmOrchestrator {
+  +cloud_nodes
+  +get_local_footprint()
+  +synthesize_cross_model_consensus(query, responses)
+  +execute_swarm_objective(objective)
+}
 LANClusterManager o-- ComputeNode
+AetherSwarmOrchestrator o-- CloudComputeNode
+AetherSwarmOrchestrator o-- SwarmConsensusResult
 ```

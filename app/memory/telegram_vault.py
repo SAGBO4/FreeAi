@@ -19,14 +19,16 @@ logger = logging.getLogger("telegram_vault")
 
 
 class TelegramCommand(tuple):
-    """Backwards-compatible (text, user) tuple with .is_voice metadata."""
-    def __new__(cls, text: str, user: str, is_voice: bool = False):
+    """Backwards-compatible (text, user) tuple with .is_voice and multimodal media metadata."""
+    def __new__(cls, text: str, user: str, is_voice: bool = False, media_bytes: Optional[bytes] = None, media_type: Optional[str] = None):
         return super().__new__(cls, (text, user))
 
-    def __init__(self, text: str, user: str, is_voice: bool = False):
+    def __init__(self, text: str, user: str, is_voice: bool = False, media_bytes: Optional[bytes] = None, media_type: Optional[str] = None):
         self.text = text
         self.user = user
         self.is_voice = is_voice
+        self.media_bytes = media_bytes
+        self.media_type = media_type
 
 
 class TelegramNeuralVault:
@@ -320,6 +322,10 @@ class TelegramNeuralVault:
 
                         # Handle Voice Notes or Audio (Bidirectional Telepathy)
                         voice_meta = msg.get("voice") or msg.get("audio")
+                        media_bytes = None
+                        media_type = None
+                        caption = msg.get("caption", "").strip()
+
                         if not text and voice_meta:
                             is_voice = True
                             file_id = voice_meta.get("file_id")
@@ -333,13 +339,34 @@ class TelegramNeuralVault:
                             elif file_id and not stt_engine:
                                 await self.send_message("🎙️ <i>Note vocale reçue, mais le moteur de transcription STT n'est pas initialisé.</i>")
 
+                        # Handle Photo / Image
+                        elif msg.get("photo"):
+                            media_type = "image"
+                            photo = msg["photo"][-1]
+                            file_id = photo.get("file_id")
+                            if file_id:
+                                img_stream = await self.download_file_bytes(file_id)
+                                if img_stream:
+                                    media_bytes = img_stream.getvalue()
+                            text = caption or "Analyse cette image en détail et décris précisément ce qu'elle contient."
+
+                        # Handle Video
+                        elif msg.get("video"):
+                            media_type = "video"
+                            file_id = msg["video"].get("file_id")
+                            if file_id:
+                                vid_stream = await self.download_file_bytes(file_id)
+                                if vid_stream:
+                                    media_bytes = vid_stream.getvalue()
+                            text = caption or "Analyse cette vidéo en détail et réponds précisément à ma demande."
+
                         if text:
                             # Inviolable Verification by SacredLifeSentinel
                             safe, reason = self.sentinel.audit_objective(text)
                             if not safe:
                                 await self.send_message(f"⛔ <b>VETO SACRÉ :</b> Ordre rejeté ({reason})")
                                 continue
-                            return TelegramCommand(text, user_name, is_voice=is_voice)
+                            return TelegramCommand(text, user_name, is_voice=is_voice, media_bytes=media_bytes, media_type=media_type)
         except Exception as e:
             logger.debug(f"[TELEGRAM VAULT] Polling error: {e}")
         return None

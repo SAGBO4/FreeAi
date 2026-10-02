@@ -15,6 +15,8 @@ Dernière mise à jour : 2026-10-02
 | F-06 | Intégration Forge & Craft-Suite (167 skills, 26 agents, tamper-check) | F-01 | done |
 | F-07 | Protocole Phoenix Blackout & Éveil LesaintAI Apex | F-01, F-02 | done |
 | F-08 | Nexus Tri-Brid & Live Hologram Call (Synesthésie Multimodale Telegram) | F-01, F-03 | done |
+| F-09 | Protocole AETHER-SWARM (Délégation Cloud Serverless, 0% Charge PC) | F-01, F-06 | done |
+| F-10 | Vision & Vidéo Multimodale Télépathique Telegram (Mode NÉANT) | F-01, F-03 | done |
 
 ## Feature details
 
@@ -73,4 +75,20 @@ Acceptation:
   AC1: Pont Audio Full-Duplex WebRTC / Mini App avec barge-in en RAM pure (Mode NÉANT).
   AC2: Canal Visuel Synesthésique projetant diagrammes Mermaid, code live et Shadcn UI synchronisés avec la parole.
   AC3: Intervention furtive en direct permettant au TechLead d'exécuter des actions en tâche de fond sans couper l'appel.
+Statut: done
+
+### F-09 Protocole AETHER-SWARM
+Acteur: Utilisateur souverain & Machine HP EliteBook
+Acceptation:
+  AC1: Délégation totale des calculs neuronaux lourds vers les serveurs Cloud mondiaux gratuits (Groq LPU, OpenRouter, GitHub Runners).
+  AC2: Garantie stricte de zéro-charge sur le PC local (RAM < 60 Mo, 0% CPU au repos, 0 écriture SSD).
+  AC3: Arène de consensus contradictoire multi-modèles (Llama 70B + DeepSeek + Qwen) éliminant les hallucinations.
+Statut: done
+
+### F-10 Vision & Vidéo Multimodale Télépathique
+Acteur: Utilisateur mobile (@SpeedyLesaint) & Telegram
+Acceptation:
+  AC1: Réception et traitement direct de photos et vidéos Telegram en RAM pure (Mode NÉANT).
+  AC2: Analyse visuelle ultra-rapide via Groq LPU Vision (Llama 3.2 Vision) et Qwen 2 VL.
+  AC3: Restitution textuelle claire de la réponse et intégration dans la mémoire épisodique.
 Statut: done

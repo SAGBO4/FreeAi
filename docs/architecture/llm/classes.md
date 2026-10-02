@@ -11,5 +11,6 @@ class ShadowRedTeamArena {
 }
 class OnlineModelFederation {
   +query_federation(prompt)
+  +analyze_multimodal(media_bytes, prompt, media_type)
 }
 ```

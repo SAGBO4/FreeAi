@@ -1349,16 +1349,33 @@ async def run_think(tech_lead: TechLeadOrchestrator, args: List[str]):
         console.print("[bold red]Usage :[/] /think [status|pulse|stream|speech on|off]")
 
 
-async def dispatch_telegram_order(tech_lead: TechLeadOrchestrator, order: str, user: str, is_voice: bool = False):
+async def dispatch_telegram_order(tech_lead: TechLeadOrchestrator, order: str, user: str, is_voice: bool = False, media_bytes: Optional[bytes] = None, media_type: Optional[str] = None):
     """Processes an incoming command from Telegram with native shortcuts, autonomous AI,
-    and bidirectional vocal telepathy (text + neural audio voice notes).
+    multimodal vision/video analysis, and bidirectional telepathy.
     """
     import re
     order_clean = order.strip()
     order_lower = order_clean.lower()
     workspace = str(tech_lead.tool_gateway.workspace_root)
+    wants_voice = is_voice or any(v in order_lower for v in ["vocal", "parle", "voix", "dis moi a la voix", "dis-moi à la voix", "audio", "envoie un vocal"])
 
-    console.print(f"\n[bold green]✔ Ordre {'vocal' if is_voice else 'texte'} reçu de @{user} :[/] [bold white]« {order_clean} »[/]")
+    console.print(f"\n[bold green]✔ Ordre {'vocal' if is_voice else ('multimodal' if media_bytes else 'texte')} reçu de @{user} :[/] [bold white]« {order_clean} »[/]")
+
+    # 0. Multimodal Visual / Video Analysis
+    if media_bytes:
+        console.print(f"[bold cyan]👁️ Analyse Multimodale ({media_type}) reçue de @{user}...[/]")
+        analysis = await tech_lead.free_ai.federation.analyze_multimodal(
+            media_bytes=media_bytes,
+            prompt=order_clean,
+            media_type=media_type or "image/jpeg"
+        )
+        await tech_lead.telegram_vault.send_message(analysis)
+        console.print("[bold green]✔ Rapport d'analyse visuelle transmis sur Telegram ![/]")
+        if wants_voice:
+            voice_ogg = await tech_lead.voice.synthesize_speech("Analyse visuelle terminée, Michael.")
+            if voice_ogg and voice_ogg.getbuffer().nbytes > 0:
+                await tech_lead.telegram_vault.send_voice(voice_ogg)
+        return
 
     # 1. Native shortcut: /clone, /backup
     if order_lower in ("/clone", "/backup", "reclone", "clone", "backup") or "reclone" in order_lower:
@@ -1376,10 +1393,11 @@ async def dispatch_telegram_order(tech_lead: TechLeadOrchestrator, order: str, u
                 f"• Intégrité SHA-256 : <code>{res['sha256'][:16]}...</code>\n\n"
                 f"<i>Archive disponible ci-dessus pour restauration instantanée.</i>"
             )
-            # Vocal response
-            voice_ogg = await tech_lead.voice.synthesize_speech("Auto-clonage terminé avec succès. Votre kit de secours complet est disponible dans ce chat.")
-            if voice_ogg and voice_ogg.getbuffer().nbytes > 0:
-                await tech_lead.telegram_vault.send_voice(voice_ogg)
+            # Vocal response only if requested
+            if wants_voice:
+                voice_ogg = await tech_lead.voice.synthesize_speech("Auto-clonage terminé avec succès. Votre kit de secours complet est disponible dans ce chat.")
+                if voice_ogg and voice_ogg.getbuffer().nbytes > 0:
+                    await tech_lead.telegram_vault.send_voice(voice_ogg)
         else:
             await tech_lead.telegram_vault.send_message("❌ Échec de l'envoi de l'archive vers Telegram.")
         return
@@ -1399,9 +1417,10 @@ async def dispatch_telegram_order(tech_lead: TechLeadOrchestrator, order: str, u
             ok = await tech_lead.telegram_vault.send_document("GUIDE_UTILISATION_FREEAI.md", data, caption=caption)
             if ok:
                 console.print("[bold green]✔ Guide envoyé sur Telegram ![/]")
-                voice_ogg = await tech_lead.voice.synthesize_speech("Voici le guide officiel souverain de FreeAI mis à jour.")
-                if voice_ogg and voice_ogg.getbuffer().nbytes > 0:
-                    await tech_lead.telegram_vault.send_voice(voice_ogg)
+                if wants_voice:
+                    voice_ogg = await tech_lead.voice.synthesize_speech("Voici le guide officiel souverain de FreeAI mis à jour.")
+                    if voice_ogg and voice_ogg.getbuffer().nbytes > 0:
+                        await tech_lead.telegram_vault.send_voice(voice_ogg)
         else:
             await tech_lead.telegram_vault.send_message("❌ Fichier GUIDE_UTILISATION_FREEAI.md introuvable.")
         return
@@ -1421,9 +1440,10 @@ async def dispatch_telegram_order(tech_lead: TechLeadOrchestrator, order: str, u
             )
             await tech_lead.telegram_vault.send_message(tg_text)
             console.print("[bold green]✔ Mise à jour appliquée et re-clonée sur Telegram ![/]")
-            voice_ogg = await tech_lead.voice.synthesize_speech("Mise à jour appliquée avec succès et certifiée zéro régression par les tests.")
-            if voice_ogg and voice_ogg.getbuffer().nbytes > 0:
-                await tech_lead.telegram_vault.send_voice(voice_ogg)
+            if wants_voice:
+                voice_ogg = await tech_lead.voice.synthesize_speech("Mise à jour appliquée avec succès et certifiée zéro régression par les tests.")
+                if voice_ogg and voice_ogg.getbuffer().nbytes > 0:
+                    await tech_lead.telegram_vault.send_voice(voice_ogg)
         else:
             err_msg = res.get("error", "Erreur inconnue")
             rolled = " (Rollback automatique exécuté)" if res.get("rolled_back") else ""
@@ -1444,9 +1464,10 @@ async def dispatch_telegram_order(tech_lead: TechLeadOrchestrator, order: str, u
             f"• Empreinte disque locale : <b>0 octet (Mode NÉANT)</b>"
         )
         await tech_lead.telegram_vault.send_message(msg)
-        voice_ogg = await tech_lead.voice.synthesize_speech(f"FreeAI est opérationnel en mode {st.get('mode')}. La sentinelle Jarvis est active.")
-        if voice_ogg and voice_ogg.getbuffer().nbytes > 0:
-            await tech_lead.telegram_vault.send_voice(voice_ogg)
+        if wants_voice:
+            voice_ogg = await tech_lead.voice.synthesize_speech(f"FreeAI est opérationnel en mode {st.get('mode')}. La sentinelle Jarvis est active.")
+            if voice_ogg and voice_ogg.getbuffer().nbytes > 0:
+                await tech_lead.telegram_vault.send_voice(voice_ogg)
         return
 
     # 5. Native shortcut: /call, /live, "ouvre la ligne", "lance un appel", "appel vocal"
@@ -1466,12 +1487,34 @@ async def dispatch_telegram_order(tech_lead: TechLeadOrchestrator, order: str, u
         )
         await tech_lead.telegram_vault.send_message(call_msg)
         console.print(f"[bold green]✔ Session Live Hologram initialisée ({session.session_id}) ![/]")
-        voice_ogg = await tech_lead.voice.synthesize_speech("Ligne télépathique ouverte, Michael ! Le canal synesthésique en direct est activé.")
-        if voice_ogg and voice_ogg.getbuffer().nbytes > 0:
-            await tech_lead.telegram_vault.send_voice(voice_ogg, caption="🎙️ <i>FreeAI Live Call</i>")
+        if wants_voice:
+            voice_ogg = await tech_lead.voice.synthesize_speech("Ligne télépathique ouverte, Michael ! Le canal synesthésique en direct est activé.")
+            if voice_ogg and voice_ogg.getbuffer().nbytes > 0:
+                await tech_lead.telegram_vault.send_voice(voice_ogg, caption="🎙️ <i>FreeAI Live Call</i>")
         return
 
-    # 6. Standard AI objective or Human Conversation execution
+    # 6. Native shortcut: /swarm, /aether, /consensus
+    if order_lower.startswith(("/swarm", "/aether", "/consensus")) or "consensus" in order_lower:
+        query_prompt = order_clean
+        for prefix in ("/swarm", "/aether", "/consensus"):
+            if query_prompt.lower().startswith(prefix):
+                query_prompt = query_prompt[len(prefix):].strip()
+        if not query_prompt:
+            query_prompt = "Synthèse d'architecture et stratégie souveraine"
+
+        console.print("[dim]Déclenchement du Swarm Aether (Débat Cloud multi-modèles)...[/]")
+        await tech_lead.telegram_vault.send_message("⚡ <b>Essaim Aether Déclenché :</b>\nConsultation en parallèle des serveurs Cloud mondiaux (0% charge PC local)...")
+        res = await tech_lead.aether_swarm.execute_swarm_objective(query_prompt)
+        consensus_text = res.get("consensus", {}).get("synthesized_content", "Consensus achevé.")
+        await tech_lead.telegram_vault.send_message(consensus_text)
+        console.print("[bold green]✔ Consensus Essaim Aether transmis à Telegram (0% charge PC) ![/]")
+        if wants_voice:
+            voice_ogg = await tech_lead.voice.synthesize_speech("Consensus de l'essaim cloud achevé avec succès sans impacter votre machine.")
+            if voice_ogg and voice_ogg.getbuffer().nbytes > 0:
+                await tech_lead.telegram_vault.send_voice(voice_ogg, caption="🎙️ <i>Aether Swarm Consensus</i>")
+        return
+
+    # 7. Standard AI objective or Human Conversation execution
     console.print(f"[dim]Exécution de l'ordre en mode {tech_lead.mode}...[/]")
     res = await tech_lead.handle_objective(order_clean, autonomous=True)
     is_conv = res.get("assigned_agent") == "conversation" or res.get("result", {}).get("conversational", False)
@@ -1480,14 +1523,15 @@ async def dispatch_telegram_order(tech_lead: TechLeadOrchestrator, order: str, u
         reply_msg = str(res.get("result", {}).get("output") or res.get("result", {}).get("message") or "Je suis là avec toi, Michael !")
         await tech_lead.telegram_vault.send_message(f"💬 <b>FreeAI :</b>\n\n{reply_msg}")
         console.print(f"[bold cyan]💬 Réponse humaine transmise à @{user} :[/] {reply_msg}")
-        # Bidirectional Voice Note
-        try:
-            voice_ogg = await tech_lead.voice.synthesize_speech(reply_msg[:280])
-            if voice_ogg and voice_ogg.getbuffer().nbytes > 0:
-                await tech_lead.telegram_vault.send_voice(voice_ogg, caption="🎙️ <i>Note vocale FreeAI</i>")
-                console.print("[bold green]✔ Note vocale humaine transmise au smartphone via Telegram ![/]")
-        except Exception as e:
-            logger.debug(f"[TELEGRAM] Conversational voice note error: {e}")
+        # Bidirectional Voice Note only if explicitly asked or vocal order
+        if wants_voice:
+            try:
+                voice_ogg = await tech_lead.voice.synthesize_speech(reply_msg[:280])
+                if voice_ogg and voice_ogg.getbuffer().nbytes > 0:
+                    await tech_lead.telegram_vault.send_voice(voice_ogg, caption="🎙️ <i>Note vocale FreeAI</i>")
+                    console.print("[bold green]✔ Note vocale humaine transmise au smartphone via Telegram ![/]")
+            except Exception as e:
+                logger.debug(f"[TELEGRAM] Conversational voice note error: {e}")
         # Asynchronously sync vector memory with Telegram vault
         try:
             if hasattr(tech_lead, "vector_memory"):
@@ -1496,23 +1540,24 @@ async def dispatch_telegram_order(tech_lead: TechLeadOrchestrator, order: str, u
             logger.debug(f"[TELEGRAM] Vector memory backup error: {e}")
         return
 
-    # 6. Technical Execution Report
+    # 8. Technical Execution Report
     res_summary = str(res.get("result", {}).get("output") or res.get("result", {}).get("message") or "Mission accomplie")[:800]
     await tech_lead.telegram_vault.send_message(f"✅ <b>Rapport d'exécution (@{user}) :</b>\n<code>{res_summary}</code>")
     console.print("[bold green]✔ Rapport transmis au smartphone via Telegram ![/]")
 
-    # 7. Bidirectional Voice Note Response for technical tasks
-    try:
-        clean_text = re.sub(r"<[^>]+>", "", res_summary)
-        clean_text = re.sub(r"[\*\_`#]", "", clean_text).strip()
-        voice_summary = " ".join([l.strip() for l in clean_text.splitlines() if l.strip()])[:280]
-        if voice_summary:
-            voice_ogg = await tech_lead.voice.synthesize_speech(voice_summary)
-            if voice_ogg and voice_ogg.getbuffer().nbytes > 0:
-                await tech_lead.telegram_vault.send_voice(voice_ogg, caption=f"🎙️ <i>Rapport Vocal FreeAI (@{user})</i>")
-                console.print("[bold green]✔ Note vocale transmise au smartphone via Telegram ![/]")
-    except Exception as e:
-        logger.debug(f"[TELEGRAM] Voice note generation error: {e}")
+    # 9. Voice Note only if user specifically requested vocal feedback
+    if wants_voice:
+        try:
+            clean_text = re.sub(r"<[^>]+>", "", res_summary)
+            clean_text = re.sub(r"[\*\_`#]", "", clean_text).strip()
+            voice_summary = " ".join([l.strip() for l in clean_text.splitlines() if l.strip()])[:280]
+            if voice_summary:
+                voice_ogg = await tech_lead.voice.synthesize_speech(voice_summary)
+                if voice_ogg and voice_ogg.getbuffer().nbytes > 0:
+                    await tech_lead.telegram_vault.send_voice(voice_ogg, caption=f"🎙️ <i>Rapport Vocal FreeAI (@{user})</i>")
+                    console.print("[bold green]✔ Note vocale transmise au smartphone via Telegram ![/]")
+        except Exception as e:
+            logger.debug(f"[TELEGRAM] Voice note generation error: {e}")
 
 
 async def run_telegram(tech_lead: TechLeadOrchestrator, args: List[str]):
@@ -1563,14 +1608,16 @@ async def run_telegram(tech_lead: TechLeadOrchestrator, args: List[str]):
         if cmd_info:
             order, user = cmd_info
             is_voice = getattr(cmd_info, "is_voice", False)
-            await dispatch_telegram_order(tech_lead, order, user, is_voice=is_voice)
+            media_bytes = getattr(cmd_info, "media_bytes", None)
+            media_type = getattr(cmd_info, "media_type", None)
+            await dispatch_telegram_order(tech_lead, order, user, is_voice=is_voice, media_bytes=media_bytes, media_type=media_type)
         else:
             console.print("[dim]Aucun nouvel ordre reçu sur Telegram lors de cette vérification.[/]")
 
     elif subcmd in ("loop", "daemon", "watch"):
         console.print(Panel(
             "[bold green]📡 Sentinelle Télépathique Telegram Active ![/]\n"
-            "FreeAI écoute en boucle continue les ordres (texte et vocaux) envoyés à [bold cyan]@LesaintAi_bot[/].\n"
+            "FreeAI écoute en boucle continue les ordres (texte, vocaux et images/vidéos) envoyés à [bold cyan]@LesaintAi_bot[/].\n"
             "Chaque mission reçue est exécutée de façon autonome et son rapport vous est renvoyé en direct sur Telegram.\n\n"
             "[dim]Appuyez sur [bold white]Ctrl+C[/] pour stopper la boucle.[/]",
             title="⚡ Telegram Neural Bridge (Daemon)",
@@ -1582,7 +1629,9 @@ async def run_telegram(tech_lead: TechLeadOrchestrator, args: List[str]):
                 if cmd_info:
                     order, user = cmd_info
                     is_voice = getattr(cmd_info, "is_voice", False)
-                    await dispatch_telegram_order(tech_lead, order, user, is_voice=is_voice)
+                    media_bytes = getattr(cmd_info, "media_bytes", None)
+                    media_type = getattr(cmd_info, "media_type", None)
+                    await dispatch_telegram_order(tech_lead, order, user, is_voice=is_voice, media_bytes=media_bytes, media_type=media_type)
                 await asyncio.sleep(2)
         except (KeyboardInterrupt, asyncio.CancelledError):
             console.print("\n[yellow]Sentinelle Telegram interrompue.[/]")

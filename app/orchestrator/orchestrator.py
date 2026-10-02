@@ -39,6 +39,7 @@ from app.memory.vector_memory import EphemeralVectorMemory
 from app.cognition.persona import ConversationalPersona
 from app.voice.realtime_call import RealtimeCallGateway
 from app.cognition.synesthetic_canvas import SynestheticCanvasStreamer
+from app.cluster.aether_swarm import AetherSwarmOrchestrator
 
 logger = logging.getLogger("tech_lead_orchestrator")
 
@@ -145,6 +146,9 @@ class TechLeadOrchestrator:
         self.realtime_call_gateway = RealtimeCallGateway()
         self.realtime_call_gateway.attach_orchestrator(self)
         self.synesthetic_canvas = SynestheticCanvasStreamer()
+
+        # Aether-Swarm Serverless Multi-Model Cross-Validation & Zero-Strain Cloud Engine
+        self.aether_swarm = AetherSwarmOrchestrator(federation=self.free_ai.federation)
 
         # Specialized agents under Tech Lead supervision
         self.code_agent = CodeAgent(tool_gateway, forge_bridge=self.forge)
