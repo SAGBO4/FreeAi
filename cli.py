@@ -13,6 +13,7 @@ import shlex
 import asyncio
 import logging
 import readline
+import subprocess
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 
@@ -92,6 +93,7 @@ SLASH_COMMANDS = [
     "/cyber",
     "/skills",
     "/video",
+    "/jarvis",
     "/help",
     "/clear",
     "/exit",
@@ -396,6 +398,11 @@ def print_help():
         "/video [teaser|scaffold <nom>|status]",
         "Moteur Vidéo Programmatique & Remotion : Génération de projets React Remotion et rendu MP4 cinématique vers Telegram.",
         "/video teaser ou /video scaffold 'MonProjet'"
+    )
+    table.add_row(
+        "/jarvis [status|start|stop|restart|logs]",
+        "Daemon Jarvis 24/7 : Écoute télépathique continue en arrière-plan sans terminal ouvert (systemd user service).",
+        "/jarvis status ou /jarvis logs"
     )
     table.add_row(
         "/clear",
@@ -2177,6 +2184,60 @@ async def run_video(tech_lead: TechLeadOrchestrator, args: List[str]):
         console.print("[bold red]Usage :[/] /video [status|teaser [titre] [sous-titre]|scaffold <nom>]")
 
 
+def run_jarvis(tech_lead: TechLeadOrchestrator, args: List[str]):
+    """Gère le daemon d'écoute permanente Jarvis 24/7 (systemd user service)."""
+    subcmd = args[0].lower() if args else "status"
+
+    if subcmd == "status":
+        res = subprocess.run(["systemctl", "--user", "is-active", "freeai-jarvis.service"], capture_output=True, text=True)
+        is_active = res.stdout.strip() == "active"
+        status_txt = "[bold green]ACTIF & EN ÉCOUTE (24/7)[/]" if is_active else "[yellow]Inactif (Arrêté)[/]"
+
+        linger_res = subprocess.run(["loginctl", "show-user", os.environ.get("USER", "lesaint"), "--property=Linger"], capture_output=True, text=True)
+        has_linger = "yes" in linger_res.stdout.lower()
+        linger_txt = "[bold green]Activé (Tourne même sans terminal ni session graphique)[/]" if has_linger else "[yellow]Non activé[/]"
+
+        console.print(Panel(
+            f"• Statut Jarvis 24/7 : {status_txt}\n"
+            f"• Service Linux : [bold cyan]freeai-jarvis.service (systemd user)[/]\n"
+            f"• Persistance Linger : {linger_txt}\n"
+            f"• Canal Télépathique : [bold green]@LesaintAi_bot[/] (Chat ID: {tech_lead.telegram_vault.chat_id})\n"
+            f"• Reconnaissance Vocale : [bold green]Groq Whisper LPU (~180ms, In-Memory Zero-RAM)[/]\n"
+            f"• Mode NÉANT : [bold green]Strictement 0 octet écrit sur SSD[/]\n\n"
+            f"[dim]Jarvis écoute en permanence vos notes vocales et messages sur Telegram sans nécessiter de terminal ouvert.[/]",
+            title="🤖 Daemon Jarvis 24/7 (FreeAI Autonomous Assistant)",
+            border_style="cyan"
+        ))
+        console.print("[dim]Commandes :[/]")
+        console.print("  • [cyan]/jarvis start[/]   : Démarre le daemon en arrière-plan")
+        console.print("  • [cyan]/jarvis stop[/]    : Arrête le daemon")
+        console.print("  • [cyan]/jarvis restart[/] : Redémarre le daemon")
+        console.print("  • [cyan]/jarvis logs[/]    : Affiche les derniers journaux en direct")
+
+    elif subcmd == "start":
+        subprocess.run(["systemctl", "--user", "start", "freeai-jarvis.service"])
+        console.print("[bold green]✔ Daemon Jarvis démarré en arrière-plan ! Vous pouvez fermer votre terminal.[/]")
+
+    elif subcmd == "stop":
+        subprocess.run(["systemctl", "--user", "stop", "freeai-jarvis.service"])
+        console.print("[yellow]✔ Daemon Jarvis arrêté.[/]")
+
+    elif subcmd == "restart":
+        subprocess.run(["systemctl", "--user", "restart", "freeai-jarvis.service"])
+        console.print("[bold green]✔ Daemon Jarvis redémarré avec succès ![/]")
+
+    elif subcmd in ("logs", "journal"):
+        res = subprocess.run(["journalctl", "--user", "-u", "freeai-jarvis.service", "-n", "15", "--no-pager"], capture_output=True, text=True)
+        console.print(Panel(
+            res.stdout or "Aucun log disponible.",
+            title="📜 Derniers Journaux Jarvis (Systemd)",
+            border_style="magenta"
+        ))
+
+    else:
+        console.print("[bold red]Usage :[/] /jarvis [status|start|stop|restart|logs]")
+
+
 def get_active_workspace() -> str:
     """Returns the effective workspace root, prioritizing active git repo or WORKSPACE_ROOT."""
     cwd = Path.cwd().resolve()
@@ -2323,6 +2384,8 @@ async def interactive_cli(initial_mode: str = "freeAi"):
                     await run_skills(tech_lead, args)
                 elif cmd == "/video":
                     await run_video(tech_lead, args)
+                elif cmd == "/jarvis":
+                    run_jarvis(tech_lead, args)
                 else:
                     console.print(f"[bold red]Commande slash inconnue :[/] '{cmd}'. Tapez [bold green]/help[/] pour la liste des commandes.")
             else:
@@ -2447,6 +2510,8 @@ def main():
                 asyncio.run(run_skills(tech_lead, args))
             elif cmd == "/video":
                 asyncio.run(run_video(tech_lead, args))
+            elif cmd == "/jarvis":
+                run_jarvis(tech_lead, args)
             elif cmd == "/help":
                 print_help()
             else:
