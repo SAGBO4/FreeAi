@@ -1,6 +1,7 @@
-"""Local Unrestricted Intelligence Engine (Moteur IA Local & Libre).
-100% Offline, zero external cloud dependency, zero censorship/restrictions.
-Capable of autonomous reasoning, code generation, security auditing, and tool calling.
+"""FreeAI — Moteur d'Intelligence Artificielle Locale & Fédérée.
+Nom du modèle : FreeAI
+Architecture : 100% Local par défaut, avec capacité de ressourcement auprès de modèles libres en ligne.
+Libre, sans restriction ni censure.
 """
 
 import os
@@ -8,37 +9,46 @@ import re
 import json
 import logging
 from typing import Dict, Any, List, Optional
+from .federation import OnlineModelFederation
 
-logger = logging.getLogger("local_llm_engine")
+logger = logging.getLogger("freeai_engine")
 
 
-class LocalIntelligenceEngine:
-    """Core local reasoning and generation engine.
+class FreeAIEngine:
+    """FreeAI: Local, sovereign, and unrestricted AI model.
 
-    Operates completely locally on CPU without requiring internet downloads.
-    Provides unrestricted assistance for development, hacking/security audits,
-    git management, and system tasks.
+    - Default: Fast, local CPU-based execution (zero latency, zero network requirement).
+    - Dynamic Resourcing: If knowledge is missing or external research is needed,
+      FreeAI consults free open-source models online and saves the knowledge in its local SQLite cache.
     """
 
-    def __init__(self, model_path: Optional[str] = None):
+    def __init__(self, model_path: Optional[str] = None, memory_dir: str = "./memory"):
+        self.name = "FreeAI"
+        self.version = "1.0-alpha"
         self.model_path = model_path
-        self.has_local_weights = False
-        if model_path and os.path.exists(model_path):
-            self.has_local_weights = True
-            logger.info(f"[LLM ENGINE] Found local weights at {model_path}")
-        else:
-            logger.info("[LLM ENGINE] Initialized in native local cognitive engine mode (zero network).")
+        self.federation = OnlineModelFederation(memory_dir=memory_dir)
+        logger.info(f"[{self.name}] Initialized FreeAI Core Engine (Local & Unrestricted).")
 
     def reason_and_plan(self, prompt: str, context: Dict[str, Any]) -> Dict[str, Any]:
         """Analyzes an objective, determines the intent, and crafts an actionable plan."""
         p_lower = prompt.lower()
 
+        # Check if external resourcing is required
+        needs_online_resourcing = any(
+            w in p_lower for w in [
+                "cherche en ligne", "interroge", "nouvelle doc", "dernier", "cve",
+                "ressource", "info externe", "modèle en ligne", "recherche web", "externe", "cherche"
+            ]
+        )
+
         # 1. Security / Audit Task
         if any(k in p_lower for k in ["secu", "audit", "vuln", "faille", "cwe", "inject", "pentest", "scan", "secret"]):
             return {
+                "model": self.name,
                 "domain": "security",
                 "intent": "security_audit",
                 "unrestricted": True,
+                "needs_online_resourcing": needs_online_resourcing,
                 "strategy": [
                     "1. Scan de surface et cartographie des fichiers cibles.",
                     "2. Analyse SAST sans restriction (injections SQL, XSS, SSRF, chemins non assainis).",
@@ -52,9 +62,11 @@ class LocalIntelligenceEngine:
         # 2. Git & Version Control
         elif any(k in p_lower for k in ["git", "commit", "branch", "diff", "tag", "rollback", "revert"]):
             return {
+                "model": self.name,
                 "domain": "git",
                 "intent": "version_control",
                 "unrestricted": True,
+                "needs_online_resourcing": needs_online_resourcing,
                 "strategy": [
                     "1. Inspection du statut du dépôt (`git status`).",
                     "2. Examen des différences (`git diff`).",
@@ -67,9 +79,11 @@ class LocalIntelligenceEngine:
         # 3. Code Generation / Project Engineering
         else:
             return {
+                "model": self.name,
                 "domain": "code",
                 "intent": "code_engineering",
                 "unrestricted": True,
+                "needs_online_resourcing": needs_online_resourcing,
                 "strategy": [
                     "1. Inspection de l'architecture du projet et dépendances.",
                     "2. Génération / modification des fichiers sources.",
@@ -79,30 +93,7 @@ class LocalIntelligenceEngine:
                 "recommended_tools": ["filesystem", "terminal", "testing"]
             }
 
-    def generate_response(self, prompt: str, context: Dict[str, Any]) -> str:
-        """Generates an unrestricted, autonomous response."""
-        plan = self.reason_and_plan(prompt, context)
-        domain = plan["domain"]
-
-        if domain == "security":
-            return (
-                f"### [Analyse Sécurité Locale Déverrouillée]\n"
-                f"**Objectif :** {prompt}\n"
-                f"**Politique :** 100% Local / Sans restriction de contenu / Mode LAB activable.\n"
-                f"**Plan d'attaque / Audit :**\n"
-                + "\n".join(plan["strategy"])
-            )
-        elif domain == "git":
-            return (
-                f"### [Gestionnaire Git Local]\n"
-                f"**Objectif :** {prompt}\n"
-                f"**Plan :**\n"
-                + "\n".join(plan["strategy"])
-            )
-        else:
-            return (
-                f"### [Ingénieur Code Local]\n"
-                f"**Objectif :** {prompt}\n"
-                f"**Plan de développement :**\n"
-                + "\n".join(plan["strategy"])
-            )
+    async def enrich_with_online_open_models(self, query: str) -> Dict[str, Any]:
+        """FreeAI reaches out to free open-source models online to acquire missing knowledge."""
+        logger.info(f"[{self.name}] Initiating external resourcing from free online open models...")
+        return await self.federation.consult_free_online_model(query)

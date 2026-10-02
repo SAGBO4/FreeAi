@@ -1,6 +1,6 @@
-"""Tech Lead Orchestrator (TDR §13 & §45).
-Acts as the engineering lead: breaks down objectives, routes to specialized agents,
-monitors resources, and guarantees stability, unrestricted autonomy, and rollback safety.
+"""Tech Lead Orchestrator powered by FreeAI (TDR §13 & §45).
+Coordinates specialized agents, monitors resources, manages local execution,
+and allows FreeAI to dynamically resource itself from free online models when needed.
 """
 
 import logging
@@ -10,7 +10,7 @@ from app.tools.gateway import ToolGateway
 from app.agents.code_agent import CodeAgent
 from app.agents.security_agent import SecurityAgent
 from app.agents.git_agent import GitAgent
-from app.llm.engine import LocalIntelligenceEngine
+from app.llm.engine import FreeAIEngine
 
 logger = logging.getLogger("tech_lead_orchestrator")
 
@@ -20,8 +20,8 @@ class TechLeadOrchestrator:
         self.tool_gateway = tool_gateway
         self.resource_manager = resource_manager
 
-        # Local Unrestricted Intelligence Engine (100% offline, zero internet)
-        self.llm_engine = LocalIntelligenceEngine()
+        # FreeAI Core Engine
+        self.free_ai = FreeAIEngine()
 
         # Specialized agents under Tech Lead supervision
         self.code_agent = CodeAgent(tool_gateway)
@@ -39,12 +39,12 @@ class TechLeadOrchestrator:
         logger.critical("[TECH LEAD] Emergency RAM shutdown triggered (> 4.0 GB). Halting active tasks immediately!")
 
     def route_task(self, objective: str) -> str:
-        """Uses local intelligence engine to determine the domain."""
-        plan = self.llm_engine.reason_and_plan(objective, {})
+        """Uses FreeAI to determine the domain."""
+        plan = self.free_ai.reason_and_plan(objective, {})
         return plan["domain"]
 
     async def handle_objective(self, objective: str, autonomous: bool = False) -> Dict[str, Any]:
-        """Main entry point for handling user objectives."""
+        """Main entry point for handling user objectives with FreeAI."""
         logger.info(f"[TECH LEAD] Received objective: '{objective}' (autonomous={autonomous})")
 
         # 1. Check RAM budget before execution
@@ -61,13 +61,24 @@ class TechLeadOrchestrator:
             logger.info("[TECH LEAD] Creating safety checkpoint before autonomous execution...")
             self.tool_gateway.git_checkpoint(f"tech-lead-checkpoint: {objective[:30]}")
 
-        # 3. Local unrestricted reasoning & plan
-        reasoning = self.llm_engine.reason_and_plan(objective, {"autonomous": autonomous})
+        # 3. FreeAI reasoning & plan
+        reasoning = self.free_ai.reason_and_plan(objective, {"autonomous": autonomous})
         agent_type = reasoning["domain"]
+
+        # 4. Dynamic Online Resourcing (if FreeAI needs missing information)
+        online_knowledge = None
+        if reasoning.get("needs_online_resourcing"):
+            logger.info("[TECH LEAD] FreeAI identified a need for external knowledge. Consulting free online models...")
+            online_res = await self.free_ai.enrich_with_online_open_models(objective)
+            if online_res.get("success"):
+                online_knowledge = online_res.get("response")
+                logger.info(f"[TECH LEAD] FreeAI successfully resourced from {online_res.get('provider')}.")
+
         context = {
             "autonomous": autonomous,
             "memory_status": mem_status,
-            "reasoning": reasoning
+            "reasoning": reasoning,
+            "online_knowledge": online_knowledge
         }
 
         if agent_type == "security":
@@ -77,13 +88,15 @@ class TechLeadOrchestrator:
         else:
             result = await self.code_agent.execute_task(objective, context)
 
-        # 4. Final check and report
+        # 5. Final check and report
         stats = self.resource_manager.get_system_stats()
         return {
             "success": True,
-            "orchestrator": "Tech Lead (100% Local & Unrestricted)",
+            "model": "FreeAI (Local + Free Online Resourcing)",
+            "orchestrator": "Tech Lead",
             "assigned_agent": agent_type,
             "objective": objective,
+            "external_resourcing_used": online_knowledge is not None,
             "plan": reasoning.get("strategy", []),
             "result": result,
             "resource_stats": stats

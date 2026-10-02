@@ -1,3 +1,4 @@
-from .engine import LocalIntelligenceEngine
+from .engine import FreeAIEngine
+from .federation import OnlineModelFederation
 
-__all__ = ["LocalIntelligenceEngine"]
+__all__ = ["FreeAIEngine", "OnlineModelFederation"]
