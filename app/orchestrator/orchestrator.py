@@ -42,6 +42,7 @@ from app.cognition.synesthetic_canvas import SynestheticCanvasStreamer
 from app.cluster.aether_swarm import AetherSwarmOrchestrator
 from app.tools.brag_engine import BragEngine
 from app.evolution.omni_chimera import OmniChimeraOrchestrator
+from app.cluster.aether_legion import AetherLegionOrchestrator
 
 logger = logging.getLogger("tech_lead_orchestrator")
 
@@ -157,6 +158,9 @@ class TechLeadOrchestrator:
 
         # Protocol OMNI-CHIMERA: Self-Mutating Autonomous Ghost-Fabric (Mode NÉANT)
         self.omni_chimera = OmniChimeraOrchestrator(federation=self.free_ai.federation)
+
+        # Protocol AETHER-LEGION: Sovereign Autonomous Scout Swarm & Distributed Recon (F-12)
+        self.aether_legion = AetherLegionOrchestrator(sentinel=self.sacred_life, federation=self.free_ai.federation)
 
         # Specialized agents under Tech Lead supervision
         self.code_agent = CodeAgent(tool_gateway, forge_bridge=self.forge)

@@ -4,7 +4,13 @@ Dernière mise à jour : 2026-10-02
 
 ## Fait
 
-- **F-01 à F-11 Livrés à 100 %** : Orchestrateur Tech Lead, Mode NÉANT, Telegram Neural Vault, VORTEX-AETHER, Continuum Ghost-Worker, Forge/Craft-Suite, Phoenix/LesaintAI, Nexus Tri-Brid Realtime Call, Protocole AETHER-SWARM, Vision & Vidéo Multimodale Télépathique, et Protocole OMNI-CHIMERA.
+- **F-01 à F-12 Livrés à 100 %** : Orchestrateur Tech Lead, Mode NÉANT, Telegram Neural Vault, VORTEX-AETHER, Continuum Ghost-Worker, Forge/Craft-Suite, Phoenix/LesaintAI, Nexus Tri-Brid Realtime Call, Protocole AETHER-SWARM, Vision & Vidéo Multimodale Télépathique, Protocole OMNI-CHIMERA, et Protocole AETHER-LEGION.
+- **Protocole AETHER-LEGION (F-12)** : Essaim décentralisé d'éclaireurs autonomes déployés sur le Web mondial :
+  1. *Éclaireurs Spécialisés* : Singularity (arXiv/HuggingFace), Cyber (CVEs/failles zero-day), Horizon (innovations dev & runtimes), Sentinel (latence & disponibilité cloud).
+  2. *Synthèse de Séquences en RAM (Mode NÉANT)* : Génération dynamique de sondes Python/JS autonomes exportables pour workers serverless, 0 écriture SSD.
+  3. *Moisson de Renseignement Décentralisé* : Moisson et distillation d'insights stratégiques via consensus LLM sans charge locale.
+  4. *Gouvernance & Veto Éthique* : Contrôle strict `SacredLifeSentinel` interdisant toute utilisation offensive ou destructive.
+  5. *Commandes CLI & Telegram* : `/legion [status|harvest|deploy <archetype> <mission>|export <id>]`.
 - **Protocole OMNI-CHIMERA (F-11)** : Fusion d'extrême innovation unifiant :
   1. *Ghost Coder Asynchrone* : Synthèse autonome de code déclenchée par Telegram, tests en bac à sable et packaging automatique de branche Git.
   2. *Sentinelle d'Auto-Guérison Système* : Diagnostics continus RAM/CPU et remédiation proactive automatique des tampons et caches en RAM.
@@ -24,7 +30,7 @@ Dernière mise à jour : 2026-10-02
 - **Arsenal Design & Cyber** : Shadcn UI (63 composants), AI Elements et 24 modules de cybersécurité Forge/Craft-Suite intégrés.
 - **Auto-Clonage Telegram Automatique** : Sauvegarde instantanée en RAM sur Telegram à chaque mise à jour (`apply_auto_update`).
 - **Contribution GitHub** : Identité Git configurée sur SAGBO MICHAEL (`@SAGBO4`), 100% des commits et pushs synchronisés.
-- **Assurance Qualité Forge** : Suite de tests portée à 211 tests passés avec succès (100% validés), audit indépendant validé par `final-verifier`.
+- **Assurance Qualité Forge** : Suite de tests portée à 216 tests passés avec succès (100% validés), audit indépendant validé par `final-verifier`.
 - **Dépôt Privé Synchronisé** : Branches `dev` et `main` alignées sur `git@github.com:SAGBO4/FreeAi.git`.
 
 ## En cours

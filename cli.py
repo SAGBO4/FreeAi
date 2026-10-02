@@ -95,6 +95,7 @@ SLASH_COMMANDS = [
     "/video",
     "/brag",
     "/chimera",
+    "/legion",
     "/jarvis",
     "/help",
     "/clear",
@@ -410,6 +411,11 @@ def print_help():
         "/chimera [status|heal|mutate <nom> <code>|ghost <prompt>]",
         "Protocole OMNI-CHIMERA : Ghost Coder, Sentinelle d'auto-guérison, Cœur furtif hors-ligne et Mutation épigénétique à chaud en RAM.",
         "/chimera status ou /chimera heal ou /chimera ghost 'Optimiser cache'"
+    )
+    table.add_row(
+        "/legion [status|harvest|deploy <archetype> <mission>|export <id>]",
+        "Protocole AETHER-LEGION : Essaim d'éclaireurs autonomes déployés sur le Web mondial pour veiller sur l'IA, la cyber et les horizons tech.",
+        "/legion status ou /legion harvest ou /legion deploy singularity 'Veille LLM'"
     )
     table.add_row(
         "/jarvis [status|start|stop|restart|logs]",
@@ -1588,6 +1594,52 @@ async def dispatch_telegram_order(tech_lead: TechLeadOrchestrator, order: str, u
         console.print("[bold green]✔ Rapport OMNI-CHIMERA expédié sur Telegram ![/]")
         return
 
+    # 7.2 Native shortcut: /legion, /scout, /probes
+    if order_lower.startswith(("/legion", "/scout", "/probes")) or order_lower == "legion":
+        parts = order_clean.split(maxsplit=2)
+        sub = parts[1].lower() if len(parts) > 1 else "status"
+        if sub in ("harvest", "recon", "sweep"):
+            await tech_lead.telegram_vault.send_message("🛰️ <b>[AETHER-LEGION]</b> Moisson de renseignement en cours sur le Web mondial...")
+            harvest = await tech_lead.aether_legion.harvest_all_intel()
+            await tech_lead.telegram_vault.send_message(harvest["digest"])
+            console.print("[bold green]✔ Digest AETHER-LEGION expédié sur Telegram ![/]")
+        elif sub == "deploy":
+            arch_str = parts[2].split()[0].lower() if len(parts) > 2 else "horizon"
+            mission_str = " ".join(parts[2].split()[1:]) if len(parts) > 2 and len(parts[2].split()) > 1 else "Veille technologique"
+            from app.cluster.aether_legion import ScoutArchetype
+            try:
+                arch = ScoutArchetype(arch_str)
+            except Exception:
+                arch = ScoutArchetype.HORIZON
+            scout = tech_lead.aether_legion.deploy_scout(name=f"Vigil-{arch.value.capitalize()}", archetype=arch, mission=mission_str)
+            msg = (
+                f"🛰️ <b>[Nouvel Éclaireur Déployé en RAM]</b>\n\n"
+                f"• <b>Nom :</b> {scout.name}\n"
+                f"• <b>ID :</b> <code>{scout.id}</code>\n"
+                f"• <b>Archétype :</b> {scout.archetype.value}\n"
+                f"• <b>Mission :</b> <code>{scout.mission}</code>\n\n"
+                f"<i>Éclaireur actif en mémoire pure (Mode NÉANT).</i>"
+            )
+            await tech_lead.telegram_vault.send_message(msg)
+            console.print(f"[bold green]✔ Éclaireur {scout.name} déployé et notifié sur Telegram ![/]")
+        else:
+            status = tech_lead.aether_legion.get_status()
+            members = tech_lead.aether_legion.list_members()
+            lines = [
+                f"🛰️ <b>[PROTOCOLE AETHER-LEGION ACTIF]</b>\n",
+                f"• <b>Version :</b> {status['version']}",
+                f"• <b>Éclaireurs Déployés :</b> {status['active_scouts']} actifs / {status['total_scouts']} total",
+                f"• <b>Renseignements Récoltés :</b> {status['total_harvested_intel']}",
+                f"• <b>Persistance :</b> Pure RAM Volatile (0 écriture SSD)\n",
+                f"<b>Membres de la Légion :</b>"
+            ]
+            for m in members:
+                lines.append(f"  • <b>{m['name']}</b> ({m['archetype']}) — {m['findings_count']} captures")
+            lines.append("\n<i>Commandes Telegram : <code>/legion harvest</code> ou <code>/legion deploy <archetype> <mission></code></i>")
+            await tech_lead.telegram_vault.send_message("\n".join(lines))
+            console.print("[bold green]✔ Statut AETHER-LEGION expédié sur Telegram ![/]")
+        return
+
     # 8. Standard AI objective or Human Conversation execution
     console.print(f"[dim]Exécution de l'ordre en mode {tech_lead.mode}...[/]")
     res = await tech_lead.handle_objective(order_clean, autonomous=True)
@@ -2598,6 +2650,96 @@ async def run_chimera(tech_lead: TechLeadOrchestrator, args: List[str]):
         ))
 
 
+async def run_legion(tech_lead: TechLeadOrchestrator, args: List[str]):
+    """Gère le protocole AETHER-LEGION : Essaim d'éclaireurs autonomes déployés sur le Web mondial."""
+    subcmd = args[0].lower() if args else "status"
+
+    if subcmd in ("harvest", "recon", "sweep"):
+        console.print("[dim]🛰️ Lancement de la moisson de renseignement mondial via les éclaireurs...[/]")
+        harvest = await tech_lead.aether_legion.harvest_all_intel()
+        console.print(Panel(
+            harvest["digest"].replace("<b>", "[bold]").replace("</b>", "[/]")
+            .replace("<i>", "[dim]").replace("</i>", "[/]")
+            .replace("<code>", "[cyan]").replace("</code>", "[/]"),
+            title="🛰️ AETHER-LEGION — Moisson de Renseignement Mondial",
+            border_style="green"
+        ))
+
+    elif subcmd == "deploy":
+        if len(args) < 3:
+            console.print("[bold red]Usage :[/] /legion deploy <archetype> <mission>")
+            console.print("[dim]Archétypes disponibles : singularity, cyber, horizon, sentinel[/]")
+            return
+        from app.cluster.aether_legion import ScoutArchetype
+        arch_str = args[1].lower()
+        try:
+            arch = ScoutArchetype(arch_str)
+        except Exception:
+            console.print(f"[bold red]Archétype inconnu :[/] {arch_str}. Choix : singularity, cyber, horizon, sentinel")
+            return
+        mission_str = " ".join(args[2:]).strip()
+        console.print(f"[dim]🛰️ Synthèse et déploiement d'un éclaireur '{arch.value}' en RAM...[/]")
+        try:
+            scout = tech_lead.aether_legion.deploy_scout(
+                name=f"Vigil-{arch.value.capitalize()}",
+                archetype=arch,
+                mission=mission_str
+            )
+            console.print(Panel(
+                f"[bold green]✔ Nouvel éclaireur déployé avec succès en RAM ![/]\n\n"
+                f"[bold]Identifiant :[/] [cyan]{scout.id}[/]\n"
+                f"[bold]Nom :[/] {scout.name}\n"
+                f"[bold]Archétype :[/] [yellow]{scout.archetype.value}[/]\n"
+                f"[bold]Mission :[/] {scout.mission}\n"
+                f"[bold]Persistance :[/] Pure RAM Volatile (0 écriture SSD)",
+                title="🛰️ AETHER-LEGION — Éclaireur Déployé",
+                border_style="green"
+            ))
+        except Exception as e:
+            console.print(Panel(
+                f"[bold red]❌ Déploiement rejeté :[/]\n\n{e}",
+                title="⚠️ Veto Éthique AETHER-LEGION",
+                border_style="red"
+            ))
+
+    elif subcmd == "export":
+        if len(args) < 2:
+            console.print("[bold red]Usage :[/] /legion export <scout_id>")
+            return
+        scout_id = args[1]
+        try:
+            payload = tech_lead.aether_legion.export_probe_payload(scout_id)
+            console.print(Panel(
+                payload[:400] + "\n...",
+                title=f"📦 Payload Exportable pour Worker/Serverless ({scout_id})",
+                border_style="cyan"
+            ))
+        except KeyError:
+            console.print(f"[bold red]Éclaireur '{scout_id}' introuvable.[/]")
+
+    else:
+        status = tech_lead.aether_legion.get_status()
+        members = tech_lead.aether_legion.list_members()
+
+        member_lines = []
+        for m in members:
+            member_lines.append(
+                f"  • [bold green]{m['name']}[/] ([yellow]{m['archetype']}[/]) — "
+                f"[cyan]{m['findings_count']} captures[/] | [dim]{m['mission'][:60]}...[/]"
+            )
+
+        console.print(Panel(
+            f"[bold]Protocole :[/] [bold green]{status['protocol']}[/] ([cyan]{status['version']}[/])\n\n"
+            f"• [bold]Éclaireurs Déployés :[/] [bold green]{status['active_scouts']} actifs[/] sur {status['total_scouts']} total\n"
+            f"• [bold]Renseignements Récoltés :[/] [bold yellow]{status['total_harvested_intel']}[/]\n"
+            f"• [bold]Mode NÉANT :[/] [bold green]100% RAM Volatile (0 résidu SSD)[/]\n\n"
+            f"[bold]Membres d'Élite Actifs :[/]\n" + "\n".join(member_lines) + "\n\n"
+            f"[dim]Commandes : /legion [status|harvest|deploy <archetype> <mission>|export <id>][/]",
+            title="🛰️ PROTOCOLE AETHER-LEGION — Essaim Décentralisé de Renseignement",
+            border_style="cyan"
+        ))
+
+
 def run_jarvis(tech_lead: TechLeadOrchestrator, args: List[str]):
     """Gère le daemon d'écoute permanente Jarvis 24/7 (systemd user service)."""
     subcmd = args[0].lower() if args else "status"
@@ -2802,6 +2944,8 @@ async def interactive_cli(initial_mode: str = "freeAi"):
                     await run_brag(tech_lead, args)
                 elif cmd == "/chimera":
                     await run_chimera(tech_lead, args)
+                elif cmd == "/legion":
+                    await run_legion(tech_lead, args)
                 elif cmd == "/jarvis":
                     run_jarvis(tech_lead, args)
                 else:
@@ -2932,6 +3076,8 @@ def main():
                 asyncio.run(run_brag(tech_lead, args))
             elif cmd == "/chimera":
                 asyncio.run(run_chimera(tech_lead, args))
+            elif cmd == "/legion":
+                asyncio.run(run_legion(tech_lead, args))
             elif cmd == "/jarvis":
                 run_jarvis(tech_lead, args)
             elif cmd == "/help":
