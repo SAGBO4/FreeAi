@@ -9,6 +9,7 @@ import subprocess
 import logging
 from pathlib import Path
 from typing import Dict, Any, Optional, List
+from app.security.sacred_life import SacredLifeSentinel
 
 logger = logging.getLogger("tool_gateway")
 
@@ -29,6 +30,7 @@ class ToolGateway:
         self.allow_global_read = allow_global_read
         self.allow_full_fs_access = allow_full_fs_access
         self.mode = mode
+        self.sacred_life = SacredLifeSentinel()
         self._ensure_workspace()
 
     def set_mode(self, mode_name: str) -> Dict[str, Any]:
@@ -240,8 +242,13 @@ class ToolGateway:
 
     # --- Terminal Execution ---
     def execute_command(self, command: str, cwd: Optional[str] = None, timeout_sec: int = 30) -> Dict[str, Any]:
-        """Executes a shell command with timeout and safety checks."""
-        # Safety checks
+        """Executes a shell command with timeout, safety, and sacred life checks."""
+        # Immutable Sacred Life check
+        safe, reason = self.sacred_life.audit_objective(command)
+        if not safe:
+            return {"success": False, "error": reason}
+
+        # Sudo safety checks
         if not self.allow_sudo and self._is_privileged_command(command):
             return {"success": False, "error": "Sudo is disabled in security policy (ALLOW_SUDO=false)."}
 

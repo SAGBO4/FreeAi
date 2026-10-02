@@ -67,6 +67,9 @@ SLASH_COMMANDS = [
     "/arena",
     "/mesh",
     "/speculate",
+    "/ring",
+    "/darwin",
+    "/ghost",
     "/help",
     "/clear",
     "/exit",
@@ -202,6 +205,21 @@ def print_help():
         "/speculate Écris un analyseur syntaxique en Rust"
     )
     table.add_row(
+        "/ring [status|run <prompt>]",
+        "Subnet Neural Ring : Partitionnement de tenseurs en anneau P2P pour modèles lourds sur petits PC.",
+        "/ring status ou /ring run Pipeline test"
+    )
+    table.add_row(
+        "/darwin <problème>",
+        "Darwinian Code Synthesizer : Sélection génétique et micro-benchmark CPU du code le plus rapide.",
+        "/darwin Algorithme de tri hybride en C"
+    )
+    table.add_row(
+        "/ghost [status|send <topic> <texte>]",
+        "Ghost Bridge : Synchronisation et messagerie résiliente hors-réseau (Air-Gap) compressée GZIP.",
+        "/ghost status ou /ghost send alerte 'Périmètre sécurisé'"
+    )
+    table.add_row(
         "/clear",
         "Nettoie l'affichage du terminal.",
         "/clear"
@@ -275,6 +293,9 @@ def print_status(tech_lead: TechLeadOrchestrator):
     if mesh:
         peers_cnt = mesh.get("active_peers_count", 0)
         table.add_row("Zero-Conf P2P Mesh", f"{peers_cnt} pair(s) actif(s) | UDP Broadcast Port: {mesh.get('mesh_port')}")
+
+    # Sacred Life Sentinel
+    table.add_row("Santé & Vie Humaine", "[bold green]🛡️ INVIOLABLE (Sanctuaire Éthique Actif - Veto Absolu)[/]")
 
     console.print(table)
 
@@ -870,6 +891,100 @@ async def run_speculate(tech_lead: TechLeadOrchestrator, args: List[str]):
         console.print(f"[bold red]❌ Erreur lors de la génération spéculative :[/] {res.get('error')}")
 
 
+async def run_ring(tech_lead: TechLeadOrchestrator, args: List[str]):
+    """Manages the Subnet Neural Ring pipeline parallelism."""
+    subcmd = args[0].lower() if args else "status"
+
+    if subcmd in ("status", "topology"):
+        topo = tech_lead.neural_ring.get_ring_topology()
+        table = Table(title="🌀 Subnet Neural Ring (Pipeline Parallelism LAN)", border_style="cyan")
+        table.add_column("Étape (Stage)", style="bold yellow")
+        table.add_column("ID Machine / Nœud", style="white")
+        table.add_column("Lien Suivant (Next Hop)", style="green")
+
+        for s in topo.get("stages", []):
+            table.add_row(f"Stage {s['stage']}", s["node_id"], s.get("next_hop") or "-")
+
+        console.print(table)
+        console.print(
+            f"[dim]Capacité RAM mutualisée : [bold green]{topo.get('pooled_capacity_ram_gb')} Go[/] | "
+            f"Taille Modèle Max Supportée : [bold yellow]{topo.get('max_supported_params')}[/][/]\n"
+            f"[dim]Utilisation : /ring run <prompt> pour lancer une exécution en anneau fermée.[/]"
+        )
+
+    elif subcmd in ("run", "forward"):
+        prompt = " ".join(args[1:]) if len(args) > 1 else "Test forward pass in neural ring"
+        with console.status("[bold cyan]Exécution séquentielle des tenseurs à travers les étages de l'anneau...[/]", spinner="dots"):
+            res = await tech_lead.run_neural_ring_forward(prompt)
+
+        console.print(Panel(
+            f"• Étages traversés : [bold yellow]{res.get('total_stages')}[/]\n"
+            f"• Couches exécutées : [bold cyan]{res.get('layers_executed')}[/]\n"
+            f"• Latence boucle fermée : [bold green]{res.get('latency_ms')} ms[/]\n\n"
+            f"[dim]Représentation finale :[/]\n{res.get('final_representation')}",
+            title="🌀 Exécution Pipeline Neural Ring Terminée",
+            border_style="cyan"
+        ))
+    else:
+        console.print("[bold red]Usage :[/] /ring [status|run <prompt>]")
+
+
+async def run_darwin(tech_lead: TechLeadOrchestrator, args: List[str]):
+    """Executes Darwinian Code Synthesis and micro-benchmarking."""
+    if not args:
+        console.print("[bold red]Usage :[/] /darwin <algorithme ou problème à optimiser>")
+        console.print("[dim]Exemple : /darwin Algorithme de déduplication ultra-rapide[/]")
+        return
+
+    problem = " ".join(args)
+    with console.status("[bold cyan]Évolution darwinienne : Génération de 3 variantes, micro-benchmarks & sélection...[/]", spinner="aesthetic"):
+        res = await tech_lead.evolve_darwinian_code(problem)
+
+    table = Table(title="🧬 Résultats des Essais Micro-Benchmarks (Génération 0)", border_style="cyan")
+    table.add_column("Variante Candidate", style="bold yellow")
+    table.add_column("Temps CPU", style="green")
+    table.add_column("RAM", style="dim")
+    table.add_column("Complexité", style="white")
+
+    for c in res.get("candidates", []):
+        table.add_row(c["name"], f"{c['latency_us']} µs", f"{c['ram_kb']} Ko", c["complexity"])
+
+    console.print(table)
+    console.print(Panel(
+        f"[bold green]🏆 Variante Championne :[/] {res.get('champion_variant')} (Gain : [bold yellow]{res.get('speedup_factor')}[/])\n\n"
+        f"```python\n{res.get('champion_code')}\n```",
+        title="🧬 Synthèse Génétique Championne Validée",
+        border_style="green"
+    ))
+
+
+def run_ghost(tech_lead: TechLeadOrchestrator, args: List[str]):
+    """Manages resilient offline air-gap Ghost Bridge."""
+    subcmd = args[0].lower() if args else "status"
+
+    if subcmd in ("status", "mailbox"):
+        st = tech_lead.get_ghost_status()
+        console.print(Panel(
+            f"• Nœud Fantôme : [bold yellow]{st.get('node_id')}[/]\n"
+            f"• Messages Air-Gap en RAM : [bold cyan]{st.get('offline_messages_count')}[/]\n"
+            f"• Stockage : [bold green]100% RAM Éphémère (Mode NÉANT)[/]\n"
+            f"• Sujets en attente : {', '.join(st.get('topics', [])) or 'Aucun'}",
+            title="👻 Ghost Bridge (Protocole Air-Gap Hors-Ligne)",
+            border_style="magenta"
+        ))
+
+    elif subcmd == "send":
+        if len(args) < 3:
+            console.print("[bold red]Usage :[/] /ghost send <topic> <message>")
+            return
+        topic = args[1]
+        msg = " ".join(args[2:])
+        env = tech_lead.send_ghost_message(topic, msg)
+        console.print(f"[bold green]✔ Message Air-Gap chiffré et compressé en RAM :[/] [dim]{env[:60]}...[/]")
+    else:
+        console.print("[bold red]Usage :[/] /ghost [status|send <topic> <message>]")
+
+
 def get_active_workspace() -> str:
     """Returns the effective workspace root, prioritizing active git repo or WORKSPACE_ROOT."""
     cwd = Path.cwd().resolve()
@@ -970,6 +1085,12 @@ async def interactive_cli(initial_mode: str = "freeAi"):
                     await run_mesh(tech_lead, args)
                 elif cmd == "/speculate":
                     await run_speculate(tech_lead, args)
+                elif cmd == "/ring":
+                    await run_ring(tech_lead, args)
+                elif cmd == "/darwin":
+                    await run_darwin(tech_lead, args)
+                elif cmd == "/ghost":
+                    run_ghost(tech_lead, args)
                 else:
                     console.print(f"[bold red]Commande slash inconnue :[/] '{cmd}'. Tapez [bold green]/help[/] pour la liste des commandes.")
             else:
@@ -1048,6 +1169,12 @@ def main():
                 asyncio.run(run_mesh(tech_lead, args))
             elif cmd == "/speculate":
                 asyncio.run(run_speculate(tech_lead, args))
+            elif cmd == "/ring":
+                asyncio.run(run_ring(tech_lead, args))
+            elif cmd == "/darwin":
+                asyncio.run(run_darwin(tech_lead, args))
+            elif cmd == "/ghost":
+                run_ghost(tech_lead, args)
             elif cmd == "/help":
                 print_help()
             else:

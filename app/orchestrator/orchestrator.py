@@ -17,6 +17,10 @@ from app.evolution.auto_update import AutoUpdateEngine
 from app.cluster.mesh import P2PMeshBeacon
 from app.llm.arena import ShadowRedTeamArena
 from app.cluster.speculative import SpeculativeAccelerationEngine
+from app.cluster.neural_ring import SubnetNeuralRing
+from app.evolution.darwinian import DarwinianCodeSynthesizer
+from app.cluster.ghost_bridge import GhostBridge
+from app.security.sacred_life import SacredLifeSentinel
 
 logger = logging.getLogger("tech_lead_orchestrator")
 
@@ -34,6 +38,9 @@ class TechLeadOrchestrator:
 
         # Operational mode: freeAi (standard) or lesaintAi (super-user)
         self.mode = getattr(tool_gateway, "mode", "freeAi")
+
+        # Inviolable Sacred Life Sentinel (Non-negotiable ethical core)
+        self.sacred_life = SacredLifeSentinel()
 
         # LAN Cluster & Free Online GPU Swarm
         self.cluster_manager = LANClusterManager(
@@ -59,6 +66,15 @@ class TechLeadOrchestrator:
             cluster_manager=self.cluster_manager,
             federation=self.free_ai.federation
         )
+
+        # Subnet Neural Ring (P2P Circular Tensor Parallelism on LAN)
+        self.neural_ring = SubnetNeuralRing(cluster_manager=self.cluster_manager)
+
+        # Darwinian Code Synthesizer (Genetic Multi-Agent Algorithm Evolution)
+        self.darwinian = DarwinianCodeSynthesizer(federation=self.free_ai.federation)
+
+        # Ghost Bridge (Resilient Air-Gap Offline Channel)
+        self.ghost_bridge = GhostBridge(node_id=f"freeai_{self.mode}")
 
         # Specialized agents under Tech Lead supervision
         self.code_agent = CodeAgent(tool_gateway)
@@ -214,6 +230,26 @@ class TechLeadOrchestrator:
         """Runs distributed speculative generation combining fast local draft with GPU validation."""
         return await self.speculative_engine.accelerated_generate(prompt)
 
+    def configure_neural_ring(self, nodes: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Configures the Subnet Neural Ring topology across available nodes."""
+        return self.neural_ring.configure_ring(nodes)
+
+    async def run_neural_ring_forward(self, prompt: str, layers_count: int = 32) -> Dict[str, Any]:
+        """Runs sequential pipeline parallelism across the neural ring."""
+        return await self.neural_ring.run_pipeline_forward(input_prompt=prompt, layers_count=layers_count)
+
+    async def evolve_darwinian_code(self, problem: str, iterations: int = 2) -> Dict[str, Any]:
+        """Synthesizes champion code via evolutionary selection and micro-benchmarks."""
+        return await self.darwinian.evolve_algorithm(problem, iterations=iterations)
+
+    def send_ghost_message(self, topic: str, content: Any) -> str:
+        """Queues an encrypted GZIP payload in the offline air-gap mailbox."""
+        return self.ghost_bridge.queue_offline_message(topic, content)
+
+    def get_ghost_status(self) -> Dict[str, Any]:
+        """Returns the offline Ghost Bridge mailbox status."""
+        return self.ghost_bridge.get_mailbox_status()
+
     def _on_degraded_memory(self):
         logger.warning("[TECH LEAD] Memory warning triggered (> 3.5 GB). Reducing concurrency & trimming context.")
 
@@ -228,6 +264,16 @@ class TechLeadOrchestrator:
     async def handle_objective(self, objective: str, autonomous: bool = False) -> Dict[str, Any]:
         """Main entry point for handling user objectives with FreeAI."""
         logger.info(f"[TECH LEAD] Received objective: '{objective}' (mode={self.mode}, autonomous={autonomous})")
+
+        # 0. Immutable Sacred Life Sentinel Check
+        safe, reason = self.sacred_life.audit_objective(objective)
+        if not safe:
+            logger.critical(f"[TECH LEAD] Objective blocked by Sacred Life Sentinel: {reason}")
+            return {
+                "success": False,
+                "error": reason,
+                "domain": "SACRED_LIFE_PROTECTION"
+            }
 
         # 1. Check RAM budget before execution
         mem_status = self.resource_manager.check_memory_budget()
