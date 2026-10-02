@@ -1,0 +1,15 @@
+# Core Runtime & Web API
+fastapi>=0.111.0
+uvicorn>=0.30.0
+pydantic>=2.7.0
+pydantic-settings>=2.2.0
+python-dotenv>=1.0.1
+
+# System & Resource Monitoring
+psutil>=5.9.8
+
+# CLI & UX Observability
+rich>=13.7.1
+
+# Optional/Local LLM bindings (uncomment when compiled/installed)
+# llama-cpp-python>=0.2.75
