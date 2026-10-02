@@ -11,7 +11,7 @@
 
 ---
 
-## 🚀 Caractéristiques Clés
+##  Caractéristiques Clés
 
 - **Mode NÉANT Inviolable** : 0 octet écrit sur le SSD. Toutes les opérations s'exécutent en RAM volatile (`tmpfs`, `memfd_create`) et en cloud déporté.
 - **Sanctuaire de la Vie Humaine (`SacredLifeSentinel`)** : Veto mathématique strict en amont de toute exécution locale ou distante protégeant l'intégrité de la vie humaine.
