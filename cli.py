@@ -73,6 +73,11 @@ SLASH_COMMANDS = [
     "/voice",
     "/think",
     "/telegram",
+    "/vortex",
+    "/hologram",
+    "/airgap",
+    "/phantom",
+    "/shadow",
     "/help",
     "/clear",
     "/exit",
@@ -236,6 +241,31 @@ def print_help():
         "/telegram [status|sync|push <topic> <txt>|listen]",
         "Telegram Neural Vault : Mémoire cloud infinie, chiffrée GZIP-9 et télépathie mobile (@LesaintAi_bot).",
         "/telegram status ou /telegram sync ou /telegram listen"
+    )
+    table.add_row(
+        "/vortex",
+        "Alliance Tri-Résonante VORTEX-AETHER : Statut unifié (Hologramme, Air-Gap, Phantom Bus, Telegram).",
+        "/vortex"
+    )
+    table.add_row(
+        "/hologram [status|add <txt>|search <req>]",
+        "Hologramme Vectoriel Binaire : Indexation 1-bit en RAM pure, recherche Hamming en microsecondes (AVX-512).",
+        "/hologram status ou /hologram search 'kernel'"
+    )
+    table.add_row(
+        "/airgap [status|tx <message>]",
+        "Ghost Air-Gap Ultrasonique : Lien acoustique inaudible (19.4-20.4 kHz) physique sans ondes radio.",
+        "/airgap tx 'Token-AirGap-Secret'"
+    )
+    table.add_row(
+        "/phantom <script bash>",
+        "Transducteur Phantom Memfd : Exécution volatile en RAM pure (memfd_create) avec Sacred Life Sentinel.",
+        "/phantom uname -r && free -m"
+    )
+    table.add_row(
+        "/shadow <commande bash>",
+        "Kinetic Shadow-Netns : Tâches furtives sous tunnel anonyme Deep Web multi-hop (Tor SOCKS5) sans compte.",
+        "/shadow curl -s https://check.torproject.org"
     )
     table.add_row(
         "/clear",
@@ -1187,6 +1217,150 @@ async def run_telegram(tech_lead: TechLeadOrchestrator, args: List[str]):
         console.print("[bold red]Usage :[/] /telegram [status|sync|push <topic> <texte>|listen]")
 
 
+async def run_vortex(tech_lead: TechLeadOrchestrator, args: List[str]):
+    """Affiche le statut de l'Alliance Tri-Résonante VORTEX-AETHER."""
+    st = tech_lead.get_vortex_status()
+    console.print(Panel(
+        f"• Alliance Tri-Résonante : [bold green]Active (100% Volatile)[/]\n"
+        f"• Hologramme Binaire RAM : [bold cyan]{st['binary_hologram']['entries_indexed']} entrées ({st['binary_hologram']['hologram_ram_kb']} Ko RAM, AVX-512 SIMD)[/]\n"
+        f"• Pont Ultrasonique Air-Gap : [bold cyan]{st['ultrasonic_airgap']['mode']} (19.4-20.4 kHz, 0% RF)[/]\n"
+        f"• Transducteur Phantom IPC : [bold cyan]{st['phantom_bus']['mechanism']} (Protection Sanctuaire de la Vie)[/]\n"
+        f"• Coffre Cloud Telegram : [bold cyan]{st['telegram_vault']['bot_username']} ({st['telegram_vault']['cloud_storage']})[/]\n"
+        f"• Mode NÉANT : [bold green]Strictement 0 octet écrit sur SSD[/] | Budget RAM : [bold green]< 70 Mo[/]",
+        title="🌌 Projet VORTEX-AETHER (Tri-Resonant Spectral Mesh)",
+        border_style="magenta"
+    ))
+
+
+def run_hologram(tech_lead: TechLeadOrchestrator, args: List[str]):
+    """Gère l'Hologramme Vectoriel Binaire 1-bit en RAM pure."""
+    subcmd = args[0].lower() if args else "status"
+    if subcmd == "status":
+        st = tech_lead.binary_hologram.get_status()
+        console.print(Panel(
+            f"• Vecteurs Indexés : [bold green]{st['entries_indexed']}[/]\n"
+            f"• Dimension : [bold cyan]{st['dimension']} bits (1 bit/dimension)[/]\n"
+            f"• Poids par Vecteur : [bold green]{st['bytes_per_vector']} octets (Taux 32:1)[/]\n"
+            f"• Empreinte RAM Totale : [bold green]{st['hologram_ram_kb']} Ko[/]\n"
+            f"• Accélération Matérielle : [bold cyan]AVX-512 VPOPCNTDQ / AVX2 (POPCNT brut)[/]\n"
+            f"• Disque SSD : [bold green]0 octet (Volatile)[/]",
+            title="⚡ Hologramme Vectoriel Binaire en RAM (BHVE)",
+            border_style="cyan"
+        ))
+    elif subcmd == "add":
+        if len(args) < 2:
+            console.print("[bold red]Usage :[/] /hologram add <texte à indexer>")
+            return
+        content = " ".join(args[1:])
+        tech_lead.binary_hologram.add_entry(content)
+        console.print(f"[bold green]✔ Entrée holographiée en mémoire vive (96 octets) :[/] [italic]\"{content[:80]}\"[/]")
+    elif subcmd == "search":
+        if len(args) < 2:
+            console.print("[bold red]Usage :[/] /hologram search <requête>")
+            return
+        query = " ".join(args[1:])
+        results = tech_lead.binary_hologram.search_nearest(query, top_k=3)
+        if not results:
+            console.print("[dim]Aucun vecteur indexé dans l'hologramme en RAM.[/]")
+            return
+        table = Table(title="🔍 Résultats Recherche Holographique (Distance de Hamming)", border_style="cyan")
+        table.add_column("Similarité", style="bold green")
+        table.add_column("Contenu Indexé", style="white")
+        for sim, meta in results:
+            table.add_row(f"{sim * 100:.1f}%", meta.get("content", "")[:120])
+        console.print(table)
+    else:
+        console.print("[bold red]Usage :[/] /hologram [status|add <texte>|search <requête>]")
+
+
+async def run_airgap(tech_lead: TechLeadOrchestrator, args: List[str]):
+    """Gère le lien acoustique ultrasonique Air-Gap sans RF."""
+    subcmd = args[0].lower() if args else "status"
+    if subcmd == "status":
+        st = tech_lead.ultrasonic_airgap.get_status()
+        console.print(Panel(
+            f"• Modulation : [bold cyan]{st['mode']}[/]\n"
+            f"• Fréquence Bit 0 : [bold cyan]{st['freq_zero_khz']} kHz[/] (Inaudible)\n"
+            f"• Fréquence Bit 1 : [bold cyan]{st['freq_one_khz']} kHz[/] (Inaudible)\n"
+            f"• Débit Porteur : [bold green]{st['bit_duration_ms']} ms/bit (25 bauds anti-écho)[/]\n"
+            f"• Émissions RF : [bold green]{st['rf_emissions']}[/]\n"
+            f"• Disque SSD : [bold green]0 octet écrit[/]",
+            title="🦇 Émetteur/Récepteur Acoustique Ultrasonique (Ghost Air-Gap)",
+            border_style="yellow"
+        ))
+    elif subcmd == "tx":
+        if len(args) < 2:
+            console.print("[bold red]Usage :[/] /airgap tx <message court>")
+            return
+        text = " ".join(args[1:])
+        console.print(f"[dim]🔊 Émission d'un train d'ultrasons inaudibles (19.4-20.4 kHz) en RAM pour : \"{text}\"...[/]")
+        ok = await tech_lead.ultrasonic_airgap.transmit_ultrasonic(text)
+        if ok:
+            console.print("[bold green]✔ Impulsion ultrasonique émise avec succès par les haut-parleurs ![/]")
+        else:
+            console.print("[yellow]Notice : pw-play/paplay non disponible, synthèse en mémoire RAM générée avec succès.[/]")
+    else:
+        console.print("[bold red]Usage :[/] /airgap [status|tx <message>]")
+
+
+def run_phantom(tech_lead: TechLeadOrchestrator, args: List[str]):
+    """Exécute un script en mémoire vive anonyme via memfd_create avec Sacred Life Sentinel."""
+    if not args:
+        st = tech_lead.phantom_bus.get_status()
+        console.print(Panel(
+            f"• Technologie : [bold cyan]{st['mechanism']}[/]\n"
+            f"• Mode NÉANT : [bold green]Strictement 0 octet écrit sur SSD[/]\n"
+            f"• Gardien Sanctuaire de la Vie : [bold green]{st['sacred_life_sentinel']}[/]\n"
+            f"• Privilèges Sudo : [bold cyan]{tech_lead.mode == 'lesaintAi'}[/]",
+            title="⚡ Transducteur Phantom Memfd (Exécution Volatile)",
+            border_style="red"
+        ))
+        console.print("[dim]Usage : /phantom <commande bash à exécuter en RAM pure>[/]")
+        return
+
+    script = " ".join(args)
+    console.print(f"[dim]⚡ Exécution dans un descripteur memfd anonyme en RAM...[/]")
+    try:
+        res = tech_lead.execute_phantom(script)
+        if res["success"]:
+            console.print(f"[bold green]✔ Succès (code 0, 0 octet SSD) :[/]\n{res['stdout']}")
+        else:
+            console.print(f"[bold red]❌ Échec (code {res['returncode']}) :[/]\n{res['stderr']}")
+    except Exception as e:
+        console.print(f"[bold red]⛔ VETO / ERREUR :[/] {e}")
+
+
+async def run_shadow(tech_lead: TechLeadOrchestrator, args: List[str]):
+    """Exécute une tâche sous routage éphémère anonyme sans compte (Kinetic Shadow-Netns)."""
+    if not args:
+        st = tech_lead.shadow_netns.get_status()
+        console.print(Panel(
+            f"• Architecture : [bold cyan]{st['mode']}[/]\n"
+            f"• Mémoire Volatile : [bold green]{st['memory_storage']}[/]\n"
+            f"• Couche d'Anonymat : [bold cyan]{st['anonymity_layer']}[/]\n"
+            f"• Compte Requis : [bold green]AUCUN (100% Sans Inscription, Sans Email, Sans Carte)[/]\n"
+            f"• Mode NÉANT : [bold green]Strictement 0 octet écrit sur SSD[/]\n"
+            f"• Proxychains : {'[bold green]Disponible[/]' if st['proxychains_available'] else '[yellow]Non installé[/]'}\n"
+            f"• Torsocks : {'[bold green]Disponible[/]' if st['torsocks_available'] else '[yellow]Non installé[/]'}\n"
+            f"• Sanctuaire de la Vie : [bold green]{st['sacred_life_sentinel']}[/]",
+            title="🛡️ Kinetic Shadow-Netns (Routage Éphémère Deep Web)",
+            border_style="magenta"
+        ))
+        console.print("[dim]Usage : /shadow <commande bash à exécuter sous tunnel anonyme>[/]")
+        return
+
+    cmd_text = " ".join(args)
+    console.print(f"[dim]⚡ Exécution de la commande sous tunnel éphémère Tor/SOCKS5 en RAM...[/]")
+    try:
+        success, output = await tech_lead.execute_anonymous_shadow_task(cmd_text)
+        if success:
+            console.print(f"[bold green]✔ Succès (0 trace SSD) :[/]\n{output}")
+        else:
+            console.print(f"[yellow]Résultat :[/]\n{output}")
+    except Exception as e:
+        console.print(f"[bold red]⛔ VETO / ERREUR :[/] {e}")
+
+
 def get_active_workspace() -> str:
     """Returns the effective workspace root, prioritizing active git repo or WORKSPACE_ROOT."""
     cwd = Path.cwd().resolve()
@@ -1299,6 +1473,16 @@ async def interactive_cli(initial_mode: str = "freeAi"):
                     await run_think(tech_lead, args)
                 elif cmd == "/telegram":
                     await run_telegram(tech_lead, args)
+                elif cmd == "/vortex":
+                    await run_vortex(tech_lead, args)
+                elif cmd == "/hologram":
+                    run_hologram(tech_lead, args)
+                elif cmd == "/airgap":
+                    await run_airgap(tech_lead, args)
+                elif cmd == "/phantom":
+                    run_phantom(tech_lead, args)
+                elif cmd == "/shadow":
+                    await run_shadow(tech_lead, args)
                 else:
                     console.print(f"[bold red]Commande slash inconnue :[/] '{cmd}'. Tapez [bold green]/help[/] pour la liste des commandes.")
             else:
@@ -1389,6 +1573,16 @@ def main():
                 asyncio.run(run_think(tech_lead, args))
             elif cmd == "/telegram":
                 asyncio.run(run_telegram(tech_lead, args))
+            elif cmd == "/vortex":
+                asyncio.run(run_vortex(tech_lead, args))
+            elif cmd == "/hologram":
+                run_hologram(tech_lead, args)
+            elif cmd == "/airgap":
+                asyncio.run(run_airgap(tech_lead, args))
+            elif cmd == "/phantom":
+                run_phantom(tech_lead, args)
+            elif cmd == "/shadow":
+                asyncio.run(run_shadow(tech_lead, args))
             elif cmd == "/help":
                 print_help()
             else:

@@ -119,6 +119,44 @@ class TelegramNeuralVault:
             logger.debug(f"[TELEGRAM VAULT] Document upload error: {e}")
             return False
 
+    async def download_file_bytes(self, file_id: str) -> Optional[io.BytesIO]:
+        """Downloads a Telegram file directly into RAM (0 disk write)."""
+        if not self.is_configured:
+            return None
+        try:
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                res = await client.get(f"{self.base_url}/getFile", params={"file_id": file_id})
+                if res.status_code != 200:
+                    return None
+                file_path = res.json().get("result", {}).get("file_path")
+                if not file_path:
+                    return None
+                file_url = f"https://api.telegram.org/file/bot{self.token}/{file_path}"
+                dl_res = await client.get(file_url)
+                if dl_res.status_code == 200:
+                    stream = io.BytesIO(dl_res.content)
+                    stream.seek(0)
+                    return stream
+        except Exception as e:
+            logger.debug(f"[TELEGRAM VAULT] File download error: {e}")
+        return None
+
+    async def send_voice(self, voice_data: io.BytesIO, caption: Optional[str] = None) -> bool:
+        """Sends an in-memory voice message back to Telegram."""
+        if not self.is_configured or not self.chat_id:
+            return False
+        files = {"voice": ("reply.ogg", voice_data.getvalue(), "audio/ogg")}
+        data_fields = {"chat_id": self.chat_id}
+        if caption:
+            data_fields["caption"] = caption[:1000]
+        try:
+            async with httpx.AsyncClient(timeout=20.0) as client:
+                res = await client.post(f"{self.base_url}/sendVoice", data=data_fields, files=files)
+                return res.status_code == 200
+        except Exception as e:
+            logger.debug(f"[TELEGRAM VAULT] sendVoice error: {e}")
+            return False
+
     async def save_knowledge(self, topic: str, query: str, response: str) -> bool:
         """Stores structured knowledge in Telegram cloud memory with GZIP compression."""
         record = {
@@ -170,8 +208,8 @@ class TelegramNeuralVault:
         lines.append("\n<i>☁️ Synchronisé sur Telegram Neural Vault</i>")
         return await self.send_message("\n".join(lines))
 
-    async def poll_incoming_command(self) -> Optional[Tuple[str, str]]:
-        """Polls for new commands texted by the user on Telegram.
+    async def poll_incoming_command(self, stt_engine: Any = None) -> Optional[Tuple[str, str]]:
+        """Polls for new commands texted or spoken by the user on Telegram.
         Returns: (command_text, sender_username) or None
         """
         if not self.is_configured:
@@ -205,6 +243,18 @@ class TelegramNeuralVault:
                         if not self.chat_id:
                             self.chat_id = sender_chat_id
                             logger.info(f"[TELEGRAM VAULT] Liaison établie avec le Chat ID: {self.chat_id}")
+
+                        # Handle Voice Notes (Bidirectional Telepathy)
+                        if not text and msg.get("voice") and stt_engine:
+                            voice_meta = msg["voice"]
+                            file_id = voice_meta.get("file_id")
+                            if file_id:
+                                audio_stream = await self.download_file_bytes(file_id)
+                                if audio_stream:
+                                    try:
+                                        text = await stt_engine.transcribe(audio_stream)
+                                    except Exception as e:
+                                        logger.debug(f"[TELEGRAM VAULT] Voice STT transcription failed: {e}")
 
                         if text:
                             # Inviolable Verification by SacredLifeSentinel

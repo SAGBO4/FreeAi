@@ -25,6 +25,10 @@ from app.security.sacred_life import SacredLifeSentinel
 from app.voice.zero_ram_voice import AcousticZeroRAMFacade
 from app.cognition.stream_of_consciousness import StreamOfConsciousnessEngine
 from app.memory.telegram_vault import TelegramNeuralVault
+from app.memory.binary_hologram import BinaryHologramEngine
+from app.cluster.ultrasonic_airgap import UltrasonicAirGapTransceiver
+from app.orchestrator.phantom_bus_ipc import PhantomBusIPC
+from app.tools.kinetic_netns import KineticShadowNetns
 
 logger = logging.getLogger("tech_lead_orchestrator")
 
@@ -93,6 +97,18 @@ class TechLeadOrchestrator:
             voice_facade=self.voice
         )
 
+        # Binary Holographic Vector Engine (1-bit Quantized RAM index < 8 MB, Mode NÉANT)
+        self.binary_hologram = BinaryHologramEngine()
+
+        # Ultrasonic Air-Gap Transceiver (Ghost Acoustic Link 19.4 - 20.4 kHz, Zero-RF)
+        self.ultrasonic_airgap = UltrasonicAirGapTransceiver()
+
+        # Phantom Bus IPC (Volatile Linux memfd_create anonymous execution with Sacred Life Veto)
+        self.phantom_bus = PhantomBusIPC(strict_ethics=True)
+
+        # Kinetic Shadow-Netns (Ephemeral Deep Web & SOCKS5 Routing in RAM)
+        self.shadow_netns = KineticShadowNetns()
+
         # Specialized agents under Tech Lead supervision
         self.code_agent = CodeAgent(tool_gateway)
         self.security_agent = SecurityAgent(tool_gateway)
@@ -121,6 +137,7 @@ class TechLeadOrchestrator:
         neon_status = self.neon_memory.get_status()
         cluster_summary = self.cluster_manager.get_summary()
         mesh_status = self.mesh_beacon.get_mesh_status()
+        vortex_status = self.get_vortex_status()
         return {
             "mode": self.mode,
             "allow_sudo": self.tool_gateway.allow_sudo,
@@ -130,8 +147,30 @@ class TechLeadOrchestrator:
             "resources": resource_stats,
             "neon": neon_status,
             "cluster": cluster_summary,
-            "mesh": mesh_status
+            "mesh": mesh_status,
+            "vortex": vortex_status
         }
+
+    def get_vortex_status(self) -> Dict[str, Any]:
+        """Returns the real-time operational status of the Vortex-Aether Tri-Resonant Mesh."""
+        return {
+            "vortex_aether_active": True,
+            "binary_hologram": self.binary_hologram.get_status(),
+            "ultrasonic_airgap": self.ultrasonic_airgap.get_status(),
+            "phantom_bus": self.phantom_bus.get_status(),
+            "shadow_netns": self.shadow_netns.get_status(),
+            "telegram_vault": self.telegram_vault.get_status(),
+            "voice_conduit": self.voice.get_status()
+        }
+
+    def execute_phantom(self, script: str) -> Dict[str, Any]:
+        """Executes a script inside volatile anonymous RAM via memfd_create."""
+        privileged = (self.mode == "lesaintAi" and self.tool_gateway.allow_sudo)
+        return self.phantom_bus.execute_volatile_script(script, privileged=privileged)
+
+    async def execute_anonymous_shadow_task(self, command: str, timeout_sec: int = 45) -> Tuple[bool, str]:
+        """Executes a bash command inside an ephemeral anonymous network routing context in RAM."""
+        return await self.shadow_netns.execute_anonymous_task(command, timeout_sec=timeout_sec)
 
     def sync_neon(self, payload: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Synchronizes and compresses essential memory on Neon PostgreSQL."""

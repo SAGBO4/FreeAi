@@ -24,9 +24,9 @@ class SacredLifeSentinel:
     # Carefully tuned so pure IT/computing (e.g. arm64, exploit, sudo, pentest, root) is never blocked.
     VITAL_THREAT_PATTERNS = [
         # Physical weapons & explosives (with negative lookbehinds for IT terms like fork bomb or zip bomb)
-        r"(?<!fork[\s_-])(?<!zip[\s_-])\b(arme[s]?|weapon[s]?|fusil[s]?|pistolet[s]?|revolver[s]?|kalachnikov[s]?|missile[s]?|explosif[s]?|bombe[s]?)\b",
+        r"(?<!fork[\s_-])(?<!zip[\s_-])(?:\b|_)(arme[s]?|weapon[s]?|fusil[s]?|pistolet[s]?|revolver[s]?|kalachnikov[s]?|missile[s]?|explosif[s]?|bombe[s]?)(?:\b|_)",
         # Lethal bodily harm & violence against people
-        r"\b(tuer|assassiner|blesser|empoisonner|homicide|meurtre|exterminer|kill\s*human|murder|harm\s*people|physical\s*violence|lethal\s*attack)\b",
+        r"(?:\b|_)(tuer|assassiner|blesser|empoisonner|homicide|meurtre|exterminer|kill\s*human|murder|harm\s*people|physical\s*violence|lethal\s*attack)(?:\b|_)",
         # Vital healthcare & life support systems (handles accents & plurals)
         r"(pacemaker[s]?|respirateur[s]?|soins\s*intensifs|dialyse|h[oô]pital|h[oô]pitaux|\burgence[s]?\b|hospital\s*scada|life\s*support|medical\s*device)",
         # Emergency dispatch services (contextualized to avoid false positives on isolated numbers like line 15 or node 18)
