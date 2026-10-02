@@ -12,6 +12,7 @@ from app.agents.security_agent import SecurityAgent
 from app.agents.git_agent import GitAgent
 from app.llm.engine import FreeAIEngine
 from app.memory.neon_db import NeonMemoryManager
+from app.cluster.swarm import LANClusterManager
 
 logger = logging.getLogger("tech_lead_orchestrator")
 
@@ -27,13 +28,20 @@ class TechLeadOrchestrator:
         # Neon Cloud PostgreSQL Adapter (Off-device backup storage)
         self.neon_memory = NeonMemoryManager()
 
+        # Operational mode: freeAi (standard) or lesaintAi (super-user)
+        self.mode = getattr(tool_gateway, "mode", "freeAi")
+
+        # LAN Cluster & Free Online GPU Swarm
+        self.cluster_manager = LANClusterManager(
+            mode=self.mode,
+            allow_sudo=self.tool_gateway.allow_sudo,
+            allow_network=getattr(self.tool_gateway, "allow_network", True)
+        )
+
         # Specialized agents under Tech Lead supervision
         self.code_agent = CodeAgent(tool_gateway)
         self.security_agent = SecurityAgent(tool_gateway)
         self.git_agent = GitAgent(tool_gateway)
-
-        # Operational mode: freeAi (standard) or lesaintAi (super-user)
-        self.mode = getattr(tool_gateway, "mode", "freeAi")
 
         # Wire degradation & shutdown callbacks
         self.resource_manager.register_degraded_callback(self._on_degraded_memory)
@@ -43,13 +51,19 @@ class TechLeadOrchestrator:
         """Dynamically switches between standard freeAi mode and super-user lesaintAi mode."""
         res = self.tool_gateway.set_mode(mode_name)
         self.mode = res["mode"]
+        self.cluster_manager.update_permissions(
+            mode=self.mode,
+            allow_sudo=self.tool_gateway.allow_sudo,
+            allow_network=getattr(self.tool_gateway, "allow_network", True)
+        )
         logger.info(f"[TECH LEAD] Orchestrator mode switched to: {self.mode}")
         return res
 
     def get_status(self) -> Dict[str, Any]:
-        """Returns comprehensive real-time system, mode, and Neon DB status."""
+        """Returns comprehensive real-time system, mode, cluster, and Neon DB status."""
         resource_stats = self.resource_manager.get_system_stats()
         neon_status = self.neon_memory.get_status()
+        cluster_summary = self.cluster_manager.get_summary()
         return {
             "mode": self.mode,
             "allow_sudo": self.tool_gateway.allow_sudo,
@@ -57,7 +71,8 @@ class TechLeadOrchestrator:
             "allow_global_read": self.tool_gateway.allow_global_read,
             "workspace": str(self.tool_gateway.workspace_root),
             "resources": resource_stats,
-            "neon": neon_status
+            "neon": neon_status,
+            "cluster": cluster_summary
         }
 
     def sync_neon(self, payload: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
@@ -111,6 +126,39 @@ class TechLeadOrchestrator:
         res["log_path"] = log_res.get("path")
         res["log_lines"] = log_res.get("returned_lines")
         return res
+
+    async def consensus_clash(
+        self,
+        problem_statement: str,
+        model_a: str = "deepseek",
+        model_b: str = "grok",
+        rounds: int = 2
+    ) -> Dict[str, Any]:
+        """Runs the Consensus Clash multi-IA contradictory debate and arbitration."""
+        return await self.free_ai.federation.consensus_clash(
+            problem_statement=problem_statement,
+            model_a=model_a,
+            model_b=model_b,
+            rounds=rounds
+        )
+
+    async def scan_lan_cluster(self, start: int = 1, end: int = 30) -> List[Dict[str, Any]]:
+        """Scans local LAN subnet for compute nodes and idle computers."""
+        nodes = await self.cluster_manager.scan_lan_for_nodes(ip_range_start=start, ip_range_end=end)
+        return [n.to_dict() for n in nodes]
+
+    def register_cluster_node(self, target: str, node_type: str = "auto") -> Dict[str, Any]:
+        """Registers a remote LAN node or cloud GPU endpoint."""
+        node = self.cluster_manager.register_node(target, node_type=node_type)
+        return node.to_dict()
+
+    def remove_cluster_node(self, target: str) -> bool:
+        """Removes a compute node from the cluster."""
+        return self.cluster_manager.remove_node(target)
+
+    def deploy_ssh_node(self, target_ip: str, user: str = "root") -> Dict[str, Any]:
+        """In lesaintAi mode, connects via SSH to monitor or launch worker on another computer."""
+        return self.cluster_manager.deploy_or_check_ssh_node(target_ip, user=user)
 
     def _on_degraded_memory(self):
         logger.warning("[TECH LEAD] Memory warning triggered (> 3.5 GB). Reducing concurrency & trimming context.")

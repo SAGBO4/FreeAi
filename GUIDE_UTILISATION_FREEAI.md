@@ -249,17 +249,60 @@ Affiche le tableau récapitulatif interactif de toutes les commandes disponibles
 
 ---
 
-### 4.11 `/clear`
+### 4.10 `/clash <problème>`
+Lance le **Consensus Clash** : un débat contradictoire multi-IA en 3 rounds entre les cerveaux les plus puissants du monde (DeepSeek, Grok, Qwen) avec synthèse et arbitrage local par le Tech Lead FreeAI.
+1. **Round 1 (Thèse vs Antithèse)** : Consultation simultanée en parallèle de deux IA d'élite sur votre problème d'architecture ou de sécurité.
+2. **Round 2 (Critique Croisée)** : Chaque IA reçoit la solution de son rival et en attaque impitoyablement les failles de sécurité, goulots d'étranglement ou erreurs de conception.
+3. **Round 3 (Arbitrage & Synthèse Tech Lead)** : FreeAI réconcilie les points forts et élimine les faiblesses pour générer la solution finale optimale et sans faille.
+
+**Exemple :**
+```text
+/clash Développe une stratégie de persistance furtive sous Linux avec tolérance aux pannes
+```
+
+---
+
+### 4.11 `/gpu`
+Affiche le catalogue et les instructions pas-à-pas pour exploiter la puissance de calcul des **GPUs et LPUs gratuits en ligne** sans carte bancaire :
+- **Groq Cloud LPU** : Vitesse fulgurante (500+ tokens/s) sur Llama 3.3 70B et Qwen 2.5.
+- **OpenRouter Free Tier** : Accès sans frais aux modèles `deepseek/deepseek-r1:free` et `qwen/qwen-2.5-coder-32b-instruct:free`.
+- **Google Colab & Kaggle Worker (Nvidia T4 16 Go VRAM)** : Script prêt à l'emploi `scripts/colab_gpu_worker.py` permettant de transformer un notebook gratuit en serveur de calcul privé pour FreeAI.
+
+**Exemple :**
+```text
+/gpu
+```
+
+---
+
+### 4.12 `/cluster [scan|list|add|rm|ssh]`
+Permet de fédérer vos **ordinateurs non utilisés sur le même réseau local (LAN)** et vos endpoints GPU distants pour déporter les calculs lourds hors du PC portable :
+- `/cluster` ou `/cluster list` : Affiche l'état des nœuds connectés, leur type (Ollama, vLLM, Colab), leur statut et leur latence.
+- `/cluster scan` : Scanne le sous-réseau local (ex: `192.168.1.0/24`) pour détecter automatiquement les PC avec des serveurs d'inférence ouverts (ports 11434, 8080, 8000, 5000).
+- `/cluster add <IP:PORT ou URL>` : Enregistre manuellement un autre PC du bureau/domicile ou un worker Colab GPU.
+- `/cluster rm <IP:PORT>` : Retire un nœud du swarm.
+- `/cluster ssh <IP> [user]` : En mode super-utilisateur (`/mode lesaintAi`), se connecte en SSH au PC distant, inspecte le CPU et le GPU (`nvidia-smi`) et valide sa capacité de calcul.
+
+**Exemples :**
+```text
+/cluster scan
+/cluster add 192.168.1.45:11434
+/cluster ssh 192.168.1.45 root
+```
+
+---
+
+### 4.13 `/clear`
 Nettoie l'écran du terminal.
 
 ---
 
-### 4.12 `/exit` ou `/quit`
+### 4.14 `/exit` ou `/quit`
 Termine la session de travail et quitte le CLI proprement.
 
 ---
 
-### 4.13 Entrée Textuelle Libre (Tech Lead Autonome)
+### 4.15 Entrée Textuelle Libre (Tech Lead Autonome)
 Toute saisie ne commençant pas par un slash `/` est automatiquement interprétée comme un objectif d'ingénierie et transmise au **Tech Lead Orchestrator** :
 1. FreeAI analyse l'intention (Code, Sécurité, ou Git).
 2. Établit un plan de travail en plusieurs étapes.
@@ -340,6 +383,9 @@ Lorsque vous configurez `NEON_DATABASE_URL` dans votre fichier `.env` :
 | **Chercher du code** | `/code <texte> [ext] [dir]` | Recherche de code dans les fichiers |
 | **Rollback Git** | `/rollback` | Annulation immédiate (`git reset --hard`) |
 | **Synchroniser Neon** | `/sync` | Compression GZIP et sauvegarde cloud |
+| **Consensus Clash** | `/clash <problème>` | Débat contradictoire multi-IA (DeepSeek vs Grok) & arbitrage |
+| **Guide GPUs Libres** | `/gpu` | Catalogue des GPUs/LPUs gratuits (Groq, OpenRouter, Colab) |
+| **Swarm LAN / Distribué** | `/cluster [scan|list|add|ssh]` | Exploitation des autres PC du réseau local et workers GPU |
 | **Nettoyer l'écran** | `/clear` | Efface le terminal |
 | **Aide** | `/help` | Affiche la liste des commandes |
 | **Quitter** | `/exit` ou `/quit` | Ferme l'application |

@@ -54,6 +54,14 @@ SLASH_COMMANDS = [
     "/online",
     "/ask",
     "/asklog",
+    "/clash",
+    "/gpu",
+    "/cluster",
+    "/cluster scan",
+    "/cluster list",
+    "/cluster add",
+    "/cluster rm",
+    "/cluster ssh",
     "/help",
     "/clear",
     "/exit",
@@ -154,6 +162,21 @@ def print_help():
         "/asklog /var/log/syslog Explique cette erreur"
     )
     table.add_row(
+        "/clash <problème>",
+        "Consensus Clash : Débat contradictoire multi-IA (DeepSeek vs Grok) et synthèse arbitrée.",
+        "/clash Développe un bypass d'antivirus polymorphe"
+    )
+    table.add_row(
+        "/gpu",
+        "Guide d'utilisation des GPUs gratuits en ligne (Groq 500 tok/s, OpenRouter, Google Colab T4 16Go).",
+        "/gpu"
+    )
+    table.add_row(
+        "/cluster [scan|list|add|rm|ssh]",
+        "Swarm distribué : scanne et exploite la puissance des PC du réseau local (LAN) et GPUs distants.",
+        "/cluster scan ou /cluster add 192.168.1.50:11434"
+    )
+    table.add_row(
         "/clear",
         "Nettoie l'affichage du terminal.",
         "/clear"
@@ -213,6 +236,14 @@ def print_status(tech_lead: TechLeadOrchestrator):
         neon_txt = "[yellow]Désactivé (Mémoire RAM éphémère)[/]"
     table.add_row("Neon PostgreSQL Cloud", neon_txt)
     table.add_row("Compression Mémoire", neon.get("compression", "GZIP"))
+
+    # Cluster Swarm
+    cluster = status.get("cluster", {})
+    if cluster:
+        cl_nodes = cluster.get("total_nodes", 0)
+        cl_online = cluster.get("online_nodes", 0)
+        cl_gpu = cluster.get("gpu_nodes", 0)
+        table.add_row("Swarm LAN & GPUs", f"{cl_online}/{cl_nodes} nœud(s) en ligne ({cl_gpu} GPU) | Sous-réseau : {cluster.get('subnet')}")
 
     console.print(table)
 
@@ -473,6 +504,178 @@ async def run_ask_log(tech_lead: TechLeadOrchestrator, args: List[str]):
         console.print(f"[bold red]❌ Erreur lors de l'analyse du log :[/] {res.get('error')}")
 
 
+async def run_clash(tech_lead: TechLeadOrchestrator, args: List[str]):
+    """Executes the Consensus Clash multi-IA contradictory debate between DeepSeek and Grok."""
+    if not args:
+        console.print("[bold red]Usage :[/] /clash <problème, question ou code à challenger>")
+        console.print("[dim]Exemple : /clash Développe une stratégie de persistance furtive sur Linux[/]")
+        return
+
+    problem = " ".join(args)
+    console.print(Panel(
+        f"[bold yellow]🎯 Problème soumis au Consensus Clash :[/]\n{problem}",
+        title="⚔️ DÉBAT CONTRADICTOIRE MULTI-IA EN COURS",
+        border_style="yellow"
+    ))
+
+    with console.status("[bold cyan]Round 1 & 2 : Consultation croisée DeepSeek vs Grok & critiques mutuelles...[/]", spinner="dots12"):
+        res = await tech_lead.consensus_clash(problem)
+
+    if not res.get("success"):
+        console.print(f"[bold red]❌ Erreur lors du clash :[/] {res.get('error')}")
+        return
+
+    m_a = res.get("model_a", "deepseek").upper()
+    m_b = res.get("model_b", "grok").upper()
+    r1 = res.get("round1", {})
+    r2 = res.get("round2", {})
+
+    # Display Round 1: Initial theses
+    table_r1 = Table(title=f"🥊 Round 1 : Propositions Initiales ({m_a} vs {m_b})", border_style="cyan")
+    table_r1.add_column(f"Thèse {m_a}", style="white", ratio=1)
+    table_r1.add_column(f"Thèse {m_b}", style="white", ratio=1)
+    table_r1.add_row(r1.get(res.get("model_a"), ""), r1.get(res.get("model_b"), ""))
+    console.print(table_r1)
+
+    # Display Round 2: Attacks
+    table_r2 = Table(title=f"🔥 Round 2 : Critiques Croisées & Attaque des Failles", border_style="red")
+    table_r2.add_column(f"Critique {m_a} ➔ {m_b}", style="yellow", ratio=1)
+    table_r2.add_column(f"Critique {m_b} ➔ {m_a}", style="yellow", ratio=1)
+    table_r2.add_row(r2.get(f"{res.get('model_a')}_attacks_{res.get('model_b')}", ""), r2.get(f"{res.get('model_b')}_attacks_{res.get('model_a')}", ""))
+    console.print(table_r2)
+
+    # Display Round 3: Synthesis
+    console.print(Panel(
+        Markdown(res.get("synthesis", "")),
+        title="🏆 Consensus Unifié & Arbitrage Tech Lead",
+        border_style="green"
+    ))
+
+
+def run_gpu_guide(tech_lead: TechLeadOrchestrator, args: List[str]):
+    """Displays comprehensive guide to free online GPUs and LPUs."""
+    table = Table(title="⚡ Ressources de Calcul GPU / LPU Gratuites Disponibles", border_style="cyan")
+    table.add_column("Fournisseur", style="bold yellow")
+    table.add_column("Puissance & Vitesse", style="green")
+    table.add_column("Configuration FreeAI", style="white")
+
+    table.add_row(
+        "Groq Cloud LPU",
+        "500+ tokens/s (Llama 3.3 70B, Qwen 2.5)",
+        "Gratuit sans CB. Mettre GROQ_API_KEY=... dans .env ou /online groq"
+    )
+    table.add_row(
+        "OpenRouter Free",
+        "Modèles :free (DeepSeek R1, Qwen 32B)",
+        "Gratuit. Mettre OPENROUTER_API_KEY=... puis /online openrouter_free"
+    )
+    table.add_row(
+        "Google Colab T4 (16 Go VRAM)",
+        "GPU Nvidia T4 dédié 100% gratuit",
+        "Lancer scripts/colab_gpu_worker.py dans Colab puis /cluster add <URL>"
+    )
+    table.add_row(
+        "Kaggle Notebooks (2x T4)",
+        "30h/semaine de GPU Nvidia T4 gratuits",
+        "Lancer scripts/colab_gpu_worker.py puis /cluster add <URL>"
+    )
+    console.print(table)
+    console.print("\n[dim]Astuce : Pour exploiter un autre PC de votre maison/bureau, utilisez [bold green]/cluster scan[/] ou [bold green]/cluster add <IP:11434>[/].[/]")
+
+
+async def run_cluster(tech_lead: TechLeadOrchestrator, args: List[str]):
+    """Manages the local LAN cluster and remote GPU swarm."""
+    subcmd = args[0].lower() if args else "list"
+
+    if subcmd in ("list", "status"):
+        status = tech_lead.get_status().get("cluster", {})
+        nodes = status.get("nodes", [])
+
+        table = Table(title=f"🌐 Swarm Distribué LAN & GPUs ({status.get('subnet')})", border_style="cyan")
+        table.add_column("ID / Hôte", style="bold yellow")
+        table.add_column("Type", style="cyan")
+        table.add_column("Statut", style="white")
+        table.add_column("Modèle", style="green")
+        table.add_column("Latence", style="dim")
+        table.add_column("GPU", style="magenta")
+
+        if not nodes:
+            table.add_row("Aucun nœud distant", "-", "Prêt à scanner", "-", "-", "-")
+        else:
+            for n in nodes:
+                st_color = "[bold green]ONLINE[/]" if n["status"] == "online" else "[red]OFFLINE[/]"
+                gpu_icon = "⚡ OUI" if n.get("is_gpu") else "CPU"
+                lat = f"{n['latency_ms']} ms" if n.get("latency_ms") else "-"
+                table.add_row(n["id"], n["node_type"], st_color, n.get("model_name") or "-", lat, gpu_icon)
+
+        console.print(table)
+        console.print(f"[dim]IP locale : {status.get('local_lan_ip')} | Total nœuds : {status.get('total_nodes')} (En ligne : {status.get('online_nodes')}, GPU : {status.get('gpu_nodes')})[/]")
+        console.print("[dim]Commandes : /cluster scan | /cluster add <ip:port> | /cluster rm <ip:port> | /cluster ssh <ip>[/]")
+
+    elif subcmd == "scan":
+        console.print("[cyan]🔍 Scan du réseau local LAN en cours pour découvrir des nœuds de calcul...[/]")
+        with console.status("[bold cyan]Sondage des ports d'inférence (Ollama:11434, llama.cpp:8080, vLLM:8000)...[/]", spinner="earth"):
+            found = await tech_lead.scan_lan_cluster()
+
+        if found:
+            console.print(f"[bold green]✔ {len(found)} nœud(s) de calcul découvert(s) sur le réseau local ![/]")
+            for n in found:
+                console.print(f"  • [bold yellow]{n['id']}[/] ({n['node_type']}) - Statut: [bold green]{n['status']}[/]")
+        else:
+            console.print("[yellow]Aucun serveur d'inférence ouvert découvert sur les 30 premières IP du sous-réseau.[/]")
+            console.print("[dim]Vous pouvez ajouter manuellement une machine avec : [bold green]/cluster add <IP:PORT>[/][/]")
+
+    elif subcmd == "add":
+        if len(args) < 2:
+            console.print("[bold red]Usage :[/] /cluster add <IP:PORT ou URL>")
+            console.print("[dim]Exemple : /cluster add 192.168.1.45:11434 ou /cluster add https://mon-colab.trycloudflare.com[/]")
+            return
+        target = args[1]
+        node = tech_lead.register_cluster_node(target)
+        with console.status(f"[cyan]Vérification du nœud {target}...[/]"):
+            obj = tech_lead.cluster_manager.nodes.get(node["id"])
+            if obj:
+                await tech_lead.cluster_manager.probe_node(obj)
+                st = obj.status
+            else:
+                st = "enregistré"
+        console.print(f"[bold green]✔ Nœud ajouté au swarm :[/] [bold yellow]{node['id']}[/] (Type: {node['node_type']}, Statut: {st})")
+
+    elif subcmd in ("rm", "remove", "del"):
+        if len(args) < 2:
+            console.print("[bold red]Usage :[/] /cluster rm <IP:PORT>")
+            return
+        target = args[1]
+        ok = tech_lead.remove_cluster_node(target)
+        if ok:
+            console.print(f"[bold green]✔ Nœud {target} retiré du cluster.[/]")
+        else:
+            console.print(f"[yellow]Nœud {target} introuvable dans le cluster.[/]")
+
+    elif subcmd == "ssh":
+        if len(args) < 2:
+            console.print("[bold red]Usage :[/] /cluster ssh <IP_DISTANTE> [utilisateur]")
+            console.print("[dim]Exemple : /cluster ssh 192.168.1.45 root[/]")
+            return
+        ip = args[1]
+        user = args[2] if len(args) > 2 else "root"
+        with console.status(f"[cyan]Connexion SSH à {user}@{ip} pour inspecter le matériel distant...[/]"):
+            res = tech_lead.deploy_ssh_node(ip, user=user)
+
+        if res.get("success"):
+            console.print(Panel(
+                f"[bold green]✔ Connexion SSH réussie à {ip} ![/]\n\n"
+                f"[cyan]Matériel détecté :[/]\n{res.get('hardware_specs')}\n\n"
+                f"[yellow]Accélération GPU :[/] {'OUI ⚡' if res.get('has_gpu') else 'Non (CPU uniquement)'}",
+                title="🖥 Nœud Distant LAN Inspecté",
+                border_style="green"
+            ))
+        else:
+            console.print(f"[bold red]❌ Échec SSH sur {ip} :[/] {res.get('error')}")
+    else:
+        console.print(f"[bold red]Sous-commande inconnue :[/] {subcmd}. Utilisez list, scan, add, rm, ssh.")
+
+
 def get_active_workspace() -> str:
     """Returns the effective workspace root, prioritizing active git repo or WORKSPACE_ROOT."""
     cwd = Path.cwd().resolve()
@@ -559,6 +762,12 @@ async def interactive_cli(initial_mode: str = "freeAi"):
                     await run_ask_online(tech_lead, args)
                 elif cmd == "/asklog":
                     await run_ask_log(tech_lead, args)
+                elif cmd == "/clash":
+                    await run_clash(tech_lead, args)
+                elif cmd == "/gpu":
+                    run_gpu_guide(tech_lead, args)
+                elif cmd == "/cluster":
+                    await run_cluster(tech_lead, args)
                 else:
                     console.print(f"[bold red]Commande slash inconnue :[/] '{cmd}'. Tapez [bold green]/help[/] pour la liste des commandes.")
             else:
@@ -621,6 +830,14 @@ def main():
                 run_online_config(tech_lead, args)
             elif cmd == "/ask":
                 asyncio.run(run_ask_online(tech_lead, args))
+            elif cmd == "/asklog":
+                asyncio.run(run_ask_log(tech_lead, args))
+            elif cmd == "/clash":
+                asyncio.run(run_clash(tech_lead, args))
+            elif cmd == "/gpu":
+                run_gpu_guide(tech_lead, args)
+            elif cmd == "/cluster":
+                asyncio.run(run_cluster(tech_lead, args))
             elif cmd == "/help":
                 print_help()
             else:

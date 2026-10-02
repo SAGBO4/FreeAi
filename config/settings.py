@@ -75,12 +75,17 @@ class Settings(BaseModel):
     ALLOW_GLOBAL_READ: bool = Field(default_factory=lambda: _get_bool("ALLOW_GLOBAL_READ", True))
     ALLOW_FULL_FS_ACCESS: bool = Field(default_factory=lambda: _get_bool("ALLOW_FULL_FS_ACCESS", False))
 
-    # Online Unrestricted Models (Grok, DeepSeek, Qwen - 100% Remote API, zero local footprint)
+    # Online Unrestricted Models (Grok, DeepSeek, Qwen, Groq LPU - 100% Remote API, zero local footprint)
     ONLINE_PROVIDER: str = Field(default_factory=lambda: os.getenv("ONLINE_PROVIDER", "auto"))
     ONLINE_MODEL: str = Field(default_factory=lambda: os.getenv("ONLINE_MODEL", "deepseek/deepseek-chat"))
     OPENROUTER_API_KEY: str = Field(default_factory=lambda: os.getenv("OPENROUTER_API_KEY", ""))
     DEEPSEEK_API_KEY: str = Field(default_factory=lambda: os.getenv("DEEPSEEK_API_KEY", ""))
     GROK_API_KEY: str = Field(default_factory=lambda: os.getenv("GROK_API_KEY", os.getenv("XAI_API_KEY", "")))
+    GROQ_API_KEY: str = Field(default_factory=lambda: os.getenv("GROQ_API_KEY", ""))
+
+    # Distributed Compute & LAN Swarm Cluster
+    REMOTE_GPU_URL: str = Field(default_factory=lambda: os.getenv("REMOTE_GPU_URL", ""))
+    LAN_CLUSTER_NODES: str = Field(default_factory=lambda: os.getenv("LAN_CLUSTER_NODES", ""))
 
 
 settings = Settings()
