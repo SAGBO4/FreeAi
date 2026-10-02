@@ -13,6 +13,10 @@ from app.agents.git_agent import GitAgent
 from app.llm.engine import FreeAIEngine
 from app.memory.neon_db import NeonMemoryManager
 from app.cluster.swarm import LANClusterManager
+from app.evolution.auto_update import AutoUpdateEngine
+from app.cluster.mesh import P2PMeshBeacon
+from app.llm.arena import ShadowRedTeamArena
+from app.cluster.speculative import SpeculativeAccelerationEngine
 
 logger = logging.getLogger("tech_lead_orchestrator")
 
@@ -38,6 +42,24 @@ class TechLeadOrchestrator:
             allow_network=getattr(self.tool_gateway, "allow_network", True)
         )
 
+        # Sovereign Auto-Evolution & Self-Updating Engine
+        self.auto_updater = AutoUpdateEngine(workspace_root=str(self.tool_gateway.workspace_root))
+
+        # Zero-Conf P2P Mesh Swarm Beacon
+        self.mesh_beacon = P2PMeshBeacon(
+            allow_network=getattr(self.tool_gateway, "allow_network", True)
+        )
+
+        # Shadow Red-Team Adversarial Cyber Arena
+        self.arena = ShadowRedTeamArena(federation=self.free_ai.federation)
+
+        # Distributed Speculative Decoding Acceleration Engine
+        self.speculative_engine = SpeculativeAccelerationEngine(
+            local_engine=self.free_ai,
+            cluster_manager=self.cluster_manager,
+            federation=self.free_ai.federation
+        )
+
         # Specialized agents under Tech Lead supervision
         self.code_agent = CodeAgent(tool_gateway)
         self.security_agent = SecurityAgent(tool_gateway)
@@ -56,6 +78,7 @@ class TechLeadOrchestrator:
             allow_sudo=self.tool_gateway.allow_sudo,
             allow_network=getattr(self.tool_gateway, "allow_network", True)
         )
+        self.mesh_beacon.allow_network = getattr(self.tool_gateway, "allow_network", True)
         logger.info(f"[TECH LEAD] Orchestrator mode switched to: {self.mode}")
         return res
 
@@ -64,6 +87,7 @@ class TechLeadOrchestrator:
         resource_stats = self.resource_manager.get_system_stats()
         neon_status = self.neon_memory.get_status()
         cluster_summary = self.cluster_manager.get_summary()
+        mesh_status = self.mesh_beacon.get_mesh_status()
         return {
             "mode": self.mode,
             "allow_sudo": self.tool_gateway.allow_sudo,
@@ -72,7 +96,8 @@ class TechLeadOrchestrator:
             "workspace": str(self.tool_gateway.workspace_root),
             "resources": resource_stats,
             "neon": neon_status,
-            "cluster": cluster_summary
+            "cluster": cluster_summary,
+            "mesh": mesh_status
         }
 
     def sync_neon(self, payload: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
@@ -159,6 +184,35 @@ class TechLeadOrchestrator:
     def deploy_ssh_node(self, target_ip: str, user: str = "root") -> Dict[str, Any]:
         """In lesaintAi mode, connects via SSH to monitor or launch worker on another computer."""
         return self.cluster_manager.deploy_or_check_ssh_node(target_ip, user=user)
+
+    def check_auto_update(self) -> Dict[str, Any]:
+        """Checks git repository status and pending updates."""
+        return self.auto_updater.check_git_status()
+
+    def apply_auto_update(self) -> Dict[str, Any]:
+        """Pulls git updates and runs verification test suite with automatic rollback."""
+        return self.auto_updater.apply_git_pull_update()
+
+    def run_self_verification(self) -> Dict[str, Any]:
+        """Executes full automated test suite to ensure 100% integrity."""
+        return self.auto_updater.run_safety_verification_tests()
+
+    async def execute_shadow_arena(self, target_description: str) -> Dict[str, Any]:
+        """Runs the Shadow Red-Team adversarial cyber duel (DeepSeek vs Grok)."""
+        return await self.arena.execute_adversarial_duel(target_description)
+
+    async def discover_p2p_mesh(self, duration_sec: float = 2.0) -> List[Dict[str, Any]]:
+        """Listens for and broadcasts zero-conf P2P mesh beacons on the LAN."""
+        await self.mesh_beacon.broadcast_beacon_once()
+        return await self.mesh_beacon.listen_for_beacons(duration_sec=duration_sec)
+
+    def get_mesh_status(self) -> Dict[str, Any]:
+        """Returns discovered zero-conf mesh peers."""
+        return self.mesh_beacon.get_mesh_status()
+
+    async def speculative_generate(self, prompt: str) -> Dict[str, Any]:
+        """Runs distributed speculative generation combining fast local draft with GPU validation."""
+        return await self.speculative_engine.accelerated_generate(prompt)
 
     def _on_degraded_memory(self):
         logger.warning("[TECH LEAD] Memory warning triggered (> 3.5 GB). Reducing concurrency & trimming context.")

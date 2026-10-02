@@ -62,6 +62,11 @@ SLASH_COMMANDS = [
     "/cluster add",
     "/cluster rm",
     "/cluster ssh",
+    "/evolve",
+    "/autoupdate",
+    "/arena",
+    "/mesh",
+    "/speculate",
     "/help",
     "/clear",
     "/exit",
@@ -177,6 +182,26 @@ def print_help():
         "/cluster scan ou /cluster add 192.168.1.50:11434"
     )
     table.add_row(
+        "/evolve [check|apply|test]",
+        "Auto-mise à jour souveraine : synchronise git, lance 100% des tests et rollback si échec.",
+        "/evolve ou /evolve check"
+    )
+    table.add_row(
+        "/arena <cible>",
+        "Shadow Red-Team Arena : Attaque Red Team (DeepSeek) vs Défense Blue Team (Grok) vs Blindage certifié.",
+        "/arena Script d'authentification JWT"
+    )
+    table.add_row(
+        "/mesh [scan|status]",
+        "Zero-Conf P2P Mesh : Découverte automatique des PC voisins par broadcast UDP sans taper d'IP.",
+        "/mesh scan"
+    )
+    table.add_row(
+        "/speculate <prompt>",
+        "Décodage spéculatif distribué : Draft local ultra-rapide accéléré par validation GPU/LPU.",
+        "/speculate Écris un analyseur syntaxique en Rust"
+    )
+    table.add_row(
         "/clear",
         "Nettoie l'affichage du terminal.",
         "/clear"
@@ -244,6 +269,12 @@ def print_status(tech_lead: TechLeadOrchestrator):
         cl_online = cluster.get("online_nodes", 0)
         cl_gpu = cluster.get("gpu_nodes", 0)
         table.add_row("Swarm LAN & GPUs", f"{cl_online}/{cl_nodes} nœud(s) en ligne ({cl_gpu} GPU) | Sous-réseau : {cluster.get('subnet')}")
+
+    # P2P Zero-Conf Mesh
+    mesh = status.get("mesh", {})
+    if mesh:
+        peers_cnt = mesh.get("active_peers_count", 0)
+        table.add_row("Zero-Conf P2P Mesh", f"{peers_cnt} pair(s) actif(s) | UDP Broadcast Port: {mesh.get('mesh_port')}")
 
     console.print(table)
 
@@ -676,6 +707,169 @@ async def run_cluster(tech_lead: TechLeadOrchestrator, args: List[str]):
         console.print(f"[bold red]Sous-commande inconnue :[/] {subcmd}. Utilisez list, scan, add, rm, ssh.")
 
 
+def run_evolve(tech_lead: TechLeadOrchestrator, args: List[str]):
+    """Manages autonomous self-updates, git synchronization, and safety verification."""
+    subcmd = args[0].lower() if args else "status"
+
+    if subcmd in ("status", "check"):
+        with console.status("[bold cyan]Vérification du statut Git et des mises à jour...[/]"):
+            status = tech_lead.check_auto_update()
+
+        table = Table(title="🔄 Auto-Mise à Jour & Évolution Souveraine", border_style="cyan")
+        table.add_column("Paramètre", style="bold yellow")
+        table.add_column("Valeur", style="white")
+
+        table.add_row("Branche Actuelle", status.get("branch", "master"))
+        table.add_row("Dernier Commit", status.get("current_commit", "inconnu"))
+        dirty_str = f"[bold yellow]Oui ({status.get('dirty_files_count')} modifiés)[/]" if status.get("is_dirty") else "[bold green]Propre (0 non validé)[/]"
+        table.add_row("Fichiers Non Validés", dirty_str)
+        table.add_row("Dépôt Distant Configuré", "[bold green]Oui[/]" if status.get("has_remote") else "[dim]Non (Local Souverain)[/]")
+
+        console.print(table)
+        console.print("[dim]Options : /evolve test (lance la suite de tests) | /evolve apply (télécharge et applique avec rollback automatique)[/]")
+
+    elif subcmd in ("test", "verify"):
+        console.print("[cyan]🔬 Lancement du banc de test de sécurité et d'intégrité (pytest)...[/]")
+        with console.status("[bold cyan]Exécution des tests d'intégration...[/]", spinner="runner"):
+            res = tech_lead.run_self_verification()
+
+        if res.get("success"):
+            console.print(Panel(
+                f"[bold green]✔ Intégrité Parfaite ![/]\n\n{res.get('summary')}",
+                title="Banc de Test Passé avec Succès (100%)",
+                border_style="green"
+            ))
+        else:
+            console.print(Panel(
+                f"[bold red]❌ Défaillance détectée lors des tests :[/]\n\n{res.get('summary')}",
+                title="Erreur d'Intégrité",
+                border_style="red"
+            ))
+
+    elif subcmd in ("apply", "pull", "update"):
+        console.print("[cyan]🚀 Démarrage de l'auto-mise à jour avec bouclier de non-régression...[/]")
+        with console.status("[bold cyan]Synchronisation et exécution du banc de test...[/]", spinner="aesthetic"):
+            res = tech_lead.apply_auto_update()
+
+        if res.get("success"):
+            console.print(Panel(
+                f"[bold green]✔ {res.get('message')}[/]\n\nAncien commit : {res.get('old_commit')} ➔ Nouveau commit : {res.get('new_commit')}",
+                title="Mise à Jour Appliquée",
+                border_style="green"
+            ))
+        else:
+            if res.get("rolled_back"):
+                console.print(Panel(
+                    f"[bold yellow]🛡 ROLLBACK AUTOMATIQUE EXÉCUTÉ ![/]\n\n{res.get('error')}",
+                    title="Régression Neutralisée",
+                    border_style="yellow"
+                ))
+            else:
+                console.print(f"[bold red]❌ Impossible d'appliquer la mise à jour :[/] {res.get('error')}")
+    else:
+        console.print("[bold red]Usage :[/] /evolve [check|apply|test]")
+
+
+async def run_arena(tech_lead: TechLeadOrchestrator, args: List[str]):
+    """Executes the Shadow Red-Team Adversarial Cyber Arena (DeepSeek vs Grok)."""
+    if not args:
+        console.print("[bold red]Usage :[/] /arena <code, script ou architecture cible à tester>")
+        console.print("[dim]Exemple : /arena def authenticate(token): return jwt.decode(token, verify=False)[/]")
+        return
+
+    target = " ".join(args)
+    console.print(Panel(
+        f"[bold yellow]🎯 Cible soumise à l'Arène Cyber :[/]\n{target}",
+        title="⚔️ SHADOW RED-TEAM ARENA : CYBER-DUEL OFFENSIF / DÉFENSIF",
+        border_style="red"
+    ))
+
+    with console.status("[bold cyan]Simulation de l'attaque Red Team (DeepSeek) & contre-mesures Blue Team (Grok)...[/]", spinner="bouncingBall"):
+        res = await tech_lead.execute_shadow_arena(target)
+
+    if not res.get("success"):
+        console.print(f"[bold red]❌ Erreur dans l'arène :[/] {res.get('error')}")
+        return
+
+    console.print(Panel(
+        res.get("red_attack", ""),
+        title="🔴 Phase 1 : Attaque Red Team (DeepSeek Offensive Exploit)",
+        border_style="red"
+    ))
+
+    console.print(Panel(
+        res.get("blue_defense", ""),
+        title="🔵 Phase 2 : Défense Blue Team (Grok Hardening Mitigation)",
+        border_style="blue"
+    ))
+
+    console.print(Panel(
+        res.get("bypass_attempt", ""),
+        title="🔄 Phase 3 : Tentative de Contournement & Retest",
+        border_style="yellow"
+    ))
+
+    console.print(Panel(
+        Markdown(res.get("hardened_shield", "")),
+        title="🛡 Phase 4 : Blindage Final Validé (Tech Lead Arbiter)",
+        border_style="green"
+    ))
+
+
+async def run_mesh(tech_lead: TechLeadOrchestrator, args: List[str]):
+    """Manages Zero-Conf P2P Mesh Swarm discovery."""
+    subcmd = args[0].lower() if args else "status"
+
+    if subcmd in ("scan", "discover"):
+        console.print("[cyan]📡 Émission du beacon UDP et écoute des PC voisins sur le réseau...[/]")
+        with console.status("[bold cyan]Écoute broadcast P2P (port 41234)...[/]", spinner="radar"):
+            peers = await tech_lead.discover_p2p_mesh(duration_sec=2.0)
+
+        if peers:
+            console.print(f"[bold green]✔ {len(peers)} pair(s) P2P actif(s) découvert(s) sur le Wi-Fi/Ethernet ![/]")
+            for p in peers:
+                console.print(f"  • [bold yellow]{p['hostname']}[/] ({p['ip']}:{p['port']}) - GPU: {'OUI ⚡' if p.get('is_gpu') else 'Non'}")
+        else:
+            console.print("[yellow]Aucun autre pair P2P FreeAI détecté lors du broadcast.[/]")
+            console.print("[dim]Dès qu'une autre machine lance FreeAI ou le worker, elle apparaîtra instantanément ici.[/]")
+
+    elif subcmd in ("status", "list"):
+        st = tech_lead.get_mesh_status()
+        console.print(Panel(
+            f"• Identifiant Nœud : [bold yellow]{st.get('node_id')}[/]\n"
+            f"• Nom Machine : [bold cyan]{st.get('hostname')}[/]\n"
+            f"• IP Locale : [bold green]{st.get('local_ip')}[/]\n"
+            f"• Port Broadcast UDP : [bold magenta]{st.get('mesh_port')}[/]\n"
+            f"• Pairs Voisins Découverts : [bold white]{st.get('active_peers_count')}[/]",
+            title="🌐 Zero-Conf P2P Mesh Status",
+            border_style="cyan"
+        ))
+    else:
+        console.print("[bold red]Usage :[/] /mesh [scan|status]")
+
+
+async def run_speculate(tech_lead: TechLeadOrchestrator, args: List[str]):
+    """Executes high-speed distributed speculative generation."""
+    if not args:
+        console.print("[bold red]Usage :[/] /speculate <votre instruction ou code à générer>")
+        console.print("[dim]Exemple : /speculate Implémente un serveur WebSocket haute performance[/]")
+        return
+
+    prompt = " ".join(args)
+    with console.status("[bold cyan]Décodage spéculatif : Draft local CPU accéléré par swarm distant...[/]", spinner="arc"):
+        res = await tech_lead.speculative_generate(prompt)
+
+    if res.get("success"):
+        console.print(Panel(
+            f"[dim]⚡ Stratégie : {res.get('strategy')} | Vitesse estimée : [bold green]{res.get('estimated_speed')}[/] | Latence : {res.get('latency_sec')} s[/]\n\n"
+            f"{res.get('response', '')}",
+            title="⚡ Décodage Spéculatif Distribué Accéléré",
+            border_style="green"
+        ))
+    else:
+        console.print(f"[bold red]❌ Erreur lors de la génération spéculative :[/] {res.get('error')}")
+
+
 def get_active_workspace() -> str:
     """Returns the effective workspace root, prioritizing active git repo or WORKSPACE_ROOT."""
     cwd = Path.cwd().resolve()
@@ -768,6 +962,14 @@ async def interactive_cli(initial_mode: str = "freeAi"):
                     run_gpu_guide(tech_lead, args)
                 elif cmd == "/cluster":
                     await run_cluster(tech_lead, args)
+                elif cmd in ("/evolve", "/autoupdate"):
+                    run_evolve(tech_lead, args)
+                elif cmd == "/arena":
+                    await run_arena(tech_lead, args)
+                elif cmd == "/mesh":
+                    await run_mesh(tech_lead, args)
+                elif cmd == "/speculate":
+                    await run_speculate(tech_lead, args)
                 else:
                     console.print(f"[bold red]Commande slash inconnue :[/] '{cmd}'. Tapez [bold green]/help[/] pour la liste des commandes.")
             else:
@@ -838,6 +1040,14 @@ def main():
                 run_gpu_guide(tech_lead, args)
             elif cmd == "/cluster":
                 asyncio.run(run_cluster(tech_lead, args))
+            elif cmd in ("/evolve", "/autoupdate"):
+                run_evolve(tech_lead, args)
+            elif cmd == "/arena":
+                asyncio.run(run_arena(tech_lead, args))
+            elif cmd == "/mesh":
+                asyncio.run(run_mesh(tech_lead, args))
+            elif cmd == "/speculate":
+                asyncio.run(run_speculate(tech_lead, args))
             elif cmd == "/help":
                 print_help()
             else:
