@@ -304,9 +304,9 @@ def print_help():
         "/think pulse ou /think stream"
     )
     table.add_row(
-        "/telegram [status|sync|push <topic> <txt>|listen]",
+        "/telegram [status|sync|push <topic> <txt>|listen|loop]",
         "Telegram Neural Vault : Mémoire cloud infinie, chiffrée GZIP-9 et télépathie mobile (@LesaintAi_bot).",
-        "/telegram status ou /telegram sync ou /telegram listen"
+        "/telegram status ou /telegram sync ou /telegram listen ou /telegram loop"
     )
     table.add_row(
         "/vortex",
@@ -1354,11 +1354,35 @@ async def run_telegram(tech_lead: TechLeadOrchestrator, args: List[str]):
             console.print(f"[bold green]✔ Ordre reçu de @{user} :[/] [bold white]« {order} »[/]")
             console.print(f"[dim]Exécution de l'ordre en mode {tech_lead.mode}...[/]")
             res = await tech_lead.handle_objective(order, autonomous=True)
-            res_summary = str(res.get("result", {}).get("output", "Objectif traité"))[:500]
-            await tech_lead.telegram_vault.send_message(f"✅ <b>Rapport d'exécution :</b>\n<code>{res_summary}</code>")
+            res_summary = str(res.get("result", {}).get("output") or res.get("result", {}).get("message") or "Objectif traité")[:800]
+            await tech_lead.telegram_vault.send_message(f"✅ <b>Rapport d'exécution (@{user}) :</b>\n<code>{res_summary}</code>")
             console.print("[bold green]✔ Rapport transmis au smartphone via Telegram ![/]")
         else:
             console.print("[dim]Aucun nouvel ordre reçu sur Telegram lors de cette vérification.[/]")
+
+    elif subcmd in ("loop", "daemon", "watch"):
+        console.print(Panel(
+            "[bold green]📡 Sentinelle Télépathique Telegram Active ![/]\n"
+            "FreeAI écoute en boucle continue les ordres (texte et vocaux) envoyés à [bold cyan]@LesaintAi_bot[/].\n"
+            "Chaque mission reçue est exécutée de façon autonome et son rapport vous est renvoyé en direct sur Telegram.\n\n"
+            "[dim]Appuyez sur [bold white]Ctrl+C[/] pour stopper la boucle.[/]",
+            title="⚡ Telegram Neural Bridge (Daemon)",
+            border_style="cyan"
+        ))
+        try:
+            while True:
+                cmd_info = await tech_lead.poll_telegram_commands()
+                if cmd_info:
+                    order, user = cmd_info
+                    console.print(f"\n[bold green]✔ Ordre reçu de @{user} :[/] [bold white]« {order} »[/]")
+                    console.print(f"[dim]Exécution de l'ordre en mode {tech_lead.mode}...[/]")
+                    res = await tech_lead.handle_objective(order, autonomous=True)
+                    res_summary = str(res.get("result", {}).get("output") or res.get("result", {}).get("message") or "Objectif traité")[:800]
+                    await tech_lead.telegram_vault.send_message(f"✅ <b>Rapport d'exécution (@{user}) :</b>\n<code>{res_summary}</code>")
+                    console.print("[bold green]✔ Rapport transmis au smartphone via Telegram ![/]")
+                await asyncio.sleep(2)
+        except (KeyboardInterrupt, asyncio.CancelledError):
+            console.print("\n[yellow]Sentinelle Telegram interrompue.[/]")
 
     elif subcmd in ("backup", "clone"):
         console.print("[dim]📦 Génération du Kit de Secours et Auto-Clonage en RAM (0 résidu SSD)...[/]")
@@ -1388,7 +1412,7 @@ async def run_telegram(tech_lead: TechLeadOrchestrator, args: List[str]):
             ))
 
     else:
-        console.print("[bold red]Usage :[/] /telegram [status|sync|backup|clone|push <topic> <texte>|listen]")
+        console.print("[bold red]Usage :[/] /telegram [status|sync|backup|clone|push <topic> <texte>|listen|loop]")
 
 
 async def run_vortex(tech_lead: TechLeadOrchestrator, args: List[str]):

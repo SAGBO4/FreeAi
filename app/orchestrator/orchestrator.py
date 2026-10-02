@@ -488,7 +488,8 @@ class TechLeadOrchestrator:
 
     async def poll_telegram_commands(self) -> Optional[Tuple[str, str]]:
         """Polls Telegram for remote user commands sent via @LesaintAi_bot."""
-        return await self.telegram_vault.poll_incoming_command()
+        stt = getattr(self.voice, "stt", None) if hasattr(self, "voice") else None
+        return await self.telegram_vault.poll_incoming_command(stt_engine=stt)
 
     def get_telegram_status(self) -> Dict[str, Any]:
         """Returns Telegram Neural Vault configuration and sync statistics."""
