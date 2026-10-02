@@ -43,6 +43,7 @@ from app.cluster.aether_swarm import AetherSwarmOrchestrator
 from app.tools.brag_engine import BragEngine
 from app.evolution.omni_chimera import OmniChimeraOrchestrator
 from app.cluster.aether_legion import AetherLegionOrchestrator
+from app.cluster.autonomous_members import AutonomousMemberSwarm, AutonomousMission
 
 logger = logging.getLogger("tech_lead_orchestrator")
 
@@ -162,6 +163,13 @@ class TechLeadOrchestrator:
         # Protocol AETHER-LEGION: Sovereign Autonomous Scout Swarm & Distributed Recon (F-12)
         self.aether_legion = AetherLegionOrchestrator(sentinel=self.sacred_life, federation=self.free_ai.federation)
 
+        # Sovereign Autonomous Limb-Bots / Member Swarm (Mode NÉANT pure)
+        self.member_registry = AutonomousMemberSwarm(
+            sentinel=self.sacred_life,
+            federation=self.free_ai.federation,
+            tool_gateway=self.tool_gateway
+        )
+
         # Specialized agents under Tech Lead supervision
         self.code_agent = CodeAgent(tool_gateway, forge_bridge=self.forge)
         self.security_agent = SecurityAgent(tool_gateway)
@@ -207,7 +215,8 @@ class TechLeadOrchestrator:
             "neon": neon_status,
             "cluster": cluster_summary,
             "mesh": mesh_status,
-            "vortex": vortex_status
+            "vortex": vortex_status,
+            "members": self.member_registry.get_status()
         }
 
     def get_vortex_status(self) -> Dict[str, Any]:
@@ -223,6 +232,27 @@ class TechLeadOrchestrator:
             "telegram_vault": self.telegram_vault.get_status(),
             "voice_conduit": self.voice.get_status()
         }
+
+    async def assign_member_mission(
+        self,
+        member_id_or_name: str,
+        instructions: str,
+        require_sudo: bool = False
+    ) -> AutonomousMission:
+        """Assigns and executes an autonomous mission on a specialized limb bot."""
+        return await self.member_registry.assign_mission(
+            member_id_or_name=member_id_or_name,
+            instructions=instructions,
+            require_sudo=require_sudo
+        )
+
+    def list_members(self) -> List[Dict[str, Any]]:
+        """Returns the catalog of registered autonomous limb bots."""
+        return self.member_registry.list_members()
+
+    def get_member_status(self) -> Dict[str, Any]:
+        """Returns the real-time operational status of the autonomous member swarm."""
+        return self.member_registry.get_status()
 
     def execute_phantom(self, script: str) -> Dict[str, Any]:
         """Executes a script inside volatile anonymous RAM via memfd_create."""

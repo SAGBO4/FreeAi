@@ -96,6 +96,8 @@ SLASH_COMMANDS = [
     "/brag",
     "/chimera",
     "/legion",
+    "/member",
+    "/bot",
     "/jarvis",
     "/help",
     "/clear",
@@ -416,6 +418,11 @@ def print_help():
         "/legion [status|harvest|deploy <archetype> <mission>|export <id>]",
         "Protocole AETHER-LEGION : Essaim d'éclaireurs autonomes déployés sur le Web mondial pour veiller sur l'IA, la cyber et les horizons tech.",
         "/legion status ou /legion harvest ou /legion deploy singularity 'Veille LLM'"
+    )
+    table.add_row(
+        "/member [list|create|mission|history]",
+        "Membres Autonomes Ultra-Intelligents (Limb-Bots) : bots spécialisés (cyber, coder, research, sudo, oracle) opérant en mode STANDARD ou SUDO en RAM volatile.",
+        "/member mission Nova-Coder Optimise l'algorithme ou /member list"
     )
     table.add_row(
         "/jarvis [status|start|stop|restart|logs]",
@@ -1638,6 +1645,95 @@ async def dispatch_telegram_order(tech_lead: TechLeadOrchestrator, order: str, u
             lines.append("\n<i>Commandes Telegram : <code>/legion harvest</code> ou <code>/legion deploy <archetype> <mission></code></i>")
             await tech_lead.telegram_vault.send_message("\n".join(lines))
             console.print("[bold green]✔ Statut AETHER-LEGION expédié sur Telegram ![/]")
+        return
+
+    # 7.3 Native shortcut: /member, /bot
+    if order_lower.startswith(("/member", "/bot")) or order_lower in ("member", "bot"):
+        tokens = order_clean.split()
+        sub = tokens[1].lower() if len(tokens) > 1 else "status"
+
+        if sub in ("status", "list", "ls"):
+            st = tech_lead.get_member_status()
+            members = tech_lead.list_members()
+            lines = [
+                "🤖 <b>[MEMBRES AUTONOMES FREEAI — ESSAIM EN RAM]</b>\n",
+                f"• <b>Total Membres :</b> {st['total_members']} ({st['sudo_members']} SUDO / {st['standard_members']} STANDARD)",
+                f"• <b>Missions Complétées :</b> {st['total_missions_completed']}",
+                f"• <b>Persistance :</b> Pure RAM Volatile (Mode NÉANT)\n",
+                "<b>Membres Actifs :</b>"
+            ]
+            for m in members:
+                p_badge = "🔴 <b>SUDO</b>" if m["privilege_mode"] == "sudo" else "🔵 <b>STANDARD</b>"
+                lines.append(f"  • <b>{m['name']}</b> ({m['specialty'].upper()}) [{p_badge}] — {m['total_missions_completed']} missions")
+            lines.append("\n<i>Commandes : <code>/member mission &lt;nom&gt; [sudo] &lt;texte&gt;</code> ou <code>/member create &lt;nom&gt; &lt;spécialité&gt; [sudo|standard]</code></i>")
+            await tech_lead.telegram_vault.send_message("\n".join(lines))
+            console.print("[bold green]✔ Statut des Membres FreeAI expédié sur Telegram ![/]")
+
+        elif sub in ("create", "add", "new"):
+            if len(tokens) < 3:
+                await tech_lead.telegram_vault.send_message("⚠️ <i>Usage Telegram : /member create &lt;nom&gt; &lt;spécialité&gt; [sudo|standard]</i>")
+                return
+            name = tokens[2]
+            spec = tokens[3] if len(tokens) > 3 else "quantum_coder"
+            priv = tokens[4].lower() if len(tokens) > 4 else "standard"
+            bot = tech_lead.member_registry.register_member(name=name, specialty=spec, privilege_mode=priv)
+            msg = (
+                f"🤖 <b>[Nouveau Membre Autonome Activé en RAM]</b>\n\n"
+                f"• <b>Nom :</b> {bot.name}\n"
+                f"• <b>ID :</b> <code>{bot.id}</code>\n"
+                f"• <b>Spécialité :</b> {bot.specialty.value.upper()}\n"
+                f"• <b>Privilège :</b> {'🔴 SUDO' if bot.privilege_mode.value == 'sudo' else '🔵 STANDARD'}\n"
+                f"• <b>Persona :</b> <i>{bot.persona}</i>\n\n"
+                f"<i>Prêt pour assignation de missions spécifiques depuis votre smartphone.</i>"
+            )
+            await tech_lead.telegram_vault.send_message(msg)
+            console.print(f"[bold green]✔ Membre {bot.name} créé et notifié sur Telegram ![/]")
+
+        elif sub in ("mission", "run", "exec", "task", "do"):
+            mission_args = tokens[2:]
+            if not mission_args:
+                await tech_lead.telegram_vault.send_message("⚠️ <i>Usage : /member mission &lt;nom&gt; [sudo] &lt;instructions&gt;</i>")
+                return
+            target_name = mission_args[0]
+            rest = mission_args[1:]
+            require_sudo = False
+            if rest and rest[0].lower() in ("sudo", "--sudo"):
+                require_sudo = True
+                instruction_text = " ".join(rest[1:])
+            else:
+                instruction_text = " ".join(rest)
+
+            if not instruction_text:
+                await tech_lead.telegram_vault.send_message("⚠️ <i>Veuillez spécifier les instructions de la mission pour ce membre.</i>")
+                return
+
+            bot = tech_lead.member_registry.get_member(target_name)
+            if not bot:
+                await tech_lead.telegram_vault.send_message(f"❌ <i>Membre '{target_name}' introuvable. Tapez /member list</i>")
+                return
+
+            await tech_lead.telegram_vault.send_message(f"🤖 <b>[{bot.name}]</b> Mission reçue en RAM volatile ! Décomposition tactique et exécution en cours...")
+            try:
+                mission = await tech_lead.assign_member_mission(
+                    member_id_or_name=bot.id,
+                    instructions=instruction_text,
+                    require_sudo=require_sudo
+                )
+                report_snippet = mission.final_report[:3500]
+                await tech_lead.telegram_vault.send_message(f"✅ <b>Rapport de Mission — {bot.name} :</b>\n\n<code>{report_snippet}</code>")
+                console.print(f"[bold green]✔ Rapport de mission {bot.name} expédié sur Telegram ![/]")
+
+                if wants_voice:
+                    try:
+                        voice_text = f"Mission accomplie par {bot.name}. Objectifs menés à bien en mémoire volatile."
+                        voice_ogg = await tech_lead.voice.synthesize_speech(voice_text)
+                        if voice_ogg and voice_ogg.getbuffer().nbytes > 0:
+                            await tech_lead.telegram_vault.send_voice(voice_ogg, caption=f"🎙️ <i>Rapport Vocal {bot.name}</i>")
+                    except Exception as e:
+                        logger.debug(f"[TELEGRAM] Voice error: {e}")
+
+            except Exception as e:
+                await tech_lead.telegram_vault.send_message(f"❌ <b>Incident Mission :</b>\n{e}")
         return
 
     # 8. Standard AI objective or Human Conversation execution
