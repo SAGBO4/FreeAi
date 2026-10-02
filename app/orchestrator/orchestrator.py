@@ -21,6 +21,8 @@ from app.cluster.neural_ring import SubnetNeuralRing
 from app.evolution.darwinian import DarwinianCodeSynthesizer
 from app.cluster.ghost_bridge import GhostBridge
 from app.security.sacred_life import SacredLifeSentinel
+from app.voice.zero_ram_voice import AcousticZeroRAMFacade
+from app.cognition.stream_of_consciousness import StreamOfConsciousnessEngine
 
 logger = logging.getLogger("tech_lead_orchestrator")
 
@@ -75,6 +77,16 @@ class TechLeadOrchestrator:
 
         # Ghost Bridge (Resilient Air-Gap Offline Channel)
         self.ghost_bridge = GhostBridge(node_id=f"freeai_{self.mode}")
+
+        # Acoustic Zero-RAM Voice Engine (Groq Whisper STT + Linux Native spd-say TTS)
+        self.voice = AcousticZeroRAMFacade()
+
+        # Frugal Synthetic Consciousness (Background Non-Blocking Stream-of-Consciousness)
+        self.consciousness = StreamOfConsciousnessEngine(
+            orchestrator=self,
+            resource_manager=self.resource_manager,
+            voice_facade=self.voice
+        )
 
         # Specialized agents under Tech Lead supervision
         self.code_agent = CodeAgent(tool_gateway)
@@ -250,6 +262,30 @@ class TechLeadOrchestrator:
         """Returns the offline Ghost Bridge mailbox status."""
         return self.ghost_bridge.get_mailbox_status()
 
+    async def speak(self, text: str) -> bool:
+        """Speaks text using system speech dispatcher (Zero RAM)."""
+        return await self.voice.say(text)
+
+    async def listen(self, duration_sec: int = 4) -> str:
+        """Records voice and transcribes via Groq Whisper LPU."""
+        return await self.voice.listen_and_transcribe(duration_sec=duration_sec)
+
+    def get_voice_status(self) -> Dict[str, Any]:
+        """Returns status of the zero-RAM acoustic engine."""
+        return self.voice.get_status()
+
+    async def trigger_thought_pulse(self, trigger: str = "manual") -> Any:
+        """Triggers an introspective cognitive cycle."""
+        return await self.consciousness.trigger_pulse(trigger=trigger)
+
+    def get_stream_of_consciousness(self) -> List[Dict[str, Any]]:
+        """Returns in-memory synthetic stream of consciousness."""
+        return self.consciousness.get_latest_thoughts()
+
+    def get_consciousness_status(self) -> Dict[str, Any]:
+        """Returns consciousness loop status."""
+        return self.consciousness.get_status()
+
     def _on_degraded_memory(self):
         logger.warning("[TECH LEAD] Memory warning triggered (> 3.5 GB). Reducing concurrency & trimming context.")
 
@@ -316,6 +352,9 @@ class TechLeadOrchestrator:
             result = await self.git_agent.execute_task(objective, context)
         else:
             result = await self.code_agent.execute_task(objective, context)
+
+        # Notify Stream of Consciousness (asynchronous non-blocking reflexive pulse)
+        self.consciousness.notify_action_completed(objective, str(result.get("output", ""))[:200])
 
         # 5. Offload audit result & knowledge to Neon PostgreSQL (force majeure cloud backup)
         if self.neon_memory.enabled:

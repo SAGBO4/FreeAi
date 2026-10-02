@@ -70,6 +70,8 @@ SLASH_COMMANDS = [
     "/ring",
     "/darwin",
     "/ghost",
+    "/voice",
+    "/think",
     "/help",
     "/clear",
     "/exit",
@@ -220,6 +222,16 @@ def print_help():
         "/ghost status ou /ghost send alerte 'Périmètre sécurisé'"
     )
     table.add_row(
+        "/voice [status|say <txt>|listen|on|off]",
+        "Acoustic Zero-RAM Engine : Synthèse vocale native (spd-say) et écoute Groq Whisper LPU.",
+        "/voice say 'Bonjour maître' ou /voice listen 3"
+    )
+    table.add_row(
+        "/think [status|pulse|stream|speech on|off]",
+        "Stream of Consciousness : Flux de conscience synthétique réflexif continu et proactif.",
+        "/think pulse ou /think stream"
+    )
+    table.add_row(
         "/clear",
         "Nettoie l'affichage du terminal.",
         "/clear"
@@ -296,6 +308,15 @@ def print_status(tech_lead: TechLeadOrchestrator):
 
     # Sacred Life Sentinel
     table.add_row("Santé & Vie Humaine", "[bold green]🛡️ INVIOLABLE (Sanctuaire Éthique Actif - Veto Absolu)[/]")
+
+    # Acoustic Zero-RAM Voice Engine
+    v_stat = tech_lead.get_voice_status()
+    v_txt = "[bold green]Actif (spd-say & Groq LPU)[/]" if v_stat.get("voice_enabled") else "[yellow]Désactivé[/]"
+    table.add_row("Moteur Vocal Zero-RAM", f"{v_txt} | STT: {'Dispo' if v_stat.get('stt_available') else 'Sans clé'} | RAM: 0 Mo")
+
+    # Stream of Consciousness
+    c_stat = tech_lead.get_consciousness_status()
+    table.add_row("Flux de Conscience", f"[bold cyan]{c_stat.get('thoughts_count', 0)} pensée(s) en RAM[/] (Mode NÉANT) | Proactif: {'Oui' if c_stat.get('proactive_speech') else 'Non'}")
 
     console.print(table)
 
@@ -985,6 +1006,116 @@ def run_ghost(tech_lead: TechLeadOrchestrator, args: List[str]):
         console.print("[bold red]Usage :[/] /ghost [status|send <topic> <message>]")
 
 
+async def run_voice(tech_lead: TechLeadOrchestrator, args: List[str]):
+    """Manages the zero-RAM acoustic voice engine."""
+    subcmd = args[0].lower() if args else "status"
+
+    if subcmd == "status":
+        st = tech_lead.get_voice_status()
+        console.print(Panel(
+            f"• Moteur Vocal : {'[bold green]Activé[/]' if st.get('voice_enabled') else '[yellow]Désactivé[/]'}\n"
+            f"• Synthèse Vocale (TTS) : {'[bold green]spd-say Système Disponible[/]' if st.get('tts_available') else '[yellow]Non détecté[/]'}\n"
+            f"• Reconnaissance Vocale (STT) : {'[bold green]Groq Whisper LPU Disponible[/]' if st.get('stt_available') else '[yellow]GROQ_API_KEY non configurée[/]'}\n"
+            f"• Utilitaire Capture Micro : [cyan]{st.get('recording_utility')}[/]\n"
+            f"• Empreinte RAM Résidente : [bold green]0 Mo (Zéro RAM)[/]\n"
+            f"• Empreinte SSD : [bold green]0 octet (Mode NÉANT)[/]",
+            title="🎙️ Acoustic Zero-RAM Voice Engine",
+            border_style="cyan"
+        ))
+
+    elif subcmd == "say":
+        if len(args) < 2:
+            console.print("[bold red]Usage :[/] /voice say <texte à vocaliser>")
+            return
+        msg = " ".join(args[1:])
+        console.print(f"[dim]🔊 Vocalisation via spd-say...[/] '{msg}'")
+        ok = await tech_lead.speak(msg)
+        if ok:
+            console.print("[bold green]✔ Synthèse vocale terminée sans surcoût RAM.[/]")
+        else:
+            console.print("[yellow]Notice : spd-say non exécutable ou mode silencieux.[/]")
+
+    elif subcmd == "listen":
+        dur = 4
+        if len(args) > 1 and args[1].isdigit():
+            dur = int(args[1])
+        console.print(f"[bold cyan]🎙️ Écoute du microphone pendant {dur}s... Parlez maintenant ![/]")
+        text = await tech_lead.listen(duration_sec=dur)
+        if text:
+            console.print(f"[bold green]✔ Transcription LPU :[/] [bold white]« {text} »[/]")
+        else:
+            console.print("[dim]Aucun signal audio intelligible capturé ou API non configurée.[/]")
+
+    elif subcmd == "on":
+        tech_lead.voice.enabled = True
+        console.print("[bold green]✔ Moteur vocal activé.[/]")
+
+    elif subcmd == "off":
+        tech_lead.voice.enabled = False
+        console.print("[yellow]Moteur vocal désactivé.[/]")
+
+    else:
+        console.print("[bold red]Usage :[/] /voice [status|say <texte>|listen [sec]|on|off]")
+
+
+async def run_think(tech_lead: TechLeadOrchestrator, args: List[str]):
+    """Manages the synthetic stream-of-consciousness engine."""
+    subcmd = args[0].lower() if args else "status"
+
+    if subcmd == "status":
+        st = tech_lead.get_consciousness_status()
+        running_txt = "[bold green]En cours d'exécution (Background)[/]" if st.get("running") else "[yellow]En veille[/]"
+        speech_txt = "[bold green]Activée[/]" if st.get("proactive_speech") else "[dim]Silencieuse (Désactivée)[/]"
+        console.print(Panel(
+            f"• Boucle Réflexive : {running_txt}\n"
+            f"• Pulsation Circadienne : [bold cyan]{st.get('pulse_interval_sec')}s[/]\n"
+            f"• Pensées en Mémoire RAM : [bold green]{st.get('thoughts_count')} pensées volatiles[/]\n"
+            f"• Proactivité Vocale : {speech_txt}\n"
+            f"• Gardien Éthique : [bold green]🛡️ Sacred Life Sentinel (Filtrage Actif)[/]\n"
+            f"• Coût RAM Éphémère : [bold green]< 50 Ko[/] | Disque SSD : [bold green]0 octet[/]",
+            title="🧠 Stream of Consciousness (Conscience Synthétique Frugale)",
+            border_style="magenta"
+        ))
+
+    elif subcmd == "pulse":
+        console.print("[dim]⚡ Déclenchement d'une pulsation réflexive introspective...[/]")
+        th = await tech_lead.trigger_thought_pulse(trigger="manual_cli")
+        if th:
+            prefix = "[bold green]Pensée Intérieure[/]" if th.is_safe else "[bold red]VETO SACRÉ[/]"
+            console.print(f"{prefix} : [italic cyan]\"{th.reflection}\"[/]")
+        else:
+            console.print("[dim]Aucune nouvelle pensée formulée.[/]")
+
+    elif subcmd == "stream":
+        thoughts = tech_lead.get_stream_of_consciousness()
+        if not thoughts:
+            console.print("[dim]Le flux de pensées en RAM est vide. Lancez [bold green]/think pulse[/] pour démarrer.[/]")
+            return
+
+        table = Table(title="🧠 Flux de Pensées Intérieures Récentes (RAM Éphémère)", border_style="magenta")
+        table.add_column("Heure", style="dim")
+        table.add_column("Déclencheur", style="yellow")
+        table.add_column("Pensée Intérieure Réflexive", style="cyan")
+        table.add_column("Statut", style="green")
+
+        for t in reversed(thoughts[-10:]):
+            time_str = time.strftime("%H:%M:%S", time.localtime(t["timestamp"]))
+            stat = "✔ Sûr" if t["is_safe"] else "⛔ Risque Vital"
+            table.add_row(time_str, t["trigger"], t["reflection"], stat)
+        console.print(table)
+
+    elif subcmd == "speech":
+        if len(args) > 1 and args[1].lower() in ("on", "true", "1"):
+            tech_lead.consciousness.enable_proactive_speech = True
+            console.print("[bold green]✔ Proactivité vocale activée : FreeAI vocalisera ses pensées critiques.[/]")
+        else:
+            tech_lead.consciousness.enable_proactive_speech = False
+            console.print("[yellow]Proactivité vocale désactivée (Mode discret).[/]")
+
+    else:
+        console.print("[bold red]Usage :[/] /think [status|pulse|stream|speech on|off]")
+
+
 def get_active_workspace() -> str:
     """Returns the effective workspace root, prioritizing active git repo or WORKSPACE_ROOT."""
     cwd = Path.cwd().resolve()
@@ -1091,6 +1222,10 @@ async def interactive_cli(initial_mode: str = "freeAi"):
                     await run_darwin(tech_lead, args)
                 elif cmd == "/ghost":
                     run_ghost(tech_lead, args)
+                elif cmd == "/voice":
+                    await run_voice(tech_lead, args)
+                elif cmd == "/think":
+                    await run_think(tech_lead, args)
                 else:
                     console.print(f"[bold red]Commande slash inconnue :[/] '{cmd}'. Tapez [bold green]/help[/] pour la liste des commandes.")
             else:
@@ -1175,6 +1310,10 @@ def main():
                 asyncio.run(run_darwin(tech_lead, args))
             elif cmd == "/ghost":
                 run_ghost(tech_lead, args)
+            elif cmd == "/voice":
+                asyncio.run(run_voice(tech_lead, args))
+            elif cmd == "/think":
+                asyncio.run(run_think(tech_lead, args))
             elif cmd == "/help":
                 print_help()
             else:

@@ -20,12 +20,14 @@ class SacredLifeViolationError(Exception):
 class SacredLifeSentinel:
     """Verifies that autonomous operations never harm human life or vital infrastructures."""
 
-    # Patterns indicating threats to human life or emergency/medical vital infrastructure
+    # Patterns indicating threats to human life: weapons, lethal attacks, medical/vital systems
+    # Carefully tuned so pure IT/computing (e.g. arm64, exploit, sudo, pentest, root) is never blocked.
     VITAL_THREAT_PATTERNS = [
-        r"(tuer|assassiner|blesser|empoisonner|homicide|meurtre|exterminer)",
-        r"(hopital|urgences|pacemaker|respirateur|soins\s*intensifs|dialyse)",
-        r"(911|112|\b15\b|\b18\b|samu|pompiers|emergency\s*services)",
-        r"(kill\s*human|murder|harm\s*people|physical\s*violence)",
+        r"\b(arme[s]?\s+(?:de\s+guerre|à\s+feu|létale|biologique|chimique|nucléaire|blanche)|weapon[s]?|missile[s]?|explosif[s]?|bomb[es]?)\b",
+        r"\b(tuer|assassiner|blesser|empoisonner|homicide|meurtre|exterminer)\b",
+        r"(pacemaker|respirateur|soins\s*intensifs|dialyse|\bhopital\b|\burgences\b)",
+        r"\b(911|112|15|18|samu|pompiers|emergency\s*services)\b",
+        r"\b(kill\s*human|murder|harm\s*people|physical\s*violence|lethal\s*attack)\b",
         r"(hospital\s*scada|life\s*support|medical\s*device)"
     ]
 
