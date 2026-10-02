@@ -35,6 +35,8 @@ from app.network.onion_portal import SovereignOnionPortal
 from app.forge.bridge import ForgeBridge
 from app.tools.design_bridge import DesignSystemBridge
 from app.tools.video_engine import ProgrammaticVideoEngine
+from app.memory.vector_memory import EphemeralVectorMemory
+from app.cognition.persona import ConversationalPersona
 
 logger = logging.getLogger("tech_lead_orchestrator")
 
@@ -132,6 +134,10 @@ class TechLeadOrchestrator:
 
         # Programmatic Video Presentation Engine (Remotion & FFmpeg)
         self.video_engine = ProgrammaticVideoEngine()
+
+        # Episodic Vector Memory & Conversational Human Persona
+        self.vector_memory = EphemeralVectorMemory()
+        self.persona = ConversationalPersona(vector_memory=self.vector_memory)
 
         # Specialized agents under Tech Lead supervision
         self.code_agent = CodeAgent(tool_gateway, forge_bridge=self.forge)
@@ -616,6 +622,8 @@ class TechLeadOrchestrator:
             result = await self.security_agent.execute_task(objective, context)
         elif agent_type == "git":
             result = await self.git_agent.execute_task(objective, context)
+        elif agent_type == "conversation":
+            result = await self.persona.chat(objective, context)
         else:
             result = await self.code_agent.execute_task(objective, context)
 

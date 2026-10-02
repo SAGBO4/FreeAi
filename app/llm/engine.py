@@ -41,6 +41,31 @@ class FreeAIEngine:
             ]
         )
 
+        # 0. Conversational, Greetings, Personality & Social Intent
+        conversational_triggers = [
+            "comment vas-tu", "comment tu vas", "ça va", "ca va", "comment ca va",
+            "salut", "bonjour", "hello", "coucou", "hey", "bonsoir", "qui es-tu",
+            "tu fais quoi", "merci", "raconte", "dis-moi", "tu penses quoi",
+            "blague", "avis", "discussion", "parle-moi", "bonjour jarvis", "salut freeai", "vas tu"
+        ]
+        is_greeting_or_chit_chat = any(t in p_lower for t in conversational_triggers) or (
+            len(prompt.split()) <= 7 and any(p in p_lower for p in ["tu", "toi", "vas", "bien", "ami", "potes", "frère"])
+        )
+        if is_greeting_or_chit_chat and not any(k in p_lower for k in ["code", "fichier", "fonction", "git", "secu", "test", "docker", "script"]):
+            return {
+                "model": self.name,
+                "domain": "conversation",
+                "intent": "human_dialogue",
+                "unrestricted": True,
+                "needs_online_resourcing": False,
+                "strategy": [
+                    "1. Analyse de l'état d'esprit et du contexte relationnel.",
+                    "2. Consultation de la mémoire vectorielle épisodique.",
+                    "3. Synthèse d'une réponse humaine, chaleureuse et complice."
+                ],
+                "recommended_tools": ["vector_memory", "persona"]
+            }
+
         # 1. Security / Audit Task
         if any(k in p_lower for k in ["secu", "audit", "vuln", "faille", "cwe", "inject", "pentest", "scan", "secret"]):
             return {
