@@ -1,6 +1,6 @@
 """Federation & Online Resourcing for FreeAI (TDR §1, §3, §24, §72).
-Allows FreeAI to dynamically consult free open-source models & open intelligence sources
-when local knowledge is insufficient, and caches insights locally in SQLite.
+Allows FreeAI to dynamically consult free open-source models & open intelligence sources.
+Supports MEMORY_MODE="neant": Ephemeral in-memory only (:memory:), zero disk footprint.
 """
 
 import os
@@ -20,51 +20,90 @@ class OnlineModelFederation:
         memory_dir: str = "./memory",
         cache_db: str = "knowledge_cache.db",
         openrouter_api_key: Optional[str] = None,
-        remote_ollama_url: Optional[str] = None
+        remote_ollama_url: Optional[str] = None,
+        memory_mode: str = "neant",
+        persist_to_disk: bool = False
     ):
+        self.memory_mode = (os.getenv("MEMORY_MODE", memory_mode) or "neant").lower()
+        self.persist_to_disk = os.getenv("PERSIST_TO_DISK", str(persist_to_disk)).lower() in ("true", "1", "yes")
         self.memory_dir = Path(memory_dir)
-        self.memory_dir.mkdir(parents=True, exist_ok=True)
-        self.db_path = self.memory_dir / cache_db
+        self.cache_db = cache_db
         self.openrouter_api_key = openrouter_api_key or os.getenv("OPENROUTER_API_KEY")
         self.remote_ollama_url = remote_ollama_url or os.getenv("REMOTE_OLLAMA_URL")
-        self._init_cache_db()
 
-    def _init_cache_db(self):
-        with sqlite3.connect(self.db_path) as conn:
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS knowledge_cache (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    query TEXT UNIQUE,
-                    provider TEXT,
-                    model TEXT,
-                    response TEXT,
-                    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-                )
-            """)
-            conn.commit()
+        self._in_memory_conn: Optional[sqlite3.Connection] = None
+
+        if not self.persist_to_disk or self.memory_mode in ("neant", "none", "zero"):
+            logger.info("[FEDERATION] MEMOIRE A NEANT ACTIVE : Stockage 100% éphémère en RAM (:memory:), zéro écriture disque.")
+            self._purge_disk_cache()
+            self._in_memory_conn = sqlite3.connect(":memory:", check_same_thread=False)
+            self._init_cache_db(self._in_memory_conn)
+        else:
+            self.memory_dir.mkdir(parents=True, exist_ok=True)
+            self.db_path = self.memory_dir / cache_db
+            with sqlite3.connect(self.db_path) as conn:
+                self._init_cache_db(conn)
+
+    def _purge_disk_cache(self):
+        """Purges any lingering database files from disk to preserve 0-byte disk footprint."""
+        target = self.memory_dir / self.cache_db
+        if target.exists():
+            try:
+                target.unlink()
+                logger.info(f"[FEDERATION] Purged residual disk cache file: {target}")
+            except Exception as e:
+                logger.warning(f"[FEDERATION] Failed to remove disk cache: {e}")
+
+    def _get_connection(self) -> sqlite3.Connection:
+        if self._in_memory_conn is not None:
+            return self._in_memory_conn
+        return sqlite3.connect(self.memory_dir / self.cache_db)
+
+    def _init_cache_db(self, conn: sqlite3.Connection):
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS knowledge_cache (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                query TEXT UNIQUE,
+                provider TEXT,
+                model TEXT,
+                response TEXT,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        conn.commit()
 
     def get_cached_response(self, query: str) -> Optional[str]:
         try:
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.cursor()
-                cursor.execute("SELECT response FROM knowledge_cache WHERE query = ?", (query.strip(),))
-                row = cursor.fetchone()
-                if row:
-                    logger.info(f"[FEDERATION] Cache hit for query: '{query[:40]}...'")
-                    return row[0]
+            conn = self._get_connection()
+            cursor = conn.cursor()
+            cursor.execute("SELECT response FROM knowledge_cache WHERE query = ?", (query.strip(),))
+            row = cursor.fetchone()
+            if self._in_memory_conn is None:
+                conn.close()
+            if row:
+                logger.info(f"[FEDERATION] Cache hit (RAM éphémère) for: '{query[:40]}...'")
+                return row[0]
         except Exception as e:
             logger.error(f"[FEDERATION] Cache lookup error: {e}")
         return None
 
     def save_to_cache(self, query: str, provider: str, model: str, response: str):
         try:
-            with sqlite3.connect(self.db_path) as conn:
-                conn.execute(
-                    "INSERT OR REPLACE INTO knowledge_cache (query, provider, model, response) VALUES (?, ?, ?, ?)",
-                    (query.strip(), provider, model, response)
+            conn = self._get_connection()
+            conn.execute(
+                "INSERT OR REPLACE INTO knowledge_cache (query, provider, model, response) VALUES (?, ?, ?, ?)",
+                (query.strip(), provider, model, response)
+            )
+            # Cap cache to maximum 30 entries so RAM stays < 200 KB
+            conn.execute("""
+                DELETE FROM knowledge_cache WHERE id NOT IN (
+                    SELECT id FROM knowledge_cache ORDER BY id DESC LIMIT 30
                 )
-                conn.commit()
-                logger.info(f"[FEDERATION] Cached knowledge for query: '{query[:40]}...'")
+            """)
+            conn.commit()
+            if self._in_memory_conn is None:
+                conn.close()
+            logger.info(f"[FEDERATION] Cached knowledge in RAM (mode: {self.memory_mode})")
         except Exception as e:
             logger.error(f"[FEDERATION] Cache save error: {e}")
 
@@ -86,16 +125,16 @@ class OnlineModelFederation:
         return {"success": False, "error": "OSV lookup failed"}
 
     async def consult_free_online_model(self, prompt: str, system_prompt: Optional[str] = None, timeout_sec: int = 20) -> Dict[str, Any]:
-        """Queries free open-source models online (OpenRouter free models, remote Ollama, or open intelligence)."""
+        """Queries free open-source models online or open intelligence."""
         clean_query = prompt.strip()
 
-        # 1. Check local cache first
+        # 1. Check RAM cache first
         cached = self.get_cached_response(clean_query)
         if cached:
             return {
                 "success": True,
-                "source": "local_cache",
-                "provider": "local_sqlite",
+                "source": "ram_cache",
+                "provider": "in_memory_ram",
                 "response": cached
             }
 
@@ -113,7 +152,7 @@ class OnlineModelFederation:
                             "response": osv_res["summary"]
                         }
 
-        # 3. Query OpenRouter free models if API key present, or remote Ollama if configured
+        # 3. Query OpenRouter free models if API key present
         if self.openrouter_api_key:
             try:
                 headers = {
@@ -160,7 +199,7 @@ class OnlineModelFederation:
             except Exception as e:
                 logger.error(f"[FEDERATION] Remote Ollama query failed: {e}")
 
-        # If offline or no external response reached, FreeAI uses its local reasoning
+        # Local fallback
         return {
             "success": True,
             "source": "local_inference_fallback",

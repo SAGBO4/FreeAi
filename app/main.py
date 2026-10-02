@@ -3,6 +3,7 @@
 import os
 import sys
 import logging
+from pathlib import Path
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from config.settings import settings
@@ -10,15 +11,24 @@ from app.resource_manager.watchdog import ResourceManager
 from app.tools.gateway import ToolGateway
 from app.orchestrator.orchestrator import TechLeadOrchestrator
 
-# Setup logging
-os.makedirs(settings.LOG_DIR, exist_ok=True)
+# Setup logging (zero disk writing if LOG_TO_FILE is False)
+handlers = [logging.StreamHandler(sys.stdout)]
+if settings.LOG_TO_FILE:
+    os.makedirs(settings.LOG_DIR, exist_ok=True)
+    handlers.append(logging.FileHandler(os.path.join(settings.LOG_DIR, "orchestrator.log"), encoding="utf-8"))
+else:
+    # Purge old log file if existing to save disk
+    old_log = Path(settings.LOG_DIR) / "orchestrator.log"
+    if old_log.exists():
+        try:
+            old_log.unlink()
+        except Exception:
+            pass
+
 logging.basicConfig(
     level=settings.LOG_LEVEL,
     format="%(asctime)s [%(levelname)s] [%(name)s] %(message)s",
-    handlers=[
-        logging.StreamHandler(sys.stdout),
-        logging.FileHandler(os.path.join(settings.LOG_DIR, "orchestrator.log"), encoding="utf-8")
-    ]
+    handlers=handlers
 )
 
 logger = logging.getLogger("main")

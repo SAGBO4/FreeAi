@@ -65,5 +65,10 @@ class Settings(BaseModel):
     MEMORY_DIR: str = Field(default_factory=lambda: os.getenv("MEMORY_DIR", "./memory"))
     LOG_LEVEL: str = Field(default_factory=lambda: os.getenv("LOG_LEVEL", "INFO"))
 
+    # Memory to NÉANT (Zero Disk Storage / Ephemeral RAM only)
+    MEMORY_MODE: str = Field(default_factory=lambda: os.getenv("MEMORY_MODE", "neant"))
+    PERSIST_TO_DISK: bool = Field(default_factory=lambda: _get_bool("PERSIST_TO_DISK", False))
+    LOG_TO_FILE: bool = Field(default_factory=lambda: _get_bool("LOG_TO_FILE", False))
+
 
 settings = Settings()
