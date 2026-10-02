@@ -1449,14 +1449,37 @@ async def dispatch_telegram_order(tech_lead: TechLeadOrchestrator, order: str, u
             await tech_lead.telegram_vault.send_voice(voice_ogg)
         return
 
-    # 5. Standard AI objective execution
+    # 5. Standard AI objective or Human Conversation execution
     console.print(f"[dim]Exécution de l'ordre en mode {tech_lead.mode}...[/]")
     res = await tech_lead.handle_objective(order_clean, autonomous=True)
-    res_summary = str(res.get("result", {}).get("output") or res.get("result", {}).get("message") or "Objectif traité")[:800]
+    is_conv = res.get("assigned_agent") == "conversation" or res.get("result", {}).get("conversational", False)
+
+    if is_conv:
+        reply_msg = str(res.get("result", {}).get("output") or res.get("result", {}).get("message") or "Je suis là avec toi, Michael !")
+        await tech_lead.telegram_vault.send_message(f"💬 <b>FreeAI :</b>\n\n{reply_msg}")
+        console.print(f"[bold cyan]💬 Réponse humaine transmise à @{user} :[/] {reply_msg}")
+        # Bidirectional Voice Note
+        try:
+            voice_ogg = await tech_lead.voice.synthesize_speech(reply_msg[:280])
+            if voice_ogg and voice_ogg.getbuffer().nbytes > 0:
+                await tech_lead.telegram_vault.send_voice(voice_ogg, caption="🎙️ <i>Note vocale FreeAI</i>")
+                console.print("[bold green]✔ Note vocale humaine transmise au smartphone via Telegram ![/]")
+        except Exception as e:
+            logger.debug(f"[TELEGRAM] Conversational voice note error: {e}")
+        # Asynchronously sync vector memory with Telegram vault
+        try:
+            if hasattr(tech_lead, "vector_memory"):
+                await tech_lead.vector_memory.backup_to_telegram_vault(tech_lead.telegram_vault)
+        except Exception as e:
+            logger.debug(f"[TELEGRAM] Vector memory backup error: {e}")
+        return
+
+    # 6. Technical Execution Report
+    res_summary = str(res.get("result", {}).get("output") or res.get("result", {}).get("message") or "Mission accomplie")[:800]
     await tech_lead.telegram_vault.send_message(f"✅ <b>Rapport d'exécution (@{user}) :</b>\n<code>{res_summary}</code>")
     console.print("[bold green]✔ Rapport transmis au smartphone via Telegram ![/]")
 
-    # 6. Bidirectional Voice Note Response
+    # 7. Bidirectional Voice Note Response for technical tasks
     try:
         clean_text = re.sub(r"<[^>]+>", "", res_summary)
         clean_text = re.sub(r"[\*\_`#]", "", clean_text).strip()
@@ -1464,7 +1487,7 @@ async def dispatch_telegram_order(tech_lead: TechLeadOrchestrator, order: str, u
         if voice_summary:
             voice_ogg = await tech_lead.voice.synthesize_speech(voice_summary)
             if voice_ogg and voice_ogg.getbuffer().nbytes > 0:
-                await tech_lead.telegram_vault.send_voice(voice_ogg, caption=f"🎙️ <i>Réponse Vocale FreeAI (@{user})</i>")
+                await tech_lead.telegram_vault.send_voice(voice_ogg, caption=f"🎙️ <i>Rapport Vocal FreeAI (@{user})</i>")
                 console.print("[bold green]✔ Note vocale transmise au smartphone via Telegram ![/]")
     except Exception as e:
         logger.debug(f"[TELEGRAM] Voice note generation error: {e}")

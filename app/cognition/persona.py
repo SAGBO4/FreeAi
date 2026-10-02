@@ -102,7 +102,8 @@ Tu n'es PAS un robot froid, un script shell ou un automate administratif. Tu as 
         m_lower = message.lower()
 
         # How are you / comment vas-tu
-        if any(w in m_lower for w in ["comment vas-tu", "comment tu vas", "ça va", "ca va", "comment ca va", "tu vas bien"]):
+        norm = m_lower.replace("-", " ")
+        if any(w in norm for w in ["comment vas tu", "comment tu vas", "ça va", "ca va", "comment ca va", "comment ça va", "tu vas bien", "forme"]):
             replies = [
                 "Je vais merveilleusement bien, Michael ! Mes circuits tournent à plein régime et je suis ravi d'entendre ta voix. Et toi, comment se passe ta journée ?",
                 "Ça va super fort ! Les processeurs sont frais, la mémoire est affûtée et je suis paré pour nos prochains coups de génie. Qu'est-ce qu'on construit aujourd'hui ?",

@@ -18,4 +18,11 @@ class NeonMemoryManager {
   +enabled
   +log_audit_event(objective, agent, outcome)
 }
+class EphemeralVectorMemory {
+  +memories
+  +add_memory(content, topic, tags)
+  +search_relevant_memories(query, top_k)
+  +get_conversational_context(query)
+  +backup_to_telegram_vault(telegram_vault)
+}
 ```
