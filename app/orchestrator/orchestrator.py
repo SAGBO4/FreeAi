@@ -11,6 +11,7 @@ from app.agents.code_agent import CodeAgent
 from app.agents.security_agent import SecurityAgent
 from app.agents.git_agent import GitAgent
 from app.llm.engine import FreeAIEngine
+from app.memory.neon_db import NeonMemoryManager
 
 logger = logging.getLogger("tech_lead_orchestrator")
 
@@ -22,6 +23,9 @@ class TechLeadOrchestrator:
 
         # FreeAI Core Engine
         self.free_ai = FreeAIEngine()
+
+        # Neon Cloud PostgreSQL Adapter (Off-device backup storage)
+        self.neon_memory = NeonMemoryManager()
 
         # Specialized agents under Tech Lead supervision
         self.code_agent = CodeAgent(tool_gateway)
@@ -88,7 +92,22 @@ class TechLeadOrchestrator:
         else:
             result = await self.code_agent.execute_task(objective, context)
 
-        # 5. Final check and report
+        # 5. Offload audit result & knowledge to Neon PostgreSQL (force majeure cloud backup)
+        if self.neon_memory.enabled:
+            if online_knowledge:
+                self.neon_memory.save_knowledge(
+                    query=objective,
+                    provider="free_online_model",
+                    model="federation",
+                    response=online_knowledge
+                )
+            self.neon_memory.log_audit_event(
+                objective=objective,
+                agent=agent_type,
+                outcome=result
+            )
+
+        # 6. Final check and report
         stats = self.resource_manager.get_system_stats()
         return {
             "success": True,
@@ -97,6 +116,7 @@ class TechLeadOrchestrator:
             "assigned_agent": agent_type,
             "objective": objective,
             "external_resourcing_used": online_knowledge is not None,
+            "neon_cloud_sync": self.neon_memory.enabled,
             "plan": reasoning.get("strategy", []),
             "result": result,
             "resource_stats": stats

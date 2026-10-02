@@ -65,10 +65,11 @@ class Settings(BaseModel):
     MEMORY_DIR: str = Field(default_factory=lambda: os.getenv("MEMORY_DIR", "./memory"))
     LOG_LEVEL: str = Field(default_factory=lambda: os.getenv("LOG_LEVEL", "INFO"))
 
-    # Memory to NÉANT (Zero Disk Storage / Ephemeral RAM only)
+    # Memory Configuration (Neon Cloud PostgreSQL & Zero Local Disk)
     MEMORY_MODE: str = Field(default_factory=lambda: os.getenv("MEMORY_MODE", "neant"))
     PERSIST_TO_DISK: bool = Field(default_factory=lambda: _get_bool("PERSIST_TO_DISK", False))
     LOG_TO_FILE: bool = Field(default_factory=lambda: _get_bool("LOG_TO_FILE", False))
+    NEON_DATABASE_URL: str = Field(default_factory=lambda: os.getenv("NEON_DATABASE_URL", ""))
 
 
 settings = Settings()
