@@ -527,20 +527,117 @@ Pour tout ce qui est génération, ingénierie et audit de code, FreeAI s'appuie
 
 ---
 
-## 13. Tableau Récapitulatif des Commandes
+## 13. Daemon Jarvis 24/7 (Écoute Permanente d'Arrière-Plan) 🤖
 
-| Commande | Raccourci / Syntaxe | Description |
+Plus besoin d'ouvrir ou de conserver un terminal ouvert pour communiquer avec FreeAI ! Grâce au **Daemon Jarvis**, FreeAI tourne en permanence en arrière-plan sous forme de service utilisateur Linux (`systemd user service`) :
+
+- **Écoute 24/7 sur Telegram** : FreeAI écoute en continu vos notes vocales et ordres textuels émis sur `@LesaintAi_bot`.
+- **Indépendance de Session (Linger)** : Le service démarre automatiquement dès l'allumage du PC et persiste même si aucun terminal ou session graphique n'est ouvert (`loginctl enable-linger`).
+- **Frugalité Suprême** : Seulement ~60 Mo de RAM consommés en veille d'écoute, ~0% CPU.
+- **Relance Automatique** : Redémarre en 3 secondes en cas de crash.
+
+```bash
+# Vérifier l'état de santé du daemon Jarvis
+/jarvis status
+
+# Afficher les derniers logs d'exécution en direct
+/jarvis logs
+
+# Redémarrer ou arrêter le service
+/jarvis restart
+/jarvis stop
+```
+
+---
+
+## 14. Design System Shadcn UI & AI Elements 🎨
+
+FreeAI intègre nativement votre bibliothèque de référence locale **`~/Rendue/shadcn`** (63 composants New York / Tailwind CSS) et les outils `ai-elements` :
+
+- **63 Composants Indexés** :
+  - **Layout** : `card`, `separator`, `aspect-ratio`, `resizable`, `scroll-area`, `sidebar`.
+  - **Inputs & Formulaires** : `button`, `input-group`, `input-otp`, `textarea`, `checkbox`, `form`, `combobox`, `select`...
+  - **Overlays** : `dialog`, `alert-dialog`, `drawer`, `sheet`, `popover`, `tooltip`, `dropdown-menu`...
+  - **Data Display** : `table`, `chart`, `avatar`, `calendar`, `carousel`, `kanban`, `timeline`...
+  - **Custom Avancés** : `prompt` (chat UI complet), `tiptap` (éditeur riche), `count-animation`.
+- **Téléportation Telegram (Mode NÉANT)** : Téléversement en 1 clic du kit complet compressé GZIP-9 sur Telegram (`shadcn_ui_design_kit.tar.gz`, 0 résidu SSD).
+
+```bash
+# Afficher le catalogue complet par catégories
+/design catalog
+
+# Rechercher un composant spécifique
+/design search button
+
+# Afficher le code source TypeScript d'un composant
+/design code dialog
+
+# Téléverser le kit complet sur Telegram
+/design export
+```
+
+---
+
+## 15. Moteur Vidéo Programmatique & Remotion 🎬
+
+FreeAI intègre le [`ProgrammaticVideoEngine`](file:///home/lesaint/Rendue/FreeAi/app/tools/video_engine.py) pour concevoir et rendre des présentations vidéo cinématiques de vos projets :
+
+- **Scaffolding Remotion React (1080p 30fps)** : Génère un projet React complet (`package.json`, `remotion.config.ts`, `Root.tsx`, `MainVideo.tsx`) avec animations physiques fluides (`spring`) et grilles cyber pour mettre en valeur votre code et vos features.
+- **Rendu Cinématique In-Memory FFmpeg** : Rendu ultra-rapide en RAM pure (H.264 / AAC, sous-titres stylisés vectoriels `libass`, 0 résidu SSD).
+- **Streaming Telegram** : Envoi direct du fichier MP4 lisible sur smartphone via `@LesaintAi_bot`.
+
+```bash
+# Vérifier l'état du moteur vidéo
+/video status
+
+# Générer un teaser cinématique MP4 en RAM et l'envoyer sur Telegram
+/video teaser "Titre Du Projet" "Sous-titre explicatif"
+
+# Créer un projet vidéo Remotion React complet
+/video scaffold MonProjetVideo
+```
+
+---
+
+## 16. Arsenal Cybersécurité & Matrice Universelle des Compétences 🛡️
+
+FreeAI rassemble 189 compétences modulaires réparties entre la cybersécurité, le génie logiciel et le design :
+
+- **Cybersécurité (24 modules)** : `pentest-gate`, `determine-threat-model`, `run-poc`, `run-security-scanner`, `securecoder-persona`, `SacredLifeSentinel`, `ShadowDockerExecutor`, `KineticShadowNetns`.
+- **Synchronisation Dual-Cloud (`/skills sync`)** : La matrice des compétences est compressée et répliquée sur **Telegram Neural Vault** et **Neon PostgreSQL** pour être accessible même PC éteint via le Ghost-Worker.
+
+```bash
+# Afficher les compétences de cybersécurité actives
+/cyber status
+
+# Consulter la matrice globale des 189 compétences
+/skills status
+
+# Sauvegarder la matrice sur Telegram et Neon
+/skills sync
+```
+
+---
+
+## 17. Tableau Récapitulatif Complet des Commandes
+
+| Commande | Syntaxe / Paramètres | Description |
 | :--- | :--- | :--- |
-| **Changer de mode** | `/mode [nom]` | Bascule entre `freeAi` et `lesaintAi` |
-| **Statut du système** | `/status` | Diagnostic RAM, CPU, Sudo, Neon |
+| **Daemon Jarvis 24/7** | `/jarvis [status\|start\|stop\|restart\|logs]` | Service d'arrière-plan Linux permanent d'écoute Telegram sans terminal |
+| **Design System** | `/design [catalog\|search\|code\|export]` | Catalogue Shadcn UI 63 composants et export GZIP vers Telegram |
+| **Moteur Vidéo** | `/video [status\|teaser\|scaffold]` | Scaffolds Remotion React & Rendu MP4 cinématique en RAM vers Telegram |
+| **Arsenal Cyber** | `/cyber [status\|skills\|audit]` | Pentest-Gate, Threat-Model, Run-PoC, Sandboxes et Sentinel |
+| **Compétences Cloud**| `/skills [status\|sync]` | Matrice universelle des 189 skills répliquée sur Telegram et Neon |
+| **Changer de mode** | `/mode [freeAi\|lesaintAi]` | Bascule entre mode standard confiné et mode super-utilisateur |
+| **Statut du système** | `/status` | Diagnostic RAM, CPU, Sudo, Neon Cloud |
 | **Machine Forge** | `/forge [status\|check\|spec\|run]` | Machine de conception fullstack (Preuve du rouge, Tamper check, Specs) |
 | **Écosystème Craft** | `/craft` | Explore les 167 skills et 26 agents spécialisés de Craft-Suite |
 | **Agent ReAct Autonome** | `/agent <mission>` | Cycle ReAct Hermes 3 & Claude 3.7 autonome |
 | **Hermes Cognitif** | `/hermes [status\|run\|think]` | Raisonnement étendu et appel d'outils XML structuré |
-| **Passerelle Tor Onion V3** | `/onion [status\|start\|stop\|token]` | Contrôle distant décentralisé éphémère (Mode Sudo `lesaintAi`) |
-| **Déport PC Éteint** | `/offload <mission>` | Déporte une tâche lourde sur le Runner Fantôme (éteignez votre PC !) |
-| **Kit Secours Telegram** | `/telegram backup` | Génère et téléverse le bundle d'auto-clonage sur votre bot Telegram |
-| **Apprentissage Dual-Cloud**| `/learn <connaissance>` | Enregistre un savoir simultanément sur Neon et Telegram |
+| **Passerelle Tor Onion V3** | `/onion [status\|start\|stop\|token]` | Contrôle distant incensurable Ed25519 (Mode Sudo `lesaintAi`) |
+| **Déport PC Éteint** | `/offload <mission>` | Déporte une tâche lourde sur le Ghost-Worker GitHub Actions |
+| **Kit Secours Telegram** | `/telegram [backup\|clone\|listen\|loop]`| Auto-clonage GZIP-9 sur Telegram et écoute télépathique |
+| **Apprentissage Cloud**| `/learn <connaissance>` | Enregistre un savoir simultanément sur Neon et Telegram |
 | **Scratchpad Cognitif** | `/scratchpad <objectif>` | Décomposition interne `<thinking>` en RAM |
 | **Shadow Docker Root** | `/docker [status\|run [--rw] [--mount] <cmd>]` | Confinement multi-paliers (Docker/Bwrap/Phantom), micro-init, montages |
 | **Chercher un fichier** | `/search <motif> [dir]` | Recherche de fichiers sur le PC |
@@ -550,7 +647,6 @@ Pour tout ce qui est génération, ingénierie et audit de code, FreeAI s'appuie
 | **Kinetic Tor Netns** | `/shadow <commande>` | Routage furtif sous tunnel Tor SOCKS5 multi-hop |
 | **Transducteur Phantom** | `/phantom <script>` | Exécution volatile en RAM pure via `memfd_create` |
 | **Consensus Clash** | `/clash <problème>` | Débat contradictoire multi-IA (DeepSeek vs Grok) & arbitrage |
-| **Guide GPUs Libres** | `/gpu` | Catalogue des GPUs/LPUs gratuits (Groq, OpenRouter, Colab) |
 | **Swarm LAN / Distribué** | `/cluster [scan\|list\|add\|ssh]` | Exploitation des autres PC du réseau local et workers GPU |
 | **Auto-Évolution** | `/evolve [check\|apply\|test]` | Auto-mise à jour avec tests et notification Telegram |
 | **Nettoyer l'écran** | `/clear` | Efface le terminal |
@@ -559,14 +655,14 @@ Pour tout ce qui est génération, ingénierie et audit de code, FreeAI s'appuie
 
 ---
 
-## 10. Bonnes Pratiques & Sécurité
+## 18. Bonnes Pratiques & Sécurité
 
-1. **Restez en mode `freeAi` par défaut** : Utilisez le mode `freeAi` pour toutes les tâches usuelles. N'activez `/mode lesaintAi` que lorsque vous avez expressément besoin de privilèges administrateur (`sudo`, installation de paquets système, configuration d'interfaces réseau).
-2. **Privilégiez `/docker run` pour les commandes root** : Exécuter des opérations root sous `/docker run` garantit une isolation totale en RAM sans modifier l'intégrité du système hôte.
-3. **Exploitez `/agent` pour les missions complexes** : L'agent autonome Hermes-Claude combine la rigueur analytique de Claude et la précision d'exécution d'Hermes pour résoudre vos problèmes sans approximations.
-4. **Vérifiez votre RAM avec `/status`** : Le watchdog veille automatiquement avec un seuil de dégradation à 3,5 GB et un arrêt d'urgence à 4,0 GB. Consulter `/status` vous permet de garder un œil sur la consommation réelle.
+1. **Laissez tourner le Daemon Jarvis** : Avec `freeai-jarvis.service`, FreeAI reste disponible en permanence sur votre smartphone pour exécuter vos ordres en direct.
+2. **Restez en mode `freeAi` par défaut** : N'activez `/mode lesaintAi` que lorsque vous avez expressément besoin de privilèges administrateur (`sudo`).
+3. **Privilégiez `/docker run` pour les commandes root** : Exécuter des opérations root sous `/docker run` garantit une isolation totale en RAM sans modifier l'intégrité du système hôte.
+4. **Exploitez `/agent` pour les missions complexes** : L'agent autonome Hermes-Claude combine la rigueur analytique de Claude et la précision d'exécution d'Hermes pour résoudre vos problèmes sans approximations.
 5. **Utilisez `/rollback` en cas de doute** : Si une modification de code ne correspond pas à vos attentes, le rollback instantané remet votre projet dans un état propre et fonctionnel.
-6. **Configurez votre URL Neon** dans `.env` : Pour profiter de la mémoire persistante cloud sans consommer un seul mégaoctet de votre disque dur local.
+6. **Sauvegardez régulièrement avec `/telegram clone`** : L'auto-clonage génère un kit de secours complet en RAM et le transmet directement sur Telegram sans laisser aucune trace sur votre SSD.
 
 ---
 

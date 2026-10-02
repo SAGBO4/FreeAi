@@ -409,8 +409,22 @@ class TechLeadOrchestrator:
         return self.auto_updater.check_git_status()
 
     def apply_auto_update(self) -> Dict[str, Any]:
-        """Pulls git updates and runs verification test suite with automatic rollback."""
-        return self.auto_updater.apply_git_pull_update()
+        """Pulls git updates and runs verification test suite with automatic rollback.
+        Automatically re-clones codebase to Telegram Neural Vault on successful update.
+        """
+        res = self.auto_updater.apply_git_pull_update()
+        if res.get("success"):
+            try:
+                import asyncio
+                workspace = str(self.tool_gateway.workspace_root)
+                try:
+                    loop = asyncio.get_running_loop()
+                    loop.create_task(self.telegram_vault.backup_codebase_bundle(workspace))
+                except RuntimeError:
+                    asyncio.run(self.telegram_vault.backup_codebase_bundle(workspace))
+            except Exception as e:
+                logger.warning(f"[ORCHESTRATOR] Telegram auto-clone on update failed: {e}")
+        return res
 
     def run_self_verification(self) -> Dict[str, Any]:
         """Executes full automated test suite to ensure 100% integrity."""

@@ -18,6 +18,17 @@ from app.security.sacred_life import SacredLifeSentinel
 logger = logging.getLogger("telegram_vault")
 
 
+class TelegramCommand(tuple):
+    """Backwards-compatible (text, user) tuple with .is_voice metadata."""
+    def __new__(cls, text: str, user: str, is_voice: bool = False):
+        return super().__new__(cls, (text, user))
+
+    def __init__(self, text: str, user: str, is_voice: bool = False):
+        self.text = text
+        self.user = user
+        self.is_voice = is_voice
+
+
 class TelegramNeuralVault:
     """Infinite Serverless Cloud Memory Store & Mobile Telepathy Conduit via Telegram Bot API."""
 
@@ -246,7 +257,7 @@ class TelegramNeuralVault:
 
     async def poll_incoming_command(self, stt_engine: Any = None) -> Optional[Tuple[str, str]]:
         """Polls for new commands texted or spoken by the user on Telegram.
-        Returns: (command_text, sender_username) or None
+        Returns: TelegramCommand(text, sender_username, is_voice=bool) or None
         """
         if not self.is_configured:
             return None
@@ -266,6 +277,17 @@ class TelegramNeuralVault:
                         sender_chat_id = str(msg["chat"]["id"])
                         user_name = msg.get("from", {}).get("username", "Utilisateur")
                         text = msg.get("text", "").strip()
+                        is_voice = False
+
+                        # Pairing hook: allow /start to bind new session
+                        if text == "/start":
+                            self.chat_id = sender_chat_id
+                            await self.send_message(
+                                "⚡ <b>FreeAI Jarvis Connecté & Prêt !</b>\n\n"
+                                "Je suis votre assistant souverain. Envoyez-moi un message texte "
+                                "ou appuyez sur le micro pour me parler par note vocale !"
+                            )
+                            continue
 
                         # Authentication guard: If chat_id is established, reject foreign senders
                         if self.chat_id and sender_chat_id != self.chat_id:
@@ -280,17 +302,20 @@ class TelegramNeuralVault:
                             self.chat_id = sender_chat_id
                             logger.info(f"[TELEGRAM VAULT] Liaison établie avec le Chat ID: {self.chat_id}")
 
-                        # Handle Voice Notes (Bidirectional Telepathy)
-                        if not text and msg.get("voice") and stt_engine:
-                            voice_meta = msg["voice"]
+                        # Handle Voice Notes or Audio (Bidirectional Telepathy)
+                        voice_meta = msg.get("voice") or msg.get("audio")
+                        if not text and voice_meta:
+                            is_voice = True
                             file_id = voice_meta.get("file_id")
-                            if file_id:
+                            if file_id and stt_engine:
                                 audio_stream = await self.download_file_bytes(file_id)
                                 if audio_stream:
                                     try:
                                         text = await stt_engine.transcribe(audio_stream)
                                     except Exception as e:
                                         logger.debug(f"[TELEGRAM VAULT] Voice STT transcription failed: {e}")
+                            elif file_id and not stt_engine:
+                                await self.send_message("🎙️ <i>Note vocale reçue, mais le moteur de transcription STT n'est pas initialisé.</i>")
 
                         if text:
                             # Inviolable Verification by SacredLifeSentinel
@@ -298,7 +323,7 @@ class TelegramNeuralVault:
                             if not safe:
                                 await self.send_message(f"⛔ <b>VETO SACRÉ :</b> Ordre rejeté ({reason})")
                                 continue
-                            return text, user_name
+                            return TelegramCommand(text, user_name, is_voice=is_voice)
         except Exception as e:
             logger.debug(f"[TELEGRAM VAULT] Polling error: {e}")
         return None

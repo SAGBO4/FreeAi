@@ -95,15 +95,37 @@ class GroqWhisperSTT:
         self.api_key = api_key or getattr(settings, "GROQ_API_KEY", "") or os.environ.get("GROQ_API_KEY", "")
 
     async def transcribe(self, audio_buffer: io.BytesIO) -> str:
-        """Transcribes in-memory WAV buffer with Groq Whisper API."""
+        """Transcribes in-memory audio buffer with Groq Whisper API.
+        Normalizes any input audio format (OGG/OGA/MP3/WAV) to WAV in RAM.
+        """
         if not self.api_key:
             logger.debug("[VOICE] GROQ_API_KEY missing, STT unavailable.")
             return ""
 
+        audio_bytes = audio_buffer.getvalue()
+        if not audio_bytes:
+            return ""
+
+        # Normalize to 16kHz mono WAV if not already standard WAV
+        if not audio_bytes.startswith(b"RIFF"):
+            try:
+                ffmpeg_bin = shutil.which("ffmpeg") or "/home/lesaint/.local/bin/ffmpeg"
+                if ffmpeg_bin:
+                    import subprocess
+                    proc = subprocess.run(
+                        [ffmpeg_bin, "-y", "-i", "pipe:0", "-ar", "16000", "-ac", "1", "-f", "wav", "pipe:1"],
+                        input=audio_bytes,
+                        capture_output=True,
+                        timeout=10
+                    )
+                    if proc.returncode == 0 and proc.stdout:
+                        audio_bytes = proc.stdout
+            except Exception as e:
+                logger.debug(f"[VOICE STT] Audio conversion to WAV failed: {e}")
+
         headers = {"Authorization": f"Bearer {self.api_key}"}
-        audio_buffer.seek(0)
         files = {
-            "file": ("speech.wav", audio_buffer.getvalue(), "audio/wav"),
+            "file": ("speech.wav", audio_bytes, "audio/wav"),
             "model": (None, AcousticConfig.WHISPER_MODEL),
             "language": (None, AcousticConfig.TTS_VOICE_LANG)
         }
@@ -121,6 +143,51 @@ class GroqWhisperSTT:
             except Exception as e:
                 logger.debug(f"[VOICE STT] API call failed: {e}")
                 return ""
+
+
+class NeuralAudioSynthesizer:
+    """High-fidelity neural voice synthesis for mobile telepathy and voice notes.
+    Mode NÉANT: 100% in-memory streaming, 0 disk write, natural French neural voice.
+    """
+
+    @staticmethod
+    async def synthesize_ogg_opus(text: str, voice: str = "fr-FR-HenriNeural") -> io.BytesIO:
+        """Synthesizes text into high-fidelity OGG Opus audio stream in RAM."""
+        import subprocess
+        text_clean = text.strip()
+        if not text_clean:
+            return io.BytesIO()
+
+        # Truncate text for speech summary (max ~350 chars)
+        if len(text_clean) > 350:
+            text_clean = text_clean[:340].rsplit(".", 1)[0] + "."
+
+        try:
+            import edge_tts
+            communicate = edge_tts.Communicate(text_clean, voice)
+            raw_mp3 = io.BytesIO()
+            async for chunk in communicate.stream():
+                if chunk["type"] == "audio":
+                    raw_mp3.write(chunk["data"])
+            raw_mp3.seek(0)
+
+            # Transcode to OGG Opus via ffmpeg in RAM
+            ffmpeg_bin = shutil.which("ffmpeg") or "/home/lesaint/.local/bin/ffmpeg"
+            if ffmpeg_bin:
+                proc = subprocess.run(
+                    [ffmpeg_bin, "-y", "-i", "pipe:0", "-c:a", "libopus", "-b:a", "32k", "-f", "ogg", "pipe:1"],
+                    input=raw_mp3.getvalue(),
+                    capture_output=True,
+                    timeout=15
+                )
+                if proc.returncode == 0 and proc.stdout:
+                    buf = io.BytesIO(proc.stdout)
+                    buf.seek(0)
+                    return buf
+            return raw_mp3
+        except Exception as e:
+            logger.debug(f"[VOICE TTS] Neural audio synthesis error: {e}")
+            return io.BytesIO()
 
 
 class LinuxNativeTTS:
@@ -189,6 +256,12 @@ class AcousticZeroRAMFacade:
         if not self.enabled:
             return False
         return await self.tts.speak(message)
+
+    async def synthesize_speech(self, message: str) -> io.BytesIO:
+        """Synthesizes French neural speech into an in-memory OGG Opus audio stream."""
+        if not self.enabled:
+            return io.BytesIO()
+        return await NeuralAudioSynthesizer.synthesize_ogg_opus(message)
 
     def get_status(self) -> Dict[str, Any]:
         has_tts = bool(shutil.which("spd-say") or shutil.which("espeak-ng") or shutil.which("espeak"))
