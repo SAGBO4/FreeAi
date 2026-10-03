@@ -2498,10 +2498,29 @@ def run_forge(tech_lead: TechLeadOrchestrator, args: List[str]):
             border_style="cyan"
         ))
         console.print("[dim]Commandes :[/]")
-        console.print("  • [cyan]/forge check[/]         : Lance le tamper check (contrôle anti-affaiblissement de tests) et l'audit docs")
-        console.print("  • [cyan]/forge spec <texte>[/]   : Enregistre une nouvelle fonctionnalité dans docs/SPEC.md")
-        console.print("  • [cyan]/forge run <feature>[/]  : Exécute le cycle vérifié Forge (5 étapes : Spec -> Rouge -> Impl -> Tests -> Tamper)")
+        console.print("  • [cyan]/forge sync[/]         : Synchronise avec git@github.com:misterkante/forge.git et met à jour les compétences")
+        console.print("  • [cyan]/forge check[/]        : Lance le tamper check (contrôle anti-affaiblissement de tests) et l'audit docs")
+        console.print("  • [cyan]/forge spec <texte>[/]  : Enregistre une nouvelle fonctionnalité dans docs/SPEC.md")
+        console.print("  • [cyan]/forge run <feature>[/] : Exécute le cycle vérifié Forge (5 étapes : Spec -> Rouge -> Impl -> Tests -> Tamper)")
         return
+
+    elif subcmd in ("sync", "pull", "update"):
+        console.print("[dim]🔄 Synchronisation avec le dépôt upstream Forge (git@github.com:misterkante/forge.git)...[/]")
+        forge_dir = Path("/home/lesaint/Rendue/forge")
+        if not (forge_dir / ".git").exists():
+            console.print("[bold red]❌ Dépôt Forge introuvable dans /home/lesaint/Rendue/forge.[/]")
+            return
+
+        pull_res = subprocess.run(["git", "-C", str(forge_dir), "pull"], capture_output=True, text=True)
+        if pull_res.returncode != 0:
+            console.print(f"[bold red]❌ Erreur lors du git pull Forge :[/] {pull_res.stderr}")
+            return
+
+        console.print(f"[cyan]{pull_res.stdout.strip()}[/]")
+        console.print("[dim]⚙️ Réinstallation et mise à jour des compétences Antigravity & Claude...[/]")
+        subprocess.run(["bash", str(forge_dir / "install.sh"), "--antigravity", "--force"], capture_output=True, text=True)
+        subprocess.run(["bash", str(forge_dir / "install.sh"), "--claude", "--force"], capture_output=True, text=True)
+        console.print(f"[bold green]✅ Capacités Forge synchronisées et rechargées avec succès ![/]")
 
     elif subcmd in ("check", "tamper", "audit"):
         console.print("[dim]🔍 Exécution du contrôle d'intégrité Forge (tamper_check.py)...[/]")
