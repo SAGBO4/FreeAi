@@ -148,6 +148,7 @@ class TechLeadOrchestrator:
         # Episodic Vector Memory & Conversational Human Persona
         self.vector_memory = EphemeralVectorMemory()
         self.persona = ConversationalPersona(vector_memory=self.vector_memory)
+        self._prewarm_from_cloud_bootstrap()
 
         # Realtime Call Gateway & Live Synesthetic Multimodal Canvas (Mode NÉANT)
         self.realtime_call_gateway = RealtimeCallGateway()
@@ -178,6 +179,19 @@ class TechLeadOrchestrator:
         # Wire degradation & shutdown callbacks
         self.resource_manager.register_degraded_callback(self._on_degraded_memory)
         self.resource_manager.register_shutdown_callback(self._on_emergency_shutdown)
+
+        # Network Resilience
+        from app.network.resilience import NetworkResilience
+        self.network = NetworkResilience(telegram_vault=self.telegram_vault)
+
+    def _start_background_tasks(self):
+        import asyncio
+        if hasattr(self, 'network'):
+            try:
+                loop = asyncio.get_running_loop()
+                loop.create_task(self.network.monitor_loop(interval_sec=10))
+            except RuntimeError:
+                pass
 
     def set_mode(self, mode_name: str) -> Dict[str, Any]:
         """Dynamically switches between standard freeAi mode and super-user lesaintAi mode."""
@@ -216,7 +230,8 @@ class TechLeadOrchestrator:
             "cluster": cluster_summary,
             "mesh": mesh_status,
             "vortex": vortex_status,
-            "members": self.member_registry.get_status()
+            "members": self.member_registry.get_status(),
+            "network": self.network.get_status() if hasattr(self, 'network') else {"monitoring": False}
         }
 
     def get_vortex_status(self) -> Dict[str, Any]:
@@ -642,6 +657,28 @@ class TechLeadOrchestrator:
         """Uses FreeAI to determine the domain."""
         plan = self.free_ai.reason_and_plan(objective, {})
         return plan["domain"]
+
+
+    def _prewarm_from_cloud_bootstrap(self):
+        import os, json, glob
+        if os.path.exists("jarvis_memory"):
+            files = sorted(glob.glob("jarvis_memory/*.json"), key=os.path.getmtime, reverse=True)[:3]
+            count = 0
+            for fpath in files:
+                try:
+                    with open(fpath, "r", encoding="utf-8") as f:
+                        data = json.load(f)
+                    if isinstance(data, dict) and "prompt" in data and "response" in data:
+                        self.vector_memory.add_memory(f"Q: {data['prompt']} | R: {data['response']}", topic="cloud_bootstrap")
+                        count += 1
+                    elif isinstance(data, list):
+                        for item in data:
+                            if "prompt" in item and "response" in item:
+                                self.vector_memory.add_memory(f"Q: {item['prompt']} | R: {item['response']}", topic="cloud_bootstrap")
+                                count += 1
+                except Exception as e:
+                    pass
+
 
     async def handle_objective(self, objective: str, autonomous: bool = False) -> Dict[str, Any]:
         """Main entry point for handling user objectives with FreeAI."""

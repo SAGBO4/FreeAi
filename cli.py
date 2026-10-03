@@ -3250,6 +3250,41 @@ def get_active_workspace() -> str:
     return settings.WORKSPACE_ROOT
 
 
+
+async def run_network(tech_lead, args: List[str]):
+    if not hasattr(tech_lead, 'network'):
+        console.print("[red]⚠️ Module NetworkResilience non initialisé.[/]")
+        return
+        
+    subcmd = args[0] if args else "status"
+    
+    if subcmd == "status":
+        st = tech_lead.network.get_status()
+        table = Table(title="[cyan]📡 État du Réseau Jarvis[/]")
+        table.add_column("Propriété", style="bold yellow")
+        table.add_column("Valeur", style="bold white")
+        table.add_row("En ligne", "[green]OUI[/]" if st.get('online') else "[red]NON[/]")
+        table.add_row("Interface Active", str(st.get('active_interface')))
+        table.add_row("Mode Cloud Actif", "[red]OUI[/]" if st.get('cloud_mode') else "[green]NON[/]")
+        table.add_row("Latence moyenne", f"{st.get('latency_ms'):.1f} ms")
+        table.add_row("Disponibilité ADB", "[green]OUI[/]" if st.get('adb_available') else "[red]NON[/]")
+        console.print(table)
+        
+    elif subcmd == "test":
+        with console.status("[yellow]Force check de connectivité...[/]"):
+            st = await tech_lead.network.check_connectivity()
+        console.print(f"[green]Résultat:[/green] Online={st.get('online')} (Latence: {st.get('latency_ms'):.1f} ms)")
+        
+    elif subcmd == "hotspot":
+        with console.status("[yellow]Tentative d'activation du hotspot Android via ADB...[/]"):
+            success = await tech_lead.network.try_android_hotspot()
+        if success:
+            console.print("[green]✅ Hotspot Android activé et connecté avec succès.[/]")
+        else:
+            console.print("[red]❌ Échec de l'activation du hotspot Android.[/]")
+    else:
+        console.print("[dim]Usage: /network [status|test|hotspot][/]")
+
 async def interactive_cli(initial_mode: str = "freeAi"):
     """Main interactive REPL loop."""
     workspace = get_active_workspace()
