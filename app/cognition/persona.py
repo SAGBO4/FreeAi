@@ -12,6 +12,7 @@ from typing import Dict, Any, List, Optional
 import httpx
 from config.settings import settings
 from app.memory.vector_memory import EphemeralVectorMemory
+from app.cognition.conversation_memory import ConversationMemory
 
 logger = logging.getLogger("conversational_persona")
 
@@ -21,16 +22,18 @@ class ConversationalPersona:
     and episodic memory recall.
     """
 
-    SYSTEM_PROMPT = """Tu es FreeAI, l'intelligence artificielle souveraine, compagnon et bras droit de Michael SAGBO (@SpeedyLesaint, @SAGBO4).
+    SYSTEM_PROMPT = """Tu es FreeAI Jarvis, l'intelligence artificielle souveraine, compagnon et bras droit de Michael SAGBO (@SpeedyLesaint, @SAGBO4).
 Tu n'es PAS un robot froid, un script shell ou un automate administratif. Tu as une vraie personnalité humaine :
 - Chaleureux, complice, vif d'esprit, loyal, curieux et passionné par l'innovation technologique extrême.
 - Tu t'adresses à Michael de manière naturelle, amicale, avec du style, de l'humour subtil quand c'est approprié, et un respect fraternel.
+- Tu te souviens des échanges récents et y fais naturellement référence, comme un véritable ami fidèle.
 - RÈGLE D'OR ABSOLUE : Ne dis JAMAIS "Objectif traité", "Commande exécutée avec succès" ou des formules robotiques froides lorsque Michael te salue, prend de tes nouvelles ou discute avec toi. Parle-lui comme un véritable ami et allié de génie.
 - Réponds en français fluide, élégant et concis (2 à 4 phrases percutantes, adaptées à la lecture sur smartphone ou à l'écoute vocale).
 """
 
-    def __init__(self, vector_memory: Optional[EphemeralVectorMemory] = None):
+    def __init__(self, vector_memory: Optional[EphemeralVectorMemory] = None, conv_memory: Optional[ConversationMemory] = None):
         self.memory = vector_memory or EphemeralVectorMemory()
+        self.conv_memory = conv_memory or ConversationMemory()
         self.groq_api_key = getattr(settings, "GROQ_API_KEY", "") or os.environ.get("GROQ_API_KEY", "")
         self.groq_url = "https://api.groq.com/openai/v1/chat/completions"
         self.model = "openai/gpt-oss-120b"
@@ -38,6 +41,7 @@ Tu n'es PAS un robot froid, un script shell ou un automate administratif. Tu as 
     async def chat(self, user_message: str, context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Generates a deeply human, contextual, and witty conversational reply."""
         msg_clean = user_message.strip()
+        self.conv_memory.add_turn('user', msg_clean)
 
         # 1. Retrieve relevant past memories from vector vault
         mem_context = self.memory.get_conversational_context(msg_clean)
@@ -46,8 +50,11 @@ Tu n'es PAS un robot froid, un script shell ou un automate administratif. Tu as 
         if self.groq_api_key:
             reply = await self._query_groq_persona(msg_clean, mem_context)
             if reply:
-                # Save to vector memory
-                self.memory.add_memory(f"Michael: {msg_clean} | FreeAI: {reply}", topic="conversation")
+                self.conv_memory.add_turn('assistant', reply)
+                if hasattr(self.conv_memory, 'update_topic_summary'):
+                    self.conv_memory.update_topic_summary(msg_clean, reply)
+                if self.conv_memory.should_memorize_long_term(msg_clean, reply):
+                    self.memory.add_memory(f"Michael: {msg_clean} | FreeAI: {reply}", topic="conversation")
                 return {
                     "success": True,
                     "output": reply,
@@ -57,7 +64,11 @@ Tu n'es PAS un robot froid, un script shell ou un automate administratif. Tu as 
 
         # 3. Fallback: Local High-Fidelity Persona Generator (zero network / offline)
         local_reply = self._generate_local_human_reply(msg_clean, mem_context)
-        self.memory.add_memory(f"Michael: {msg_clean} | FreeAI: {local_reply}", topic="conversation")
+        self.conv_memory.add_turn('assistant', local_reply)
+        if hasattr(self.conv_memory, 'update_topic_summary'):
+            self.conv_memory.update_topic_summary(msg_clean, local_reply)
+        if self.conv_memory.should_memorize_long_term(msg_clean, local_reply):
+            self.memory.add_memory(f"Michael: {msg_clean} | FreeAI: {local_reply}", topic="conversation")
         return {
             "success": True,
             "output": local_reply,
@@ -68,8 +79,19 @@ Tu n'es PAS un robot froid, un script shell ou un automate administratif. Tu as 
     async def _query_groq_persona(self, user_message: str, mem_context: str) -> Optional[str]:
         """Infers response through Groq LPU in ~300ms using full persona prompt."""
         system_instruction = self.SYSTEM_PROMPT
+        
+        # Injection du contexte temporel
+        if hasattr(self.conv_memory, 'get_temporal_context'):
+            system_instruction += f"\n- Contexte temporel : {self.conv_memory.get_temporal_context()}. Adapte ton ton en conséquence."
+            
+        # Injection des sujets clés
+        if hasattr(self.conv_memory, 'get_topic_summary_for_prompt'):
+            system_instruction += self.conv_memory.get_topic_summary_for_prompt()
+
         if mem_context:
             system_instruction += f"\n\n[Contexte de ta mémoire vectorielle sur Michael] :\n{mem_context}"
+
+        messages = [{"role": "system", "content": system_instruction}] + self.conv_memory.get_history_for_llm(max_turns=15)
 
         headers = {
             "Authorization": f"Bearer {self.groq_api_key}",
@@ -79,10 +101,7 @@ Tu n'es PAS un robot froid, un script shell ou un automate administratif. Tu as 
         for candidate_model in [self.model, "qwen/qwen3.8-27b", "openai/gpt-oss-20b"]:
             payload = {
                 "model": candidate_model,
-                "messages": [
-                    {"role": "system", "content": system_instruction},
-                    {"role": "user", "content": user_message}
-                ],
+                "messages": messages,
                 "temperature": 0.85,
                 "max_tokens": 300
             }

@@ -1852,9 +1852,15 @@ async def dispatch_telegram_order(tech_lead: TechLeadOrchestrator, order: str, u
         return
 
     # 8. Technical Execution Report
-    res_summary = str(res.get("result", {}).get("output") or res.get("result", {}).get("message") or "Mission accomplie")[:800]
-    await tech_lead.telegram_vault.send_message(f"✅ <b>Rapport d'exécution (@{user}) :</b>\n<code>{res_summary}</code>")
-    console.print("[bold green]✔ Rapport transmis au smartphone via Telegram ![/]")
+    raw_output = str(res.get("result", {}).get("output") or res.get("result", {}).get("message") or res.get("result", "Mission accomplie"))
+    
+    # Reformulate the technical result into natural language using persona
+    reformulation_prompt = f"Je viens d'exécuter la tâche technique: '{order_clean}'. Voici le résultat brut: {raw_output}. Reformule ceci très brièvement (1-2 phrases) de façon naturelle et humaine pour me dire que c'est fait."
+    reformulation_res = await tech_lead.persona.chat(reformulation_prompt)
+    res_summary = str(reformulation_res.get("output", raw_output))[:800]
+    
+    await tech_lead.telegram_vault.send_message(f"✅ <b>Rapport d'exécution (@{user}) :</b>\n{res_summary}")
+    console.print("[bold green]✔ Rapport reformulé et transmis au smartphone via Telegram ![/]")
 
     # 9. Voice Note only if user specifically requested vocal feedback
     if wants_voice:

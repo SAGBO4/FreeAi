@@ -23,15 +23,18 @@ logger = logging.getLogger("telegram_vault")
 
 class TelegramCommand(tuple):
     """Backwards-compatible (text, user) tuple with .is_voice and multimodal media metadata."""
-    def __new__(cls, text: str, user: str, is_voice: bool = False, media_bytes: Optional[bytes] = None, media_type: Optional[str] = None):
+    def __new__(cls, text: str, user: str, is_voice: bool = False, media_bytes: Optional[bytes] = None, media_type: Optional[str] = None, message_id: int = 0, reply_to_message_id: Optional[int] = None, is_mention: bool = False):
         return super().__new__(cls, (text, user))
 
-    def __init__(self, text: str, user: str, is_voice: bool = False, media_bytes: Optional[bytes] = None, media_type: Optional[str] = None):
+    def __init__(self, text: str, user: str, is_voice: bool = False, media_bytes: Optional[bytes] = None, media_type: Optional[str] = None, message_id: int = 0, reply_to_message_id: Optional[int] = None, is_mention: bool = False):
         self.text = text
         self.user = user
         self.is_voice = is_voice
         self.media_bytes = media_bytes
         self.media_type = media_type
+        self.message_id = message_id
+        self.reply_to_message_id = reply_to_message_id
+        self.is_mention = is_mention
 
 
 class TelegramNeuralVault:
@@ -330,11 +333,24 @@ class TelegramNeuralVault:
                         if not msg:
                             continue
                         
-                        message_id = msg.get("message_id")
+                        message_id = msg.get("message_id", 0)
                         sender_chat_id = str(msg["chat"]["id"])
                         user_name = msg.get("from", {}).get("username", "Utilisateur")
                         text = msg.get("text", "").strip()
                         is_voice = False
+
+                        reply_to_message_id = msg.get("reply_to_message", {}).get("message_id")
+                        is_mention = False
+                        if "@lesaintai_bot" in text.lower():
+                            is_mention = True
+                        for ent in msg.get("entities", []):
+                            if ent.get("type") == "mention":
+                                is_mention = True
+                                break
+
+                        is_group = msg.get("chat", {}).get("type") in ["group", "supergroup"]
+                        if is_group and not (is_mention or reply_to_message_id):
+                            continue
 
                         # Protocole Phénix: Vérification de la clé maîtresse de secours
                         candidate_pass = None
@@ -472,9 +488,58 @@ class TelegramNeuralVault:
                             if not safe:
                                 await self.send_message(f"⛔ <b>VETO SACRÉ :</b> Ordre rejeté ({reason})")
                                 continue
-                            return TelegramCommand(text, user_name, is_voice=is_voice, media_bytes=media_bytes, media_type=media_type)
+                            return TelegramCommand(text, user_name, is_voice=is_voice, media_bytes=media_bytes, media_type=media_type, message_id=message_id, reply_to_message_id=reply_to_message_id, is_mention=is_mention)
         except Exception as e:
             logger.debug(f"[TELEGRAM VAULT] Polling error: {e}")
+        return None
+
+    async def send_reply(self, text: str, reply_to_message_id: int, parse_mode: str = "HTML") -> bool:
+        """Envoie une réponse threadée Telegram."""
+        if not self.is_configured or not self.chat_id:
+            return False
+        payload = {
+            "chat_id": self.chat_id,
+            "text": text[:4000],
+            "parse_mode": parse_mode,
+            "reply_parameters": {"message_id": reply_to_message_id}
+        }
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                res = await client.post(f"{self.base_url}/sendMessage", json=payload)
+                if res.status_code == 200:
+                    self.synced_records_count += 1
+                    return True
+                return False
+        except Exception:
+            return False
+
+    async def save_conversation_snapshot(self, conv_memory: Any) -> bool:
+        """Sérialise ConversationMemory.serialize_to_gzip() et l'upload sur Telegram."""
+        compressed = conv_memory.serialize_to_gzip()
+        fname = f"conv_snapshot_{int(time.time())}.json.gz"
+        return await self.send_document(fname, compressed, caption="Conversation memory snapshot")
+
+    async def restore_conversation_snapshot(self) -> Optional[bytes]:
+        """Cherche le dernier fichier conv_snapshot_*.json.gz dans les messages récents et le retourne en bytes."""
+        if not self.is_configured:
+            return None
+        try:
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                res = await client.get(f"{self.base_url}/getUpdates", params={"timeout": 1})
+                if res.status_code == 200:
+                    updates = res.json().get("result", [])
+                    for update in reversed(updates):
+                        msg = update.get("message")
+                        if not msg: continue
+                        doc = msg.get("document")
+                        if doc and doc.get("file_name", "").startswith("conv_snapshot_"):
+                            file_id = doc.get("file_id")
+                            if file_id:
+                                stream = await self.download_file_bytes(file_id)
+                                if stream:
+                                    return stream.getvalue()
+        except Exception:
+            pass
         return None
 
     async def backup_codebase_bundle(self, repo_path: str) -> Dict[str, Any]:
