@@ -99,6 +99,12 @@ SLASH_COMMANDS = [
     "/member",
     "/bot",
     "/jarvis",
+    "/satellite",
+    "/satellite scan",
+    "/satellite avions",
+    "/satellite iss",
+    "/satellite menace",
+    "/satellite meteo",
     "/help",
     "/clear",
     "/exit",
@@ -423,6 +429,11 @@ def print_help():
         "/member [list|create|mission|history]",
         "Membres Autonomes Ultra-Intelligents (Limb-Bots) : bots spécialisés (cyber, coder, research, sudo, oracle) opérant en mode STANDARD ou SUDO en RAM volatile.",
         "/member mission Nova-Coder Optimise l'algorithme ou /member list"
+    )
+    table.add_row(
+        "/satellite [scan|avions|iss|menace|meteo]",
+        "SatelliteEye : Surveillance satellite globale, 100% RAM (NÉANT). Réservé au mode lesaintAi.",
+        "/satellite scan Cotonou"
     )
     table.add_row(
         "/jarvis [status|start|stop|restart|logs]",
@@ -2841,6 +2852,96 @@ async def run_chimera(tech_lead: TechLeadOrchestrator, args: List[str]):
         ))
 
 
+async def run_satellite(tech_lead, args: List[str]):
+    """Gère le module SatelliteEye (God-Mode Uniquement)."""
+    if tech_lead.mode != "lesaintAi":
+        console.print("[bold red]🔒 Erreur Souveraine : SatelliteEye est réservé au mode lesaintAi (God-Mode).[/]")
+        return
+    
+    if not args:
+        console.print("[bold red]Usage :[/] /satellite [scan <zone>|avions <zone>|iss|menace|meteo <zone>]")
+        return
+
+    subcmd = args[0].lower()
+    from app.satellite.satellite_eye import SatelliteEye
+    eye = SatelliteEye(tech_lead.mode)
+    vault = None
+    if hasattr(tech_lead, "free_ai") and hasattr(tech_lead.free_ai, "memory") and hasattr(tech_lead.free_ai.memory, "telegram_vault"):
+        vault = tech_lead.free_ai.memory.telegram_vault
+
+    if subcmd == "scan":
+        if len(args) < 2:
+            console.print("[bold red]Usage :[/] /satellite scan <zone>")
+            return
+        zone = " ".join(args[1:])
+        with console.status(f"[bold cyan]🛰️ Balayage satellite en cours sur {zone}...[/]"):
+            res = await eye.scan_zone(zone)
+        
+        if "error" in res:
+            console.print(f"[bold red]{res['error']}[/]")
+            return
+            
+        console.print(res["formatted"])
+        if vault and hasattr(vault, 'send_message'):
+            await _smart_telegram_send(vault, res["formatted"])
+
+    elif subcmd == "avions":
+        if len(args) < 2:
+            console.print("[bold red]Usage :[/] /satellite avions <zone>")
+            return
+        zone = " ".join(args[1:])
+        with console.status(f"[bold cyan]✈️ Recherche des avions au-dessus de {zone}...[/]"):
+            coords = await eye.geocode(zone)
+            if not coords:
+                console.print(f"[bold red]❌ Zone '{zone}' introuvable.[/]")
+                return
+            avions = await eye.get_aircraft_overhead(coords[0], coords[1])
+        
+        if avions:
+            for a in avions:
+                console.print(f"• [bold yellow]{a['callsign']}[/] — {a['origin_country']} — {a['altitude']}m — {a.get('velocity', 0)*3.6:.0f}km/h")
+        else:
+            console.print("[yellow]Aucun aéronef détecté.[/]")
+
+    elif subcmd == "iss":
+        with console.status("[bold cyan]🌍 Relocalisation de l'ISS...[/]"):
+            iss = await eye.get_iss_position()
+        if iss:
+            msg = f"🌍 <b>ISS</b>: {iss.get('latitude', 0):.2f}°, {iss.get('longitude', 0):.2f}° — Alt: {iss.get('altitude', 0):.0f}km"
+            console.print(msg)
+            if vault and hasattr(vault, 'send_message'):
+                await _smart_telegram_send(vault, msg)
+        else:
+            console.print("[red]Données ISS indisponibles.[/]")
+
+    elif subcmd == "menace":
+        with console.status("[bold cyan]🌪️ Récupération des alertes EONET...[/]"):
+            events = await eye.get_natural_events()
+        if events:
+            for e in events[:5]:
+                console.print(f"• [bold red]{e['title']}[/] ({', '.join(e['categories'])})")
+        else:
+            console.print("[green]Aucune menace naturelle active détectée.[/]")
+
+    elif subcmd == "meteo":
+        if len(args) < 2:
+            console.print("[bold red]Usage :[/] /satellite meteo <zone>")
+            return
+        zone = " ".join(args[1:])
+        with console.status(f"[bold cyan]🌤️ Analyse météo pour {zone}...[/]"):
+            coords = await eye.geocode(zone)
+            if not coords:
+                console.print(f"[bold red]❌ Zone '{zone}' introuvable.[/]")
+                return
+            w = await eye.get_satellite_weather(coords[0], coords[1])
+        
+        if w:
+            console.print(f"• {w.get('temperature_2m')}°C • Nuages : {w.get('cloud_cover')}% • Vent : {w.get('wind_speed_10m')} km/h")
+        else:
+            console.print("[red]Données météo indisponibles.[/]")
+    else:
+        console.print(f"[bold red]Sous-commande inconnue : {subcmd}[/]")
+
 async def run_legion(tech_lead: TechLeadOrchestrator, args: List[str]):
     """Gère le protocole AETHER-LEGION : Essaim d'éclaireurs autonomes déployés sur le Web mondial."""
     subcmd = args[0].lower() if args else "status"
@@ -3242,6 +3343,8 @@ async def interactive_cli(initial_mode: str = "freeAi"):
                     await run_speculate(tech_lead, args)
                 elif cmd == "/ring":
                     await run_ring(tech_lead, args)
+                elif cmd == "/satellite":
+                    await run_satellite(tech_lead, args)
                 elif cmd == "/jarvis":
                     handle_jarvis_command(tech_lead, args)
                 elif cmd == "/darwin":
@@ -3294,6 +3397,8 @@ async def interactive_cli(initial_mode: str = "freeAi"):
                     await run_legion(tech_lead, args)
                 elif cmd in ("/member", "/bot"):
                     await run_member(tech_lead, args)
+                elif cmd == "/satellite":
+                    await run_satellite(tech_lead, args)
                 elif cmd == "/jarvis":
                     run_jarvis(tech_lead, args)
                 else:
@@ -3430,6 +3535,8 @@ def main():
                 asyncio.run(run_legion(tech_lead, args))
             elif cmd in ("/member", "/bot"):
                 asyncio.run(run_member(tech_lead, args))
+            elif cmd == "/satellite":
+                asyncio.run(run_satellite(tech_lead, args))
             elif cmd == "/jarvis":
                 run_jarvis(tech_lead, args)
             elif cmd == "/help":
