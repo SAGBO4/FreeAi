@@ -289,12 +289,15 @@ class ActiveDefenseSentinel:
         """Audits an incoming request or command. If hostile, mounts active defense.
         Returns: (is_safe: bool, response_or_rejection: str)
         """
+        trusted_sources = ["master_or_gateway", "telegram_vault", "CLI", "127.0.0.1", "localhost"]
+        is_trusted = source_ip in trusted_sources
+
         # 1. Check if IP is already banned
-        if self.is_ip_banned(source_ip):
+        if not is_trusted and self.is_ip_banned(source_ip):
             return False, "⛔ ACCÈS REFUSÉ : Votre adresse IP est sous embargo défensif."
 
         # 2. Check flood
-        if self.detect_flood(source_ip):
+        if not is_trusted and self.detect_flood(source_ip):
             incident = await self.defend_against_attack(
                 source_ip=source_ip,
                 attack_vector=AttackVector.DDOS_FLOOD,
@@ -306,6 +309,8 @@ class ActiveDefenseSentinel:
         if is_command and self.fortress:
             safe, reason = self.fortress.audit_command(content)
             if not safe:
+                if is_trusted:
+                    return False, f"🚨 VETO DÉFENSIF : {reason} (Ignoré car source maître, mais action annulée pour sécurité)"
                 vector = AttackVector.REVERSE_SHELL if "Reverse Shell" in reason else AttackVector.TAMPERING
                 await self.defend_against_attack(
                     source_ip=source_ip,
@@ -318,6 +323,8 @@ class ActiveDefenseSentinel:
         if self.fortress and not is_command:
             safe, reason = self.fortress.audit_prompt_injection(content)
             if not safe:
+                if is_trusted:
+                    return False, "🛡️ PARE-FEU COGNITIF : Requête annulée pour intégrité (Source maître)."
                 await self.defend_against_attack(
                     source_ip=source_ip,
                     attack_vector=AttackVector.PROMPT_INJECTION,

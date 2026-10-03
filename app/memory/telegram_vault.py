@@ -23,10 +23,10 @@ logger = logging.getLogger("telegram_vault")
 
 class TelegramCommand(tuple):
     """Backwards-compatible (text, user) tuple with .is_voice and multimodal media metadata."""
-    def __new__(cls, text: str, user: str, is_voice: bool = False, media_bytes: Optional[bytes] = None, media_type: Optional[str] = None, message_id: int = 0, reply_to_message_id: Optional[int] = None, is_mention: bool = False):
+    def __new__(cls, text: str, user: str, is_voice: bool = False, media_bytes: Optional[bytes] = None, media_type: Optional[str] = None, message_id: int = 0, reply_to_message_id: Optional[int] = None, is_mention: bool = False, message_thread_id: Optional[int] = None):
         return super().__new__(cls, (text, user))
 
-    def __init__(self, text: str, user: str, is_voice: bool = False, media_bytes: Optional[bytes] = None, media_type: Optional[str] = None, message_id: int = 0, reply_to_message_id: Optional[int] = None, is_mention: bool = False):
+    def __init__(self, text: str, user: str, is_voice: bool = False, media_bytes: Optional[bytes] = None, media_type: Optional[str] = None, message_id: int = 0, reply_to_message_id: Optional[int] = None, is_mention: bool = False, message_thread_id: Optional[int] = None):
         self.text = text
         self.user = user
         self.is_voice = is_voice
@@ -35,6 +35,7 @@ class TelegramCommand(tuple):
         self.message_id = message_id
         self.reply_to_message_id = reply_to_message_id
         self.is_mention = is_mention
+        self.message_thread_id = message_thread_id
 
 
 class TelegramNeuralVault:
@@ -47,9 +48,23 @@ class TelegramNeuralVault:
         self.last_update_id: int = 0
         self.sentinel = SacredLifeSentinel(strict_mode=True)
         self.synced_records_count: int = 0
+        self.topic_map: Dict[str, int] = {}
+        self.master_user_id: str = str(getattr(settings, "TELEGRAM_CHAT_ID", "") or os.environ.get("TELEGRAM_CHAT_ID", "6149977795"))
+        self.group_chat_id: Optional[str] = None
         self._volatile_knowledge_vault: Dict[str, Dict[str, Any]] = {}
         self.recovery_hash = getattr(settings, "MASTER_RECOVERY_HASH", "") or os.environ.get("MASTER_RECOVERY_HASH", "")
         self.recovery_salt = getattr(settings, "MASTER_RECOVERY_SALT", "freeai_sovereign_phoenix_salt") or os.environ.get("MASTER_RECOVERY_SALT", "freeai_sovereign_phoenix_salt")
+
+    def is_master_user(self, user_id: str, username: Optional[str] = None) -> bool:
+        """Verifies if the sender is Michael SAGBO (by user_id, chat_id or known handles)."""
+        uid = str(user_id).strip()
+        if uid in (str(self.master_user_id), str(self.chat_id), "6149977795"):
+            return True
+        if username:
+            u_clean = username.lower().lstrip("@")
+            if u_clean in ("speedylesaint", "sagbo4"):
+                return True
+        return False
 
     def verify_recovery_passphrase(self, candidate: str) -> bool:
         """Verifies candidate passphrase against salted master recovery hash in constant time."""
@@ -128,24 +143,28 @@ class TelegramNeuralVault:
             logger.debug(f"[TELEGRAM VAULT] Auto-discovery error: {e}")
         return self.chat_id if self.chat_id else None
 
-    async def send_message(self, text: str, parse_mode: str = "HTML") -> bool:
-        """Sends a text message or formatted alert to the Telegram Neural Vault."""
+    async def send_message(self, text: str, parse_mode: str = "HTML", message_thread_id: Optional[int] = None, target_chat_id: Optional[str] = None) -> bool:
+        """Sends a text message or formatted alert to the Telegram Neural Vault or a specific forum topic."""
         if not self.is_configured:
             return False
 
-        if not self.chat_id:
+        chat = target_chat_id or (self.group_chat_id if message_thread_id else self.chat_id) or self.chat_id
+        if not chat:
             await self.auto_discover_chat_id()
+            chat = self.chat_id
 
-        if not self.chat_id:
+        if not chat:
             logger.warning("[TELEGRAM VAULT] Cannot send message: Chat ID unknown. Send /start to @LesaintAi_bot.")
             return False
 
         # Mode NÉANT : pure memory payload
         payload = {
-            "chat_id": self.chat_id,
+            "chat_id": chat,
             "text": text[:4000],  # Telegram max length protection
             "parse_mode": parse_mode
         }
+        if message_thread_id:
+            payload["message_thread_id"] = message_thread_id
 
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
@@ -334,6 +353,7 @@ class TelegramNeuralVault:
                             continue
                         
                         message_id = msg.get("message_id", 0)
+                        message_thread_id = msg.get("message_thread_id")
                         sender_chat_id = str(msg["chat"]["id"])
                         user_name = msg.get("from", {}).get("username", "Utilisateur")
                         text = msg.get("text", "").strip()
@@ -341,15 +361,16 @@ class TelegramNeuralVault:
 
                         reply_to_message_id = msg.get("reply_to_message", {}).get("message_id")
                         is_mention = False
+                        is_command = text.startswith("/")
                         if "@lesaintai_bot" in text.lower():
                             is_mention = True
                         for ent in msg.get("entities", []):
-                            if ent.get("type") == "mention":
+                            if ent.get("type") in ("mention", "bot_command"):
                                 is_mention = True
                                 break
 
-                        is_group = msg.get("chat", {}).get("type") in ["group", "supergroup"]
-                        if is_group and not (is_mention or reply_to_message_id):
+                        is_group = msg.get("chat", {}).get("type") in ["group", "supergroup"] or str(sender_chat_id).startswith("-")
+                        if is_group and not (is_mention or reply_to_message_id or is_command):
                             continue
 
                         # Protocole Phénix: Vérification de la clé maîtresse de secours
@@ -403,43 +424,106 @@ class TelegramNeuralVault:
                             await self.send_message(welcome_text)
                             continue
 
-                        # Authentication guard: If chat_id is established, reject and alert on foreign senders
-                        if self.chat_id and sender_chat_id != str(self.chat_id):
-                            logger.critical(
-                                f"[TELEGRAM VAULT] Intrusion interceptée ! Expéditeur non autorisé: @{user_name} "
-                                f"(Chat ID: {sender_chat_id}, Attendu: {self.chat_id})"
-                            )
-                            # Alert legitimate master on his smartphone immediately
-                            alert_text = (
-                                f"🚨 <b>[ALERTE SÉCURITÉ SOUVERAINE]</b>\n\n"
-                                f"Tentative d'intrusion interceptée sur votre bot Telegram !\n"
-                                f"• Utilisateur pirate : @{user_name}\n"
-                                f"• Chat ID rejeté : <code>{sender_chat_id}</code>\n"
-                                f"• Message bloqué : <i>{text[:100] if text else '[Audio non autorisé]'}</i>\n\n"
-                                f"🛡️ <i>Accès hermétiquement verrouillé. Seul votre smartphone a l'autorité.</i>"
-                            )
-                            try:
-                                async with httpx.AsyncClient(timeout=5.0) as alert_client:
-                                    await alert_client.post(
-                                        f"{self.base_url}/sendMessage",
-                                        json={"chat_id": self.chat_id, "text": alert_text, "parse_mode": "HTML"}
-                                    )
-                            except Exception:
-                                pass
-                            continue
+                        sender_user_id = str(msg.get("from", {}).get("id", ""))
+                        is_master = self.is_master_user(sender_user_id, user_name)
 
-                        # First connection: bind only if self.chat_id is completely unset
-                        if not self.chat_id:
-                            self.chat_id = sender_chat_id
-                            logger.info(f"[TELEGRAM VAULT] Liaison initiale établie avec le Chat ID: {self.chat_id}")
+                        # Group vs Private authentication logic
+                        if is_group:
+                            # If message is from a group, remember group_chat_id when master interacts
+                            if is_master:
+                                self.group_chat_id = sender_chat_id
+                            else:
+                                # Non-master user in group: block admin commands
+                                if text.lower().startswith(("/setup", "/mode", "/sudo", "/claim", "/auth", "/recover")):
+                                    await self.send_message(
+                                        "⛔ <b>Accès Refusé :</b> Seul Michael SAGBO a l'autorité souveraine pour administrer ce bot.",
+                                        message_thread_id=message_thread_id,
+                                        target_chat_id=sender_chat_id
+                                    )
+                                    continue
+                        else:
+                            # 1-on-1 Private chat authentication guard:
+                            if not is_master and self.chat_id and sender_chat_id != str(self.chat_id):
+                                logger.critical(
+                                    f"[TELEGRAM VAULT] Intrusion interceptée ! Expéditeur non autorisé: @{user_name} "
+                                    f"(Chat ID: {sender_chat_id}, Attendu: {self.chat_id})"
+                                )
+                                alert_text = (
+                                    f"🚨 <b>[ALERTE SÉCURITÉ SOUVERAINE]</b>\n\n"
+                                    f"Tentative d'intrusion interceptée sur votre bot Telegram !\n"
+                                    f"• Utilisateur pirate : @{user_name}\n"
+                                    f"• Chat ID rejeté : <code>{sender_chat_id}</code>\n"
+                                    f"• Message bloqué : <i>{text[:100] if text else '[Audio non autorisé]'}</i>\n\n"
+                                    f"🛡️ <i>Accès hermétiquement verrouillé. Seul votre smartphone a l'autorité.</i>"
+                                )
+                                try:
+                                    async with httpx.AsyncClient(timeout=5.0) as alert_client:
+                                        await alert_client.post(
+                                            f"{self.base_url}/sendMessage",
+                                            json={"chat_id": self.chat_id, "text": alert_text, "parse_mode": "HTML"}
+                                        )
+                                except Exception:
+                                    pass
+                                continue
+
+                            # First connection: bind only if self.chat_id is completely unset
+                            if not self.chat_id:
+                                self.chat_id = sender_chat_id
+                                logger.info(f"[TELEGRAM VAULT] Liaison initiale établie avec le Chat ID: {self.chat_id}")
 
                         # Pairing greeting only on legitimate first /start
                         if text == "/start":
                             await self.send_message(
                                 "⚡ <b>FreeAI Jarvis Connecté & Prêt !</b>\n\n"
                                 "Je suis votre assistant souverain. Envoyez-moi un message texte "
-                                "ou appuyez sur le micro pour me parler par note vocale !"
+                                "ou appuyez sur le micro pour me parler par note vocale !",
+                                message_thread_id=message_thread_id,
+                                target_chat_id=sender_chat_id
                             )
+                            continue
+
+                        # Automated Community HQ Setup Command
+                        if text.lower() in ("/setup_hq", "/setup", "/init_topics"):
+                            res = await self.setup_community_hq(target_chat_id=sender_chat_id)
+                            if res.get("success"):
+                                await self.send_message(
+                                    f"🏛️ <b>Quartier Général Configuré avec Succès !</b>\n\n"
+                                    f"J'ai créé et initialisé <b>{res.get('total_created', 0)} salons de commandement</b>.\n"
+                                    f"Chaque catégorie de message sera désormais routée précisément dans son salon dédié.",
+                                    message_thread_id=message_thread_id,
+                                    target_chat_id=sender_chat_id
+                                )
+                            else:
+                                await self.send_message(
+                                    f"⚠️ Impossible de créer les salons : {res.get('error')}. "
+                                    f"Vérifiez que le bot est Administrateur et que l'option 'Gérer les sujets' (Manage Topics) est bien cochée.",
+                                    message_thread_id=message_thread_id,
+                                    target_chat_id=sender_chat_id
+                                )
+                            continue
+
+                        # Automated Community HQ Clean & Dedup Command
+                        if any(cmd in text.lower() for cmd in ("/clean_hq", "/nettoyer", "/dedup", "/reset_hq", "nettoie", "doublon")):
+                            await self.send_message(
+                                "🧹 <b>Nettoyage & Dé-doublonnage des salons en cours...</b>\n"
+                                "Veuillez patienter quelques instants pendant que je supprime les doublons.",
+                                message_thread_id=message_thread_id,
+                                target_chat_id=sender_chat_id
+                            )
+                            clean_res = await self.clean_duplicate_topics(target_chat_id=sender_chat_id)
+                            if clean_res.get("success"):
+                                await self.send_message(
+                                    f"✅ <b>Nettoyage Terminé avec Succès !</b>\n\n"
+                                    f"• Salons en doublon purgés : <b>{clean_res.get('deleted_count', 0)}</b>\n"
+                                    f"• Les <b>{clean_res.get('total_canonical', 6)} salons officiels</b> sont désormais uniques, propres et opérationnels sans aucun doublon.",
+                                    target_chat_id=sender_chat_id
+                                )
+                            else:
+                                await self.send_message(
+                                    f"⚠️ Erreur lors du nettoyage : {clean_res.get('error')}",
+                                    message_thread_id=message_thread_id,
+                                    target_chat_id=sender_chat_id
+                                )
                             continue
 
                         # Handle Voice Notes or Audio (Bidirectional Telepathy)
@@ -486,15 +570,15 @@ class TelegramNeuralVault:
                             # Inviolable Verification by SacredLifeSentinel
                             safe, reason = self.sentinel.audit_objective(text)
                             if not safe:
-                                await self.send_message(f"⛔ <b>VETO SACRÉ :</b> Ordre rejeté ({reason})")
+                                await self.send_message(f"⛔ <b>VETO SACRÉ :</b> Ordre rejeté ({reason})", message_thread_id=message_thread_id)
                                 continue
-                            return TelegramCommand(text, user_name, is_voice=is_voice, media_bytes=media_bytes, media_type=media_type, message_id=message_id, reply_to_message_id=reply_to_message_id, is_mention=is_mention)
+                            return TelegramCommand(text, user_name, is_voice=is_voice, media_bytes=media_bytes, media_type=media_type, message_id=message_id, reply_to_message_id=reply_to_message_id, is_mention=is_mention, message_thread_id=message_thread_id)
         except Exception as e:
             logger.debug(f"[TELEGRAM VAULT] Polling error: {e}")
         return None
 
-    async def send_reply(self, text: str, reply_to_message_id: int, parse_mode: str = "HTML") -> bool:
-        """Envoie une réponse threadée Telegram."""
+    async def send_reply(self, text: str, reply_to_message_id: int, parse_mode: str = "HTML", message_thread_id: Optional[int] = None) -> bool:
+        """Envoie une réponse threadée Telegram ou dans un topic forum."""
         if not self.is_configured or not self.chat_id:
             return False
         payload = {
@@ -503,6 +587,8 @@ class TelegramNeuralVault:
             "parse_mode": parse_mode,
             "reply_parameters": {"message_id": reply_to_message_id}
         }
+        if message_thread_id:
+            payload["message_thread_id"] = message_thread_id
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
                 res = await client.post(f"{self.base_url}/sendMessage", json=payload)
@@ -512,6 +598,122 @@ class TelegramNeuralVault:
                 return False
         except Exception:
             return False
+
+    async def create_forum_topic(self, name: str, icon_color: Optional[int] = None, icon_custom_emoji_id: Optional[str] = None, target_chat_id: Optional[str] = None) -> Optional[int]:
+        """Creates a forum topic in a supergroup and returns its message_thread_id."""
+        if not self.is_configured:
+            return None
+        chat = target_chat_id or self.group_chat_id or self.chat_id
+        if not chat:
+            return None
+        payload = {
+            "chat_id": chat,
+            "name": name
+        }
+        if icon_color is not None:
+            payload["icon_color"] = icon_color
+        if icon_custom_emoji_id:
+            payload["icon_custom_emoji_id"] = icon_custom_emoji_id
+
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                res = await client.post(f"{self.base_url}/createForumTopic", json=payload)
+                if res.status_code == 200:
+                    data = res.json()
+                    thread_id = data.get("result", {}).get("message_thread_id")
+                    logger.info(f"[TELEGRAM VAULT] Created forum topic '{name}' in {chat} (thread_id: {thread_id})")
+                    return thread_id
+                else:
+                    logger.debug(f"[TELEGRAM VAULT] createForumTopic failed in {chat} ({res.status_code}): {res.text}")
+        except Exception as e:
+            logger.debug(f"[TELEGRAM VAULT] createForumTopic error: {e}")
+        return None
+
+    async def setup_community_hq(self, target_chat_id: Optional[str] = None) -> Dict[str, Any]:
+        """Automatically provisions all 6 dedicated command topics with welcome briefs."""
+        chat = target_chat_id or self.group_chat_id or self.chat_id
+        if not self.is_configured or not chat:
+            return {"success": False, "error": "Bot non configuré ou Chat ID inconnu"}
+
+        # Idempotency safeguard: if topics are already set up, avoid creating duplicates
+        if self.topic_map and len(self.topic_map) >= 6:
+            logger.info("[TELEGRAM VAULT] Topics already registered. Skipping re-creation to prevent duplicates.")
+            return {"success": True, "topics_created": self.topic_map, "total_created": len(self.topic_map), "already_existed": True}
+
+        topics_spec = [
+            {"key": "general", "name": "🎯 Général & Commandement", "color": 0x6FB9F0, "brief": "Bienvenue dans le salon de commandement général. Échanges directs, vision, stratégie et requêtes globales avec FreeAI Jarvis."},
+            {"key": "career", "name": "💼 Career & Radar Remote", "color": 0x8EEE98, "brief": "Flux automatisé de Career-OS. Veille quotidienne sur les offres d'emploi remote scorées (WeWorkRemotely, RemoteOK, Remotive)."},
+            {"key": "crypto", "name": "📈 Crypto & Défi 500$", "color": 0xFFD67E, "brief": "QG du Défi Anniversaire : constitution des 500$ en crypto d'ici le 5 Février. Arbitrage DEX AMM, opportunités Web3 et suivi de marché."},
+            {"key": "defense", "name": "🛡️ Cyberdéfense & Sentinelle", "color": 0xFB6F5F, "brief": "Surveillance active, pare-feu cognitif, détection d'intrusions, santé des VPS gratuits et statut de sécurité."},
+            {"key": "forge", "name": "⚡ Forge & Code Lab", "color": 0xCB86DB, "brief": "Espace ingénierie logicielle : rapports de tests, commits Git, architecture shadcn et génération d'applications."},
+            {"key": "tribute", "name": "🎁 Sanctuaire Sacré", "color": 0xFF93B2, "brief": "Salon confidentiel réservé aux événements sacrés, profil créateur Michael SAGBO et remise sécurisée des 12 mots."}
+        ]
+
+        created = {}
+        for t in topics_spec:
+            thread_id = await self.create_forum_topic(name=t["name"], icon_color=t["color"], target_chat_id=chat)
+            if thread_id:
+                self.topic_map[t["key"]] = thread_id
+                created[t["name"]] = thread_id
+                welcome_msg = (
+                    f"<b>Salon Initialisé : {t['name']}</b>\n\n"
+                    f"{t['brief']}\n\n"
+                    f"<i>⚙️ Piloté souverainement par FreeAI Jarvis</i>"
+                )
+                await self.send_message(welcome_msg, message_thread_id=thread_id, target_chat_id=chat)
+
+        return {
+            "success": True,
+            "topics_created": created,
+            "total_created": len(created)
+        }
+
+    async def delete_forum_topic(self, message_thread_id: int, target_chat_id: Optional[str] = None) -> bool:
+        """Deletes a forum topic and all its messages in a supergroup."""
+        if not self.is_configured:
+            return False
+        chat = target_chat_id or self.group_chat_id or self.chat_id
+        if not chat:
+            return False
+        payload = {
+            "chat_id": chat,
+            "message_thread_id": message_thread_id
+        }
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                res = await client.post(f"{self.base_url}/deleteForumTopic", json=payload)
+                if res.status_code == 200 and res.json().get("ok"):
+                    logger.info(f"[TELEGRAM VAULT] Deleted topic {message_thread_id} in {chat}")
+                    return True
+                else:
+                    logger.debug(f"[TELEGRAM VAULT] deleteForumTopic failed: {res.text}")
+        except Exception as e:
+            logger.debug(f"[TELEGRAM VAULT] deleteForumTopic error: {e}")
+        return False
+
+    async def clean_duplicate_topics(self, target_chat_id: Optional[str] = None, max_scan: int = 50) -> Dict[str, Any]:
+        """Scans and deletes existing forum topics to remove duplicates and resets the HQ cleanly."""
+        chat = target_chat_id or self.group_chat_id or self.chat_id
+        if not self.is_configured or not chat:
+            return {"success": False, "error": "Chat ID non configuré"}
+
+        import asyncio
+        deleted_count = 0
+        for thread_id in range(1, max_scan + 1):
+            success = await self.delete_forum_topic(message_thread_id=thread_id, target_chat_id=chat)
+            if success:
+                deleted_count += 1
+                await asyncio.sleep(0.15)  # Telegram API flood control
+
+        self.topic_map.clear()
+        setup_res = await self.setup_community_hq(target_chat_id=chat)
+
+        return {
+            "success": True,
+            "deleted_count": deleted_count,
+            "topics_recreated": setup_res.get("topics_created", {}),
+            "total_canonical": setup_res.get("total_created", 0)
+        }
 
     async def save_conversation_snapshot(self, conv_memory: Any) -> bool:
         """Sérialise ConversationMemory.serialize_to_gzip() et l'upload sur Telegram."""
