@@ -10,6 +10,8 @@ def telegram_vault():
     vault = TelegramNeuralVault(token="test_token", chat_id="6149977795")
     vault.master_user_id = "6149977795"
     vault.send_message = AsyncMock(return_value=True)
+    vault._persist_group_chat_id = MagicMock()
+    vault._persist_new_chat_id = MagicMock()
     return vault
 
 class MockResponse:
@@ -114,3 +116,42 @@ async def test_active_defense_allows_master():
     is_safe, msg = await defense.audit_and_defend_request("192.168.1.100", "hello")
     assert is_safe == False # Unknown is blocked by flood
     assert "FLOOD DÉTECTÉ" in msg
+
+
+@pytest.mark.anyio
+async def test_community_guide_content(telegram_vault):
+    guide = telegram_vault.get_community_guide_text()
+    assert "GUIDE OFFICIEL FREEAI SOUVERAIN" in guide
+    assert "freeAi" in guide
+    assert "lesaintAi" in guide
+    assert "/clean_hq" in guide
+    assert "/career" in guide
+    assert "/birthday" in guide
+    assert "/defense" in guide
+    assert "/ui" in guide
+
+
+@pytest.mark.anyio
+async def test_clean_duplicate_topics_flow(telegram_vault):
+    msg = {
+        "message_id": 10,
+        "chat": {"id": -100998877, "type": "supergroup"},
+        "from": {"id": 6149977795, "username": "SpeedyLesaint"},
+        "text": "nettoie moi les doublons"
+    }
+    updates_mock = {"result": [{"update_id": 10, "message": msg}]}
+    
+    mock_client = MagicMock()
+    mock_client.get = AsyncMock(return_value=MockResponse(updates_mock))
+    mock_client.post = AsyncMock(return_value=MockResponse({"ok": True}))
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=None)
+    
+    with patch("httpx.AsyncClient", return_value=mock_client):
+        with patch.object(telegram_vault, "clean_duplicate_topics", new_callable=AsyncMock) as mock_clean:
+            mock_clean.return_value = {"success": True, "deleted_count": 4, "total_canonical": 6}
+            
+            await telegram_vault.poll_incoming_command()
+            mock_clean.assert_called_once_with(target_chat_id="-100998877")
+            assert telegram_vault.send_message.call_count >= 2
+

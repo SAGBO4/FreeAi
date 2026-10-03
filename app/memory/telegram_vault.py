@@ -9,6 +9,7 @@ import io
 import json
 import gzip
 import time
+import asyncio
 import hashlib
 import hmac
 import logging
@@ -23,10 +24,10 @@ logger = logging.getLogger("telegram_vault")
 
 class TelegramCommand(tuple):
     """Backwards-compatible (text, user) tuple with .is_voice and multimodal media metadata."""
-    def __new__(cls, text: str, user: str, is_voice: bool = False, media_bytes: Optional[bytes] = None, media_type: Optional[str] = None, message_id: int = 0, reply_to_message_id: Optional[int] = None, is_mention: bool = False, message_thread_id: Optional[int] = None):
+    def __new__(cls, text: str, user: str, is_voice: bool = False, media_bytes: Optional[bytes] = None, media_type: Optional[str] = None, message_id: int = 0, reply_to_message_id: Optional[int] = None, is_mention: bool = False, message_thread_id: Optional[int] = None, target_chat_id: Optional[str] = None):
         return super().__new__(cls, (text, user))
 
-    def __init__(self, text: str, user: str, is_voice: bool = False, media_bytes: Optional[bytes] = None, media_type: Optional[str] = None, message_id: int = 0, reply_to_message_id: Optional[int] = None, is_mention: bool = False, message_thread_id: Optional[int] = None):
+    def __init__(self, text: str, user: str, is_voice: bool = False, media_bytes: Optional[bytes] = None, media_type: Optional[str] = None, message_id: int = 0, reply_to_message_id: Optional[int] = None, is_mention: bool = False, message_thread_id: Optional[int] = None, target_chat_id: Optional[str] = None):
         self.text = text
         self.user = user
         self.is_voice = is_voice
@@ -36,6 +37,7 @@ class TelegramCommand(tuple):
         self.reply_to_message_id = reply_to_message_id
         self.is_mention = is_mention
         self.message_thread_id = message_thread_id
+        self.target_chat_id = target_chat_id
 
 
 class TelegramNeuralVault:
@@ -50,10 +52,86 @@ class TelegramNeuralVault:
         self.synced_records_count: int = 0
         self.topic_map: Dict[str, int] = {}
         self.master_user_id: str = str(getattr(settings, "TELEGRAM_CHAT_ID", "") or os.environ.get("TELEGRAM_CHAT_ID", "6149977795"))
-        self.group_chat_id: Optional[str] = None
+        self.group_chat_id: Optional[str] = getattr(settings, "TELEGRAM_GROUP_CHAT_ID", None) or os.environ.get("TELEGRAM_GROUP_CHAT_ID", "-1003920092778")
+        self.active_chat_id: Optional[str] = None
+        self.active_thread_id: Optional[int] = None
         self._volatile_knowledge_vault: Dict[str, Dict[str, Any]] = {}
         self.recovery_hash = getattr(settings, "MASTER_RECOVERY_HASH", "") or os.environ.get("MASTER_RECOVERY_HASH", "")
         self.recovery_salt = getattr(settings, "MASTER_RECOVERY_SALT", "freeai_sovereign_phoenix_salt") or os.environ.get("MASTER_RECOVERY_SALT", "freeai_sovereign_phoenix_salt")
+        self._load_persisted_topic_map()
+
+    def _get_topics_cache_path(self) -> Path:
+        return Path(".telegram_topics.json")
+
+    def _load_persisted_topic_map(self) -> None:
+        """Loads cached forum topic mapping from local file or .env to ensure idempotency."""
+        try:
+            cache_file = self._get_topics_cache_path()
+            if cache_file.exists():
+                data = json.loads(cache_file.read_text(encoding="utf-8"))
+                if isinstance(data, dict):
+                    self.topic_map.update({k: int(v) for k, v in data.items()})
+                    return
+        except Exception as e:
+            logger.debug(f"[TELEGRAM VAULT] Could not load topic map from cache: {e}")
+
+        env_topics = os.environ.get("TELEGRAM_TOPIC_MAP")
+        if env_topics:
+            try:
+                data = json.loads(env_topics)
+                if isinstance(data, dict):
+                    self.topic_map.update({k: int(v) for k, v in data.items()})
+            except Exception:
+                pass
+
+    def _persist_topic_map(self) -> None:
+        """Persists topic map into local cache file and .env for zero duplicate risk."""
+        try:
+            cache_file = self._get_topics_cache_path()
+            cache_file.write_text(json.dumps(self.topic_map, indent=2), encoding="utf-8")
+        except Exception as e:
+            logger.debug(f"[TELEGRAM VAULT] Could not persist topic map to file: {e}")
+
+        try:
+            serialized = json.dumps(self.topic_map)
+            os.environ["TELEGRAM_TOPIC_MAP"] = serialized
+            env_path = Path(".env")
+            if env_path.exists():
+                lines = env_path.read_text(encoding="utf-8").splitlines()
+                updated = False
+                new_lines = []
+                for line in lines:
+                    if line.strip().startswith("TELEGRAM_TOPIC_MAP="):
+                        new_lines.append(f"TELEGRAM_TOPIC_MAP='{serialized}'")
+                        updated = True
+                    else:
+                        new_lines.append(line)
+                if not updated:
+                    new_lines.append(f"TELEGRAM_TOPIC_MAP='{serialized}'")
+                env_path.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
+        except Exception as e:
+            logger.debug(f"[TELEGRAM VAULT] Could not persist topic map to .env: {e}")
+
+    def _resolve_supergroup_chat_id(self, target_chat_id: Optional[str] = None) -> str:
+        """Resolves target supergroup chat ID.
+        Telegram supergroups strictly have negative IDs (typically starting with -100).
+        If target_chat_id is positive (private chat with user) or None, defaults to official supergroup.
+        """
+        if target_chat_id is not None:
+            cleaned = str(target_chat_id).strip()
+            if cleaned.startswith("-"):
+                return cleaned
+
+        if self.group_chat_id:
+            cleaned_group = str(self.group_chat_id).strip()
+            if cleaned_group.startswith("-"):
+                return cleaned_group
+
+        env_group = getattr(settings, "TELEGRAM_GROUP_CHAT_ID", "") or os.environ.get("TELEGRAM_GROUP_CHAT_ID", "")
+        if env_group and str(env_group).strip().startswith("-"):
+            return str(env_group).strip()
+
+        return "-1003920092778"
 
     def is_master_user(self, user_id: str, username: Optional[str] = None) -> bool:
         """Verifies if the sender is Michael SAGBO (by user_id, chat_id or known handles)."""
@@ -99,6 +177,36 @@ class TelegramNeuralVault:
                 env_path.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
             except Exception as e:
                 logger.debug(f"[TELEGRAM VAULT] Could not persist chat_id to .env: {e}")
+
+    def _persist_group_chat_id(self, new_group_id: str) -> None:
+        """Updates group chat ID in RAM and persists into gitignored local .env."""
+        # Safeguard: do not overwrite official group ID with dummy test IDs
+        if str(new_group_id).strip() in ("-100123456789", "test_group", "123456"):
+            self.group_chat_id = str(new_group_id)
+            return
+        self.group_chat_id = str(new_group_id)
+        try:
+            settings.TELEGRAM_GROUP_CHAT_ID = str(new_group_id)
+        except Exception:
+            pass
+        os.environ["TELEGRAM_GROUP_CHAT_ID"] = str(new_group_id)
+        env_path = Path(".env")
+        if env_path.exists():
+            try:
+                lines = env_path.read_text(encoding="utf-8").splitlines()
+                updated = False
+                new_lines = []
+                for line in lines:
+                    if line.strip().startswith("TELEGRAM_GROUP_CHAT_ID="):
+                        new_lines.append(f"TELEGRAM_GROUP_CHAT_ID={new_group_id}")
+                        updated = True
+                    else:
+                        new_lines.append(line)
+                if not updated:
+                    new_lines.append(f"TELEGRAM_GROUP_CHAT_ID={new_group_id}")
+                env_path.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
+            except Exception as e:
+                logger.debug(f"[TELEGRAM VAULT] Could not persist group_chat_id to .env: {e}")
 
     async def delete_message(self, chat_id: str, message_id: int) -> bool:
         """Deletes a message from Telegram (0 forensic trace on user chat history)."""
@@ -148,7 +256,7 @@ class TelegramNeuralVault:
         if not self.is_configured:
             return False
 
-        chat = target_chat_id or (self.group_chat_id if message_thread_id else self.chat_id) or self.chat_id
+        chat = target_chat_id or self.active_chat_id or (self.group_chat_id if message_thread_id else self.chat_id) or self.chat_id
         if not chat:
             await self.auto_discover_chat_id()
             chat = self.chat_id
@@ -157,14 +265,16 @@ class TelegramNeuralVault:
             logger.warning("[TELEGRAM VAULT] Cannot send message: Chat ID unknown. Send /start to @LesaintAi_bot.")
             return False
 
+        effective_thread = message_thread_id if message_thread_id is not None else self.active_thread_id
+
         # Mode NÉANT : pure memory payload
         payload = {
             "chat_id": chat,
             "text": text[:4000],  # Telegram max length protection
             "parse_mode": parse_mode
         }
-        if message_thread_id:
-            payload["message_thread_id"] = message_thread_id
+        if effective_thread:
+            payload["message_thread_id"] = effective_thread
 
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
@@ -179,20 +289,25 @@ class TelegramNeuralVault:
             logger.debug(f"[TELEGRAM VAULT] Network error sending message: {e}")
             return False
 
-    async def send_document(self, filename: str, data: bytes, caption: Optional[str] = None) -> bool:
+    async def send_document(self, filename: str, data: bytes, caption: Optional[str] = None, message_thread_id: Optional[int] = None, target_chat_id: Optional[str] = None) -> bool:
         """Uploads an in-memory document (e.g. GZIP compressed memory checkpoint) to Telegram cloud."""
         if not self.is_configured:
             return False
 
-        if not self.chat_id:
+        chat = target_chat_id or self.active_chat_id or self.chat_id
+        if not chat:
             await self.auto_discover_chat_id()
+            chat = self.chat_id
 
-        if not self.chat_id:
+        if not chat:
             logger.warning("[TELEGRAM VAULT] Cannot send document: Chat ID unknown.")
             return False
 
+        effective_thread = message_thread_id if message_thread_id is not None else self.active_thread_id
         files = {"document": (filename, data, "application/gzip")}
-        data_fields = {"chat_id": self.chat_id}
+        data_fields = {"chat_id": chat}
+        if effective_thread:
+            data_fields["message_thread_id"] = effective_thread
         if caption:
             data_fields["caption"] = caption[:1000]
 
@@ -229,14 +344,18 @@ class TelegramNeuralVault:
                     return stream
         except Exception as e:
             logger.debug(f"[TELEGRAM VAULT] File download error: {e}")
-        return None
+            return None
 
-    async def send_voice(self, voice_data: io.BytesIO, caption: Optional[str] = None) -> bool:
+    async def send_voice(self, voice_data: io.BytesIO, caption: Optional[str] = None, message_thread_id: Optional[int] = None, target_chat_id: Optional[str] = None) -> bool:
         """Sends an in-memory voice message back to Telegram."""
-        if not self.is_configured or not self.chat_id:
+        chat = target_chat_id or self.active_chat_id or self.chat_id
+        if not self.is_configured or not chat:
             return False
+        effective_thread = message_thread_id if message_thread_id is not None else self.active_thread_id
         files = {"voice": ("reply.ogg", voice_data.getvalue(), "audio/ogg")}
-        data_fields = {"chat_id": self.chat_id}
+        data_fields = {"chat_id": chat}
+        if effective_thread:
+            data_fields["message_thread_id"] = effective_thread
         if caption:
             data_fields["caption"] = caption[:1000]
         try:
@@ -247,12 +366,16 @@ class TelegramNeuralVault:
             logger.debug(f"[TELEGRAM VAULT] sendVoice error: {e}")
             return False
 
-    async def send_video(self, video_data: io.BytesIO, filename: str = "demo.mp4", caption: Optional[str] = None) -> bool:
+    async def send_video(self, video_data: io.BytesIO, filename: str = "demo.mp4", caption: Optional[str] = None, message_thread_id: Optional[int] = None, target_chat_id: Optional[str] = None) -> bool:
         """Sends an in-memory video demo back to Telegram."""
-        if not self.is_configured or not self.chat_id:
+        chat = target_chat_id or self.active_chat_id or self.chat_id
+        if not self.is_configured or not chat:
             return False
+        effective_thread = message_thread_id if message_thread_id is not None else self.active_thread_id
         files = {"video": (filename, video_data.getvalue(), "video/mp4")}
-        data_fields = {"chat_id": self.chat_id, "supports_streaming": "true"}
+        data_fields = {"chat_id": chat, "supports_streaming": "true"}
+        if effective_thread:
+            data_fields["message_thread_id"] = effective_thread
         if caption:
             data_fields["caption"] = caption[:1000]
         try:
@@ -362,7 +485,7 @@ class TelegramNeuralVault:
                         reply_to_message_id = msg.get("reply_to_message", {}).get("message_id")
                         is_mention = False
                         is_command = text.startswith("/")
-                        if "@lesaintai_bot" in text.lower():
+                        if any(kw in text.lower() for kw in ("@lesaintai_bot", "freeai", "jarvis", "doublon", "nettoie", "nettoyer")):
                             is_mention = True
                         for ent in msg.get("entities", []):
                             if ent.get("type") in ("mention", "bot_command"):
@@ -432,6 +555,7 @@ class TelegramNeuralVault:
                             # If message is from a group, remember group_chat_id when master interacts
                             if is_master:
                                 self.group_chat_id = sender_chat_id
+                                self._persist_group_chat_id(sender_chat_id)
                             else:
                                 # Non-master user in group: block admin commands
                                 if text.lower().startswith(("/setup", "/mode", "/sudo", "/claim", "/auth", "/recover")):
@@ -572,7 +696,7 @@ class TelegramNeuralVault:
                             if not safe:
                                 await self.send_message(f"⛔ <b>VETO SACRÉ :</b> Ordre rejeté ({reason})", message_thread_id=message_thread_id)
                                 continue
-                            return TelegramCommand(text, user_name, is_voice=is_voice, media_bytes=media_bytes, media_type=media_type, message_id=message_id, reply_to_message_id=reply_to_message_id, is_mention=is_mention, message_thread_id=message_thread_id)
+                            return TelegramCommand(text, user_name, is_voice=is_voice, media_bytes=media_bytes, media_type=media_type, message_id=message_id, reply_to_message_id=reply_to_message_id, is_mention=is_mention, message_thread_id=message_thread_id, target_chat_id=sender_chat_id)
         except Exception as e:
             logger.debug(f"[TELEGRAM VAULT] Polling error: {e}")
         return None
@@ -603,7 +727,7 @@ class TelegramNeuralVault:
         """Creates a forum topic in a supergroup and returns its message_thread_id."""
         if not self.is_configured:
             return None
-        chat = target_chat_id or self.group_chat_id or self.chat_id
+        chat = self._resolve_supergroup_chat_id(target_chat_id)
         if not chat:
             return None
         payload = {
@@ -629,19 +753,26 @@ class TelegramNeuralVault:
             logger.debug(f"[TELEGRAM VAULT] createForumTopic error: {e}")
         return None
 
-    async def setup_community_hq(self, target_chat_id: Optional[str] = None) -> Dict[str, Any]:
-        """Automatically provisions all 6 dedicated command topics with welcome briefs."""
-        chat = target_chat_id or self.group_chat_id or self.chat_id
+    async def setup_community_hq(self, target_chat_id: Optional[str] = None, force_recreate: bool = False) -> Dict[str, Any]:
+        """Automatically provisions the 5 specialized command topics plus General brief."""
+        chat = self._resolve_supergroup_chat_id(target_chat_id)
         if not self.is_configured or not chat:
             return {"success": False, "error": "Bot non configuré ou Chat ID inconnu"}
 
-        # Idempotency safeguard: if topics are already set up, avoid creating duplicates
-        if self.topic_map and len(self.topic_map) >= 6:
-            logger.info("[TELEGRAM VAULT] Topics already registered. Skipping re-creation to prevent duplicates.")
-            return {"success": True, "topics_created": self.topic_map, "total_created": len(self.topic_map), "already_existed": True}
+        # Telegram root general topic is natively message_thread_id 1
+        self.topic_map["general"] = 1
+
+        required_keys = {"career", "crypto", "defense", "forge", "tribute"}
+        if not force_recreate and required_keys.issubset(self.topic_map.keys()):
+            logger.info("[TELEGRAM VAULT] 5 specialized topics already registered. Skipping re-creation to prevent duplicates.")
+            return {
+                "success": True,
+                "topics_created": self.topic_map,
+                "total_created": len(self.topic_map),
+                "already_existed": True
+            }
 
         topics_spec = [
-            {"key": "general", "name": "🎯 Général & Commandement", "color": 0x6FB9F0, "brief": "Bienvenue dans le salon de commandement général. Échanges directs, vision, stratégie et requêtes globales avec FreeAI Jarvis."},
             {"key": "career", "name": "💼 Career & Radar Remote", "color": 0x8EEE98, "brief": "Flux automatisé de Career-OS. Veille quotidienne sur les offres d'emploi remote scorées (WeWorkRemotely, RemoteOK, Remotive)."},
             {"key": "crypto", "name": "📈 Crypto & Défi 500$", "color": 0xFFD67E, "brief": "QG du Défi Anniversaire : constitution des 500$ en crypto d'ici le 5 Février. Arbitrage DEX AMM, opportunités Web3 et suivi de marché."},
             {"key": "defense", "name": "🛡️ Cyberdéfense & Sentinelle", "color": 0xFB6F5F, "brief": "Surveillance active, pare-feu cognitif, détection d'intrusions, santé des VPS gratuits et statut de sécurité."},
@@ -649,30 +780,165 @@ class TelegramNeuralVault:
             {"key": "tribute", "name": "🎁 Sanctuaire Sacré", "color": 0xFF93B2, "brief": "Salon confidentiel réservé aux événements sacrés, profil créateur Michael SAGBO et remise sécurisée des 12 mots."}
         ]
 
-        created = {}
+        created = {"🎯 Général": 1}
         for t in topics_spec:
             thread_id = await self.create_forum_topic(name=t["name"], icon_color=t["color"], target_chat_id=chat)
             if thread_id:
                 self.topic_map[t["key"]] = thread_id
                 created[t["name"]] = thread_id
-                welcome_msg = (
-                    f"<b>Salon Initialisé : {t['name']}</b>\n\n"
-                    f"{t['brief']}\n\n"
-                    f"<i>⚙️ Piloté souverainement par FreeAI Jarvis</i>"
-                )
+                welcome_msg = self.get_topic_charter(t["key"])
                 await self.send_message(welcome_msg, message_thread_id=thread_id, target_chat_id=chat)
+                await asyncio.sleep(0.15)  # Telegram API flood control
+
+        # Automatically publish the comprehensive guide into the General topic (thread 1)
+        await self.send_message(
+            self.get_community_guide_text(),
+            message_thread_id=1,
+            target_chat_id=chat
+        )
+
+        self._persist_topic_map()
 
         return {
             "success": True,
             "topics_created": created,
-            "total_created": len(created)
+            "total_created": len(self.topic_map)
         }
+
+    def get_topic_charter(self, topic_key: str) -> str:
+        """Returns the specific charter, role description and rules for each official topic."""
+        charters = {
+            "general": (
+                "🏛️ <b>[SALON GÉNÉRAL : 🎯 COMMANDEMENT & PILOTAGE STRATÉGIQUE]</b>\n\n"
+                "• <b>Vocation :</b> Salon principal d'accueil, de pilotage stratégique et d'échanges directs avec FreeAI Jarvis.\n"
+                "• <b>Ce qui s'y dit :</b>\n"
+                "  - Vos réflexions, requêtes spontanées (texte ou note vocale) et synchronisation générale.\n"
+                "  - Changement de mode d'autorité (<code>/mode freeAi</code> ou <code>/mode lesaintAi</code>).\n"
+                "  - Orchestration de l'essaim cloud gratuit mondial (<code>/swarm &lt;mission&gt;</code>).\n"
+                "  - Appel direct Full-Duplex avec canvas synesthésique (<code>/call</code>).\n"
+                "• <b>Ton & Style :</b> Complice, souverain, précis et réactif.\n"
+                "• <b>Commandes clés :</b> <code>/mode</code>, <code>/swarm</code>, <code>/call</code>, <code>/status</code>, <code>/clean_hq</code>, <code>/setup_hq</code>, <code>/guide</code>"
+            ),
+            "career": (
+                "🏛️ <b>[SALON SPÉCIALISÉ : 💼 CAREER & RADAR REMOTE]</b>\n\n"
+                "• <b>Vocation :</b> Radar automatisé de votre trajectoire professionnelle et veille d'offres remote à haute valeur.\n"
+                "• <b>Ce qui s'y dit :</b>\n"
+                "  - Alertes quotidiennes des meilleures offres d'emploi remote scorées par le moteur (WeWorkRemotely, RemoteOK, Remotive).\n"
+                "  - Analyse des offres cibles : rémunération en devises fortes ($/€), stacks demandées, postes 100% télétravail international.\n"
+                "  - Génération de lettres de candidature sur-mesure et simulation d'entretiens techniques.\n"
+                "• <b>Règle du salon :</b> Priorité absolue aux opportunités qualifiées à fort ROI et contrats remote internationaux.\n"
+                "• <b>Commandes clés :</b> <code>/career status</code>, <code>/career radar run</code>, <code>/career radar test</code>"
+            ),
+            "crypto": (
+                "🏛️ <b>[SALON SPÉCIALISÉ : 📈 CRYPTO & DÉFI 500$]</b>\n\n"
+                "• <b>Vocation :</b> Laboratoire Web3, mathématiques de finance décentralisée et suivi du Défi Anniversaire.\n"
+                "• <b>Ce qui s'y dit :</b>\n"
+                "  - Suivi du compte à rebours avant votre anniversaire du <b>5 Février 2002</b> et progression de la cagnotte &ge; 500$ en crypto échangeable.\n"
+                "  - Simulations mathématiques d'arbitrage sur pools AMM constant-product (x · y = k) via <code>/domain amm</code>.\n"
+                "  - Dimensionnement de positions et gestion stricte du risque à 2% via <code>/domain risk</code>.\n"
+                "  - Veille active sur les opportunités DeFi, pools de liquidité et protocoles sécurisés.\n"
+                "• <b>Règle d'or :</b> Règle des 2% de risque maximal par trade. Zéro levier hasardeux.\n"
+                "• <b>Commandes clés :</b> <code>/birthday status</code>, <code>/birthday challenge</code>, <code>/domain amm &lt;rx&gt; &lt;ry&gt; &lt;dx&gt;</code>, <code>/domain risk &lt;cap&gt; &lt;risk%&gt; &lt;sl%&gt;</code>"
+            ),
+            "defense": (
+                "🏛️ <b>[SALON SPÉCIALISÉ : 🛡️ CYBERDÉFENSE & SENTINELLE]</b>\n\n"
+                "• <b>Vocation :</b> Surveillance opérationnelle, pare-feu cognitif, intégrité et statut de sécurité du système.\n"
+                "• <b>Ce qui s'y dit :</b>\n"
+                "  - Rapports de pare-feu cognitif, détection d'intrusions et bannissements d'IPs hostiles en RAM (<code>/defense status</code>).\n"
+                "  - Alertes en direct lors de toute tentative de force brute ou de sonde suspecte.\n"
+                "  - Monitoring et cartographie des serveurs Always Free de secours (Oracle Cloud Always Free, GCP e2-micro, HuggingFace Spaces via <code>/cloud list</code>).\n"
+                "  - Audits de dépendances, détection de fuite de secrets et intégrité du code.\n"
+                "• <b>Commandes clés :</b> <code>/defense status</code>, <code>/defense test &lt;ip&gt;</code>, <code>/cloud list</code>"
+            ),
+            "forge": (
+                "🏛️ <b>[SALON SPÉCIALISÉ : ⚡ FORGE & CODE LAB]</b>\n\n"
+                "• <b>Vocation :</b> Atelier d'ingénierie logicielle, architecture, design Shadcn et bancs de tests.\n"
+                "• <b>Ce qui s'y dit :</b>\n"
+                "  - Commits Git, synthèses de code, bancs de tests (preuves du rouge, tests de non-régression à 100%).\n"
+                "  - Exploration et adaptation fidèle des composants Shadcn UI par domaine métier (<code>/ui templates</code>, <code>/ui inspect</code>).\n"
+                "  - Architectures applicatives React, Next.js, FastAPI et automatisation système.\n"
+                "• <b>Commandes clés :</b> <code>/ui templates</code>, <code>/ui inspect &lt;domaine&gt;</code>, <code>/ui adapt &lt;domaine&gt;</code>"
+            ),
+            "tribute": (
+                "🏛️ <b>[SALON SPÉCIALISÉ : 🎁 SANCTUAIRE SACRÉ]</b>\n\n"
+                "• <b>Vocation :</b> Espace inviolable et ultra-confidentiel dédié au créateur Michael SAGBO.\n"
+                "• <b>Ce qui s'y dit :</b>\n"
+                "  - Rappel immuable de votre identité souveraine et de votre date de naissance sacrée (<b>5 Février 2002</b>).\n"
+                "  - Délivrance solennelle chaque 5 février des 12 mots secrets BIP-39 ouvrant l'accès au portefeuille crypto constitué.\n"
+                "  - Sauvegarde chiffrée des secrets créateur et clé de résurrection Phénix.\n"
+                "• <b>Règle d'or :</b> Strictement réservé aux échanges intimes et à la souveraineté en RAM volatile (0 trace sur SSD).\n"
+                "• <b>Commandes clés :</b> <code>/birthday gift</code>, <code>/claim &lt;passphrase&gt;</code>, <code>/recover</code>"
+            )
+        }
+        return charters.get(topic_key, "<b>Salon de commandement opérationnel.</b>")
+
+    def get_community_guide_text(self) -> str:
+        """Returns the comprehensive sovereign guide and command reference for the Telegram community."""
+        return (
+            "📖 <b>GUIDE OFFICIEL FREEAI SOUVERAIN & QG COMMUNAUTÉ</b>\n\n"
+            "Bienvenue dans le centre de commandement unifié FreeAI Jarvis.\n"
+            "Ce guide détaille les deux modes d'exécution, la gestion des salons et l'assignation de missions autonomes.\n\n"
+            "━━━━━━━━━━━━━━━━━━━━\n"
+            "<b>1. LES DEUX MODES D'EXÉCUTION</b>\n"
+            "━━━━━━━━━━━━━━━━━━━━\n\n"
+            "🛡️ <b>Mode Standard : <code>freeAi</code> (Frugal, Sécurisé, Confiné)</b>\n"
+            "• <b>Périmètre :</b> Confinement en bac à sable strict. Zéro écriture non autorisée sur disque SSD (Mode NÉANT pur, 100% RAM volatile).\n"
+            "• <b>Privilèges Sudo :</b> ❌ <b>Désactivés</b> (Sécurité maximale contre toute altération système).\n"
+            "• <b>Accès Système :</b> Lecture globale autorisée sur tout le PC pour analyse, audit et synthèse.\n"
+            "• <b>Idéal pour :</b> Code quotidien, audits de sécurité, scraping web, modèles AMM mathématiques, veille Career-OS et requêtes générales.\n"
+            "• <b>Bascule :</b> <code>/mode freeAi</code>\n\n"
+            "⚡ <b>Mode Super-Utilisateur : <code>lesaintAi</code> (Pleins Pouvoirs Souverains)</b>\n"
+            "• <b>Périmètre :</b> Déverrouillage intégral des privilèges de Michael SAGBO.\n"
+            "• <b>Privilèges Sudo :</b> ✔ <b>Activés</b> (Exécution root autonome, installations de paquets apt/pip, configuration réseau et Docker).\n"
+            "• <b>Isolation d'Élite :</b> Exécution des commandes critiques dans un conteneur Shadow-Docker volatile en mémoire vive.\n"
+            "• <b>Sentinelle de la Vie :</b> 🛡️ Veto inviolable du <i>SacredLifeSentinel</i> protégeant les vies humaines et infrastructures vitales.\n"
+            "• <b>Bascule :</b> <code>/mode lesaintAi</code> ou préfixe <code>sudo &lt;commande&gt;</code>\n\n"
+            "━━━━━━━━━━━━━━━━━━━━\n"
+            "<b>2. GESTION DU QG & DES SALONS</b>\n"
+            "━━━━━━━━━━━━━━━━━━━━\n\n"
+            "• <code>/setup_hq</code> : Initialise et configure automatiquement les salons officiels sans doublon.\n"
+            "• <code>/clean_hq</code> ou <i>\"nettoie les doublons\"</i> : Supprime tous les salons en double et rétablit une configuration propre et unique.\n"
+            "• <code>/guide</code> : Affiche ce guide complet d'utilisation.\n"
+            "• <code>/status</code> : Affiche l'état en direct (CPU, RAM, Sentinelle, Modèle actif, Coffre).\n\n"
+            "━━━━━━━━━━━━━━━━━━━━\n"
+            "<b>3. COMMANDES PAR SALON & TÂCHES</b>\n"
+            "━━━━━━━━━━━━━━━━━━━━\n\n"
+            "🎯 <b>Salon Général & Commandement :</b>\n"
+            "• Dialoguez librement en texte, note vocale ou envoyez des captures d'écran.\n"
+            "• <code>/mode [freeAi|lesaintAi]</code> : Change le mode d'exécution.\n"
+            "• <code>/call</code> : Ouvre un appel WebRTC Full-Duplex en direct avec canvas synesthésique.\n"
+            "• <code>/swarm &lt;mission&gt;</code> : Déporte une tâche lourde vers l'essaim cloud gratuit mondial (0% CPU local).\n\n"
+            "💼 <b>Salon Career & Radar Remote :</b>\n"
+            "• <code>/career status</code> : État du moteur Career-OS et des indexeurs.\n"
+            "• <code>/career radar run</code> : Scrape et score les offres d'emploi remote (WeWorkRemotely, RemoteOK, Remotive).\n"
+            "• <code>/career radar test</code> : Test d'intégrité du radar de missions.\n\n"
+            "📈 <b>Salon Crypto & Défi 500$ :</b>\n"
+            "• <code>/birthday status</code> : Compte à rebours avant le 5 Février (Anniversaire de Michael).\n"
+            "• <code>/birthday challenge</code> : Suivi du défi autonome du portefeuille crypto &ge; 500$.\n"
+            "• <code>/domain amm &lt;x&gt; &lt;y&gt; &lt;dx&gt;</code> : Simulateur de swap AMM constant-product (x·y=k).\n"
+            "• <code>/domain risk &lt;capital&gt; &lt;risk_pct&gt; &lt;stop_loss_pct&gt;</code> : Calculateur de money management strict (2% max).\n\n"
+            "🛡️ <b>Salon Cyberdéfense & Sentinelle :</b>\n"
+            "• <code>/defense status</code> : Statut du pare-feu cognitif, détection d'intrusion et bannissements RAM.\n"
+            "• <code>/defense test &lt;ip&gt;</code> : Simulation et audit de réaction face à une tentative d'intrusion.\n"
+            "• <code>/cloud list</code> : État du pool de serveurs et VPS gratuits (Oracle Always Free, GCP, HuggingFace).\n\n"
+            "⚡ <b>Salon Forge & Code Lab :</b>\n"
+            "• <code>/ui templates</code> : Liste des templates Shadcn UI par domaine (Crypto, Finance, AI-Chat, etc.).\n"
+            "• <code>/ui inspect &lt;domaine&gt;</code> : Analyse approfondie des composants d'un template dans ~/Rendue/shadcn.\n"
+            "• <code>/ui adapt &lt;domaine&gt;</code> : Extraction et adaptation propre sans réinventer de composants bizarres.\n\n"
+            "🎁 <b>Sanctuaire Sacré :</b>\n"
+            "• Espace privé réservé à la délivrance des 12 mots secrets BIP-39 du portefeuille crypto le 5 Février !\n\n"
+            "<i>💡 Astuce : Vous pouvez aussi simplement envoyer une note vocale ou poser n'importe quelle question en langage naturel !</i>"
+        )
 
     async def delete_forum_topic(self, message_thread_id: int, target_chat_id: Optional[str] = None) -> bool:
         """Deletes a forum topic and all its messages in a supergroup."""
         if not self.is_configured:
             return False
-        chat = target_chat_id or self.group_chat_id or self.chat_id
+        # Thread 1 is Telegram's native root General topic and cannot be deleted
+        if message_thread_id == 1:
+            logger.debug("[TELEGRAM VAULT] Thread 1 is root General topic, skipping delete.")
+            return False
+        chat = self._resolve_supergroup_chat_id(target_chat_id)
         if not chat:
             return False
         payload = {
@@ -691,28 +957,36 @@ class TelegramNeuralVault:
             logger.debug(f"[TELEGRAM VAULT] deleteForumTopic error: {e}")
         return False
 
-    async def clean_duplicate_topics(self, target_chat_id: Optional[str] = None, max_scan: int = 50) -> Dict[str, Any]:
+    async def clean_duplicate_topics(self, target_chat_id: Optional[str] = None, max_scan: int = 150) -> Dict[str, Any]:
         """Scans and deletes existing forum topics to remove duplicates and resets the HQ cleanly."""
-        chat = target_chat_id or self.group_chat_id or self.chat_id
+        chat = self._resolve_supergroup_chat_id(target_chat_id)
         if not self.is_configured or not chat:
             return {"success": False, "error": "Chat ID non configuré"}
 
         import asyncio
         deleted_count = 0
-        for thread_id in range(1, max_scan + 1):
+        # Scan from thread 2 to max_scan (thread 1 is root and protected)
+        for thread_id in range(2, max_scan + 1):
             success = await self.delete_forum_topic(message_thread_id=thread_id, target_chat_id=chat)
             if success:
                 deleted_count += 1
                 await asyncio.sleep(0.15)  # Telegram API flood control
 
         self.topic_map.clear()
-        setup_res = await self.setup_community_hq(target_chat_id=chat)
+        try:
+            cache_file = self._get_topics_cache_path()
+            if cache_file.exists():
+                cache_file.unlink()
+        except Exception:
+            pass
+
+        setup_res = await self.setup_community_hq(target_chat_id=chat, force_recreate=True)
 
         return {
             "success": True,
             "deleted_count": deleted_count,
             "topics_recreated": setup_res.get("topics_created", {}),
-            "total_canonical": setup_res.get("total_created", 0)
+            "total_canonical": setup_res.get("total_created", 6)
         }
 
     async def save_conversation_snapshot(self, conv_memory: Any) -> bool:

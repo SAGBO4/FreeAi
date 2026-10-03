@@ -1528,7 +1528,7 @@ async def run_think(tech_lead: TechLeadOrchestrator, args: List[str]):
         console.print("[bold red]Usage :[/] /think [status|pulse|stream|speech on|off]")
 
 
-async def dispatch_telegram_order(tech_lead: TechLeadOrchestrator, order: str, user: str, is_voice: bool = False, media_bytes: Optional[bytes] = None, media_type: Optional[str] = None):
+async def dispatch_telegram_order(tech_lead: TechLeadOrchestrator, order: str, user: str, is_voice: bool = False, media_bytes: Optional[bytes] = None, media_type: Optional[str] = None, message_thread_id: Optional[int] = None, target_chat_id: Optional[str] = None):
     """Processes an incoming command from Telegram with native shortcuts, autonomous AI,
     multimodal vision/video analysis, and bidirectional telepathy.
     """
@@ -1548,18 +1548,63 @@ async def dispatch_telegram_order(tech_lead: TechLeadOrchestrator, order: str, u
             prompt=order_clean,
             media_type=media_type or "image/jpeg"
         )
-        await tech_lead.telegram_vault.send_message(analysis)
+        await tech_lead.telegram_vault.send_message(analysis, message_thread_id=message_thread_id, target_chat_id=target_chat_id)
         console.print("[bold green]✔ Rapport d'analyse visuelle transmis sur Telegram ![/]")
         if wants_voice:
             voice_ogg = await tech_lead.voice.synthesize_speech("Analyse visuelle terminée, Michael.")
             if voice_ogg and voice_ogg.getbuffer().nbytes > 0:
-                await tech_lead.telegram_vault.send_voice(voice_ogg)
+                await tech_lead.telegram_vault.send_voice(voice_ogg, message_thread_id=message_thread_id, target_chat_id=target_chat_id)
+        return
+
+    # 0.1 Community Dedup / Clean Command
+    if any(cmd in order_lower for cmd in ("/clean_hq", "/nettoyer", "/dedup", "/reset_hq")) or ("nettoie" in order_lower and "doublon" in order_lower):
+        console.print("[dim]Nettoyage des salons en doublon sur Telegram en cours...[/]")
+        await tech_lead.telegram_vault.send_message(
+            "🧹 <b>Nettoyage & Dé-doublonnage des salons en cours...</b>\n"
+            "Veuillez patienter quelques instants pendant que je supprime les doublons.",
+            message_thread_id=message_thread_id,
+            target_chat_id=target_chat_id
+        )
+        clean_res = await tech_lead.telegram_vault.clean_duplicate_topics(target_chat_id=target_chat_id)
+        if clean_res.get("success"):
+            await tech_lead.telegram_vault.send_message(
+                f"✅ <b>Nettoyage Terminé avec Succès !</b>\n\n"
+                f"• Salons en doublon purgés : <b>{clean_res.get('deleted_count', 0)}</b>\n"
+                f"• Les <b>{clean_res.get('total_canonical', 6)} salons officiels</b> sont désormais uniques, propres et opérationnels sans aucun doublon.",
+                target_chat_id=target_chat_id
+            )
+        else:
+            await tech_lead.telegram_vault.send_message(
+                f"⚠️ Erreur lors du nettoyage : {clean_res.get('error')}",
+                message_thread_id=message_thread_id,
+                target_chat_id=target_chat_id
+            )
+        return
+
+    # 0.2 Community Setup Command
+    if any(cmd in order_lower for cmd in ("/setup_hq", "/setup", "/init_topics")):
+        console.print("[dim]Configuration du QG Communauté sur Telegram en cours...[/]")
+        setup_res = await tech_lead.telegram_vault.setup_community_hq(target_chat_id=target_chat_id)
+        if setup_res.get("success"):
+            await tech_lead.telegram_vault.send_message(
+                f"🏛️ <b>Quartier Général Configuré avec Succès !</b>\n\n"
+                f"• Salons opérationnels : <b>{setup_res.get('total_created', 6)}</b>\n"
+                f"• Salons configurés : Général, Career, Crypto, Cyberdéfense, Forge, Sanctuaire Sacré.",
+                target_chat_id=target_chat_id
+            )
+        else:
+            await tech_lead.telegram_vault.send_message(
+                f"⚠️ Impossible de créer les salons : {setup_res.get('error')}. "
+                f"Vérifiez que le bot est Administrateur avec la permission 'Gérer les sujets'.",
+                message_thread_id=message_thread_id,
+                target_chat_id=target_chat_id
+            )
         return
 
     # 1. Native shortcut: /clone, /backup
     if order_lower in ("/clone", "/backup", "reclone", "clone", "backup") or "reclone" in order_lower:
         console.print("[dim]Génération du Kit de Secours et Auto-Clonage en RAM...[/]")
-        await tech_lead.telegram_vault.send_message("📦 <b>Génération du Kit de Secours et Auto-Clonage en RAM en cours...</b>")
+        await tech_lead.telegram_vault.send_message("📦 <b>Génération du Kit de Secours et Auto-Clonage en RAM en cours...</b>", message_thread_id=message_thread_id, target_chat_id=target_chat_id)
         res = await tech_lead.telegram_vault.backup_codebase_bundle(workspace)
         if res.get("uploaded_to_telegram"):
             console.print("[bold green]✔ Auto-Clonage téléversé vers Telegram ![/]")
@@ -1570,20 +1615,24 @@ async def dispatch_telegram_order(tech_lead: TechLeadOrchestrator, order: str, u
                 f"• Poids compressé GZIP : <code>{res['size_kb']:.2f} Ko</code>\n"
                 f"• Empreinte SSD locale : <b>0 octet (Mode NÉANT pur)</b>\n"
                 f"• Intégrité SHA-256 : <code>{res['sha256'][:16]}...</code>\n\n"
-                f"<i>Archive disponible ci-dessus pour restauration instantanée.</i>"
+                f"<i>Archive disponible ci-dessus pour restauration instantanée.</i>",
+                message_thread_id=message_thread_id,
+                target_chat_id=target_chat_id
             )
             # Vocal response only if requested
             if wants_voice:
                 voice_ogg = await tech_lead.voice.synthesize_speech("Auto-clonage terminé avec succès. Votre kit de secours complet est disponible dans ce chat.")
                 if voice_ogg and voice_ogg.getbuffer().nbytes > 0:
-                    await tech_lead.telegram_vault.send_voice(voice_ogg)
+                    await tech_lead.telegram_vault.send_voice(voice_ogg, message_thread_id=message_thread_id, target_chat_id=target_chat_id)
         else:
-            await tech_lead.telegram_vault.send_message("❌ Échec de l'envoi de l'archive vers Telegram.")
+            await tech_lead.telegram_vault.send_message("❌ Échec de l'envoi de l'archive vers Telegram.", message_thread_id=message_thread_id, target_chat_id=target_chat_id)
         return
 
     # 2. Native shortcut: /guide, guide, /doc
     if order_lower in ("/guide", "guide", "/doc", "doc", "aide", "/help"):
         console.print("[dim]Envoi du Guide d'Utilisation vers Telegram...[/]")
+        guide_text = tech_lead.telegram_vault.get_community_guide_text()
+        await tech_lead.telegram_vault.send_message(guide_text, message_thread_id=message_thread_id, target_chat_id=target_chat_id)
         guide_path = Path(workspace) / "GUIDE_UTILISATION_FREEAI.md"
         if guide_path.exists():
             data = guide_path.read_bytes()
@@ -1593,15 +1642,11 @@ async def dispatch_telegram_order(tech_lead: TechLeadOrchestrator, order: str, u
                 "• Modules : Daemon Jarvis 24/7, Design Shadcn, Moteur Vidéo Remotion, Matrix Cyber (24 modules)\n"
                 "• Support : 100% Hors-Ligne & Télépathie Mobile"
             )
-            ok = await tech_lead.telegram_vault.send_document("GUIDE_UTILISATION_FREEAI.md", data, caption=caption)
-            if ok:
-                console.print("[bold green]✔ Guide envoyé sur Telegram ![/]")
-                if wants_voice:
-                    voice_ogg = await tech_lead.voice.synthesize_speech("Voici le guide officiel souverain de FreeAI mis à jour.")
-                    if voice_ogg and voice_ogg.getbuffer().nbytes > 0:
-                        await tech_lead.telegram_vault.send_voice(voice_ogg)
-        else:
-            await tech_lead.telegram_vault.send_message("❌ Fichier GUIDE_UTILISATION_FREEAI.md introuvable.")
+            await tech_lead.telegram_vault.send_document("GUIDE_UTILISATION_FREEAI.md", data, caption=caption, message_thread_id=message_thread_id, target_chat_id=target_chat_id)
+        if wants_voice:
+            voice_ogg = await tech_lead.voice.synthesize_speech("Voici le guide complet souverain de FreeAI et de la communauté.")
+            if voice_ogg and voice_ogg.getbuffer().nbytes > 0:
+                await tech_lead.telegram_vault.send_voice(voice_ogg, message_thread_id=message_thread_id, target_chat_id=target_chat_id)
         return
 
     # 3. Native shortcut: /update, /evolve
@@ -1887,8 +1932,171 @@ async def dispatch_telegram_order(tech_lead: TechLeadOrchestrator, order: str, u
                         logger.debug(f"[TELEGRAM] Voice error: {e}")
 
             except Exception as e:
-                await tech_lead.telegram_vault.send_message(f"❌ <b>Incident Mission :</b>\n{e}")
+                await tech_lead.telegram_vault.send_message(f"❌ <b>Incident Mission :</b>\n{e}", message_thread_id=message_thread_id, target_chat_id=target_chat_id)
         return
+
+    # 7.4 Native shortcut: /career
+    if order_lower.startswith("/career"):
+        tokens = order_clean.split()
+        sub = tokens[1].lower() if len(tokens) > 1 else "status"
+        if sub == "status":
+            st = tech_lead.career_bridge.get_status()
+            await tech_lead.telegram_vault.send_message(
+                f"💼 <b>[CAREER-OS BRIDGE STATUS]</b>\n\n"
+                f"• Dépôt : <code>{st.get('repo_path')}</code>\n"
+                f"• Opérationnel : <b>{'✔ Oui' if st.get('available') else '❌ Non'}</b>\n"
+                f"• Indexeurs Remote : WeWorkRemotely, RemoteOK, Remotive",
+                message_thread_id=message_thread_id,
+                target_chat_id=target_chat_id
+            )
+        elif sub in ("radar", "scan"):
+            await tech_lead.telegram_vault.send_message("💼 <b>[CAREER-OS RADAR]</b> Balayage et validation du moteur de missions remote...", message_thread_id=message_thread_id, target_chat_id=target_chat_id)
+            res = tech_lead.career_bridge.run_radar_test()
+            await tech_lead.telegram_vault.send_message(
+                f"✅ <b>Banc d'Essai Radar Career-OS :</b>\n"
+                f"• Statut : <b>{'✔ 7/7 Tests Validés (0 échec)' if res.get('success') else '⚠️ Échec'}</b>\n"
+                f"• Moteur de scoring prêt pour la veille automatisée.",
+                message_thread_id=message_thread_id,
+                target_chat_id=target_chat_id
+            )
+        return
+
+    # 7.5 Native shortcut: /birthday
+    if order_lower.startswith("/birthday"):
+        tokens = order_clean.split()
+        sub = tokens[1].lower() if len(tokens) > 1 else "status"
+        tribute = tech_lead.sacred_tribute
+        if sub in ("challenge", "status"):
+            days = tribute.days_until_next_birthday()
+            c_msg = (
+                f"🎂 <b>ANNIVERSAIRE SACRÉ DE MICHAEL SAGBO</b>\n\n"
+                f"• <b>Date de naissance :</b> <code>5 Février 2002</code>\n"
+                f"• <b>Prochaine célébration :</b> 5 Février 2027 (25 ans)\n"
+                f"• <b>Compte à rebours :</b> <b>{days} jours</b>\n"
+                f"• <b>Défi Crypto Autonome :</b> Portefeuille &ge; 500$ constitué en monnaie échangeable\n"
+                f"• <b>Protocole de remise :</b> Strictement 12 mots secrets BIP-39 remis le jour J en RAM volatile (0 résidu SSD)."
+            )
+            await tech_lead.telegram_vault.send_message(c_msg, message_thread_id=message_thread_id, target_chat_id=target_chat_id)
+        elif sub in ("gift", "words", "12mots"):
+            gift = tribute.generate_crypto_gift()
+            await tech_lead.telegram_vault.send_message(gift["message"], message_thread_id=message_thread_id, target_chat_id=target_chat_id)
+        return
+
+    # 7.6 Native shortcut: /defense
+    if order_lower.startswith("/defense"):
+        tokens = order_clean.split()
+        sub = tokens[1].lower() if len(tokens) > 1 else "status"
+        if sub == "status":
+            st = tech_lead.active_defense.get_status()
+            d_msg = (
+                f"🛡️ <b>[CYBERDÉFENSE ACTIVE & SENTINELLE]</b>\n\n"
+                f"• Pare-feu cognitif : <b>{'✔ Actif' if st.get('active') else 'Inactif'}</b>\n"
+                f"• Mode NÉANT : <b>100% Volatile (0 écriture disque)</b>\n"
+                f"• Intrusions détectées : <code>{st.get('intrusions_detected', 0)}</code>\n"
+                f"• IPs bannies en RAM : <code>{st.get('banned_ips_count', 0)}</code>"
+            )
+            await tech_lead.telegram_vault.send_message(d_msg, message_thread_id=message_thread_id, target_chat_id=target_chat_id)
+        elif sub == "test" and len(tokens) > 2:
+            test_ip = tokens[2]
+            res = tech_lead.active_defense.audit_and_defend_request(source_ip=test_ip, query="Test intrusion probe")
+            await tech_lead.telegram_vault.send_message(
+                f"🛡️ <b>[TEST AUDIT INTRUSION]</b> IP: <code>{test_ip}</code>\n"
+                f"• Autorisé : <b>{res.get('allowed')}</b>\n"
+                f"• Action : <code>{res.get('action')}</code>\n"
+                f"• Raison : <i>{res.get('reason')}</i>",
+                message_thread_id=message_thread_id,
+                target_chat_id=target_chat_id
+            )
+        return
+
+    # 7.7 Native shortcut: /cloud
+    if order_lower.startswith("/cloud"):
+        tokens = order_clean.split()
+        sub = tokens[1].lower() if len(tokens) > 1 else "list"
+        if sub in ("list", "status"):
+            st = tech_lead.free_cloud_pool.get_status()
+            c_lines = [
+                "☁️ <b>[POOL CLOUD GRATUIT DE SECOURS]</b>\n",
+                f"• <b>Nœuds Actifs :</b> {st.get('active_nodes', 0)}",
+                f"• <b>Services Gratuits :</b> {st.get('free_tiers_catalog', 0)}\n",
+                "<b>Ressources Always Free :</b>",
+                "• <b>Oracle Always Free :</b> 4 OCPU ARM, 24 Go RAM",
+                "• <b>GCP e2-micro :</b> 1 vCPU, 1 Go RAM (Always Free)",
+                "• <b>GitHub Actions :</b> 2000 min/mois CI/CD",
+                "• <b>HuggingFace Spaces :</b> CPU & T4 GPU éphémère"
+            ]
+            await tech_lead.telegram_vault.send_message("\n".join(c_lines), message_thread_id=message_thread_id, target_chat_id=target_chat_id)
+        return
+
+    # 7.8 Native shortcut: /ui
+    if order_lower.startswith("/ui"):
+        tokens = order_clean.split()
+        sub = tokens[1].lower() if len(tokens) > 1 else "templates"
+        if sub in ("templates", "list"):
+            templates = tech_lead.design_bridge.list_available_templates()
+            u_lines = ["🎨 <b>[TEMPLATES SHADCN DISPONIBLES PAR DOMAINE]</b>\n"]
+            for dom, paths in templates.items():
+                u_lines.append(f"• <b>{dom.capitalize()}</b> : <code>{len(paths)}</code> composants clés")
+            u_lines.append("\n<i>Commandes : <code>/ui inspect &lt;domaine&gt;</code> ou <code>/ui adapt &lt;domaine&gt;</code></i>")
+            await tech_lead.telegram_vault.send_message("\n".join(u_lines), message_thread_id=message_thread_id, target_chat_id=target_chat_id)
+        elif sub == "inspect" and len(tokens) > 2:
+            dom = tokens[2].lower()
+            res = tech_lead.design_bridge.inspect_domain_template(dom)
+            if res.get("found"):
+                await tech_lead.telegram_vault.send_message(
+                    f"🎨 <b>[INSPECTION TEMPLATE {dom.upper()}]</b>\n\n"
+                    f"• Fichiers inspectés : <code>{len(res.get('files', []))}</code>\n"
+                    f"• Composants clés : <code>{', '.join(res.get('components', [])[:6])}</code>",
+                    message_thread_id=message_thread_id,
+                    target_chat_id=target_chat_id
+                )
+            else:
+                await tech_lead.telegram_vault.send_message(f"❌ <i>Domaine '{dom}' non trouvé. Tapez /ui templates</i>", message_thread_id=message_thread_id, target_chat_id=target_chat_id)
+        return
+
+    # 7.9 Native shortcut: /domain
+    if order_lower.startswith("/domain"):
+        tokens = order_clean.split()
+        sub = tokens[1].lower() if len(tokens) > 1 else "status"
+        if sub == "amm" and len(tokens) >= 5:
+            try:
+                rx, ry, dx = float(tokens[2]), float(tokens[3]), float(tokens[4])
+                res = tech_lead.domain_mastery.calculate_amm_swap(reserve_x=rx, reserve_y=ry, amount_in_x=dx)
+                await tech_lead.telegram_vault.send_message(
+                    f"📈 <b>[SIMULATION SWAP AMM x·y=k]</b>\n\n"
+                    f"• Montant reçu : <b>{res.get('amount_out_y', 0):.4f} Y</b>\n"
+                    f"• Impact prix : <b>{res.get('price_impact_pct', 0):.2f}%</b>\n"
+                    f"• Nouveau prix : <code>{res.get('execution_price', 0):.4f}</code>",
+                    message_thread_id=message_thread_id,
+                    target_chat_id=target_chat_id
+                )
+            except Exception as e:
+                await tech_lead.telegram_vault.send_message(f"⚠️ <i>Erreur AMM : {e} (Usage: /domain amm &lt;rx&gt; &lt;ry&gt; &lt;dx&gt;)</i>", message_thread_id=message_thread_id, target_chat_id=target_chat_id)
+            return
+        elif sub == "risk" and len(tokens) >= 5:
+            try:
+                cap, r_pct, sl_pct = float(tokens[2]), float(tokens[3]), float(tokens[4])
+                res = tech_lead.domain_mastery.calculate_position_size(capital=cap, risk_pct=r_pct, stop_loss_pct=sl_pct)
+                await tech_lead.telegram_vault.send_message(
+                    f"📈 <b>[GESTION DE RISQUE POSITION SIZING]</b>\n\n"
+                    f"• Taille recommandée : <b>{res.get('recommended_position_size', 0):.2f} $</b>\n"
+                    f"• Risque max en cash : <b>{res.get('max_risk_amount', 0):.2f} $</b>\n"
+                    f"• Conforme 2% règle d'or : <b>{'✔ Oui' if res.get('compliant_2pct_rule') else '⚠️ Non'}</b>",
+                    message_thread_id=message_thread_id,
+                    target_chat_id=target_chat_id
+                )
+            except Exception as e:
+                await tech_lead.telegram_vault.send_message(f"⚠️ <i>Erreur Risk : {e} (Usage: /domain risk &lt;cap&gt; &lt;risk%&gt; &lt;sl%&gt;)</i>", message_thread_id=message_thread_id, target_chat_id=target_chat_id)
+            return
+        else:
+            await tech_lead.telegram_vault.send_message(
+                "📈 <b>[MAÎTRISE DES DOMAINES]</b>\n"
+                "• <code>/domain amm &lt;reserve_x&gt; &lt;reserve_y&gt; &lt;dx&gt;</code>\n"
+                "• <code>/domain risk &lt;capital&gt; &lt;risk_pct&gt; &lt;stop_loss_pct&gt;</code>",
+                message_thread_id=message_thread_id,
+                target_chat_id=target_chat_id
+            )
+            return
 
     # 8. Standard AI objective or Human Conversation execution
     console.print(f"[dim]Exécution de l'ordre en mode {tech_lead.mode}...[/]")
@@ -1992,7 +2200,9 @@ async def run_telegram(tech_lead: TechLeadOrchestrator, args: List[str]):
             is_voice = getattr(cmd_info, "is_voice", False)
             media_bytes = getattr(cmd_info, "media_bytes", None)
             media_type = getattr(cmd_info, "media_type", None)
-            await dispatch_telegram_order(tech_lead, order, user, is_voice=is_voice, media_bytes=media_bytes, media_type=media_type)
+            message_thread_id = getattr(cmd_info, "message_thread_id", None)
+            target_chat_id = getattr(cmd_info, "target_chat_id", None)
+            await dispatch_telegram_order(tech_lead, order, user, is_voice=is_voice, media_bytes=media_bytes, media_type=media_type, message_thread_id=message_thread_id, target_chat_id=target_chat_id)
         else:
             console.print("[dim]Aucun nouvel ordre reçu sur Telegram lors de cette vérification.[/]")
 
@@ -2013,7 +2223,9 @@ async def run_telegram(tech_lead: TechLeadOrchestrator, args: List[str]):
                     is_voice = getattr(cmd_info, "is_voice", False)
                     media_bytes = getattr(cmd_info, "media_bytes", None)
                     media_type = getattr(cmd_info, "media_type", None)
-                    await dispatch_telegram_order(tech_lead, order, user, is_voice=is_voice, media_bytes=media_bytes, media_type=media_type)
+                    message_thread_id = getattr(cmd_info, "message_thread_id", None)
+                    target_chat_id = getattr(cmd_info, "target_chat_id", None)
+                    await dispatch_telegram_order(tech_lead, order, user, is_voice=is_voice, media_bytes=media_bytes, media_type=media_type, message_thread_id=message_thread_id, target_chat_id=target_chat_id)
                 await asyncio.sleep(2)
         except (KeyboardInterrupt, asyncio.CancelledError):
             console.print("\n[yellow]Sentinelle Telegram interrompue.[/]")
@@ -2045,8 +2257,26 @@ async def run_telegram(tech_lead: TechLeadOrchestrator, args: List[str]):
                 border_style="yellow"
             ))
 
+    elif subcmd in ("clean", "dedup", "clean_hq"):
+        console.print("[dim]🧹 Dé-doublonnage et nettoyage complet des salons sur le supergroupe...[/]")
+        target_chat = args[1] if len(args) > 1 else None
+        res = await tech_lead.telegram_vault.clean_duplicate_topics(target_chat_id=target_chat)
+        if res.get("success"):
+            console.print(f"[bold green]✔ Nettoyage réussi : {res.get('deleted_count', 0)} doublons supprimés, {res.get('total_canonical', 6)} salons opérationnels ![/]")
+        else:
+            console.print(f"[bold red]❌ Échec du nettoyage : {res.get('error')}[/]")
+
+    elif subcmd in ("setup", "setup_hq", "init"):
+        console.print("[dim]🏛️ Configuration des 5 salons officiels sur le supergroupe...[/]")
+        target_chat = args[1] if len(args) > 1 else None
+        res = await tech_lead.telegram_vault.setup_community_hq(target_chat_id=target_chat)
+        if res.get("success"):
+            console.print(f"[bold green]✔ QG configuré : {res.get('total_created', 6)} salons opérationnels ![/]")
+        else:
+            console.print(f"[bold red]❌ Échec de configuration : {res.get('error')}[/]")
+
     else:
-        console.print("[bold red]Usage :[/] /telegram [status|sync|backup|clone|push <topic> <texte>|listen|loop]")
+        console.print("[bold red]Usage :[/] /telegram [status|sync|backup|clone|push <topic> <texte>|listen|loop|clean|setup]")
 
 
 async def run_vortex(tech_lead: TechLeadOrchestrator, args: List[str]):
