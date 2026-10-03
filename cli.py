@@ -44,6 +44,31 @@ logger = logging.getLogger("freeai_cli")
 
 console = Console()
 
+import re
+from app.cognition.emoji_router import classify_response_emoji
+
+
+async def _smart_telegram_send(vault, response: str, cmd=None):
+    """Envoie une réponse Telegram avec routage d'émoji contextuel et support threadé."""
+    if not vault:
+        return
+    emoji = classify_response_emoji(response)
+    if not any(response.startswith(e) for e in ["💻", "🤖", "🚨", "🧠", "✅", "💬", "❌", "⚡", "🎬", "👻", "🛰️", "🛡️"]):
+        response = f"{emoji} {response}"
+
+    parse_mode = "HTML"
+    if "```" in response:
+        response = re.sub(r'```(?:\w+)?\n(.*?)\n```', r'<pre><code>\1</code></pre>', response, flags=re.DOTALL)
+        response = re.sub(r'```(.*?)```', r'<code>\1</code>', response, flags=re.DOTALL)
+
+    message_id = getattr(cmd, "message_id", None) if cmd else None
+
+    if len(response) > 300 and message_id and hasattr(vault, "send_reply"):
+        await vault.send_reply(response, message_id, parse_mode=parse_mode)
+    elif hasattr(vault, "send_message"):
+        await vault.send_message(response, parse_mode=parse_mode)
+
+
 SLASH_COMMANDS = [
     "/mode",
     "/mode freeAi",
@@ -105,6 +130,17 @@ SLASH_COMMANDS = [
     "/satellite iss",
     "/satellite menace",
     "/satellite meteo",
+    "/defense",
+    "/defense status",
+    "/defense incidents",
+    "/defense ban",
+    "/defense unban",
+    "/defense test",
+    "/cloud",
+    "/cloud list",
+    "/cloud ping",
+    "/cloud add",
+    "/cloud dispatch",
     "/help",
     "/clear",
     "/exit",
@@ -2942,6 +2978,163 @@ async def run_satellite(tech_lead, args: List[str]):
     else:
         console.print(f"[bold red]Sous-commande inconnue : {subcmd}[/]")
 
+
+async def run_defense(tech_lead, args: List[str]):
+    """Gère le Bouclier d'Auto-Défense Souverain (Intrusion Sentinel & Alertes)."""
+    import time
+    if not hasattr(tech_lead, "active_defense") or not tech_lead.active_defense:
+        from app.security.active_defense import ActiveDefenseSentinel
+        tech_lead.active_defense = ActiveDefenseSentinel(
+            sovereign_fortress=getattr(tech_lead.tool_gateway, "fortress", None),
+            telegram_vault=getattr(tech_lead, "telegram_vault", None)
+        )
+
+    sentinel = tech_lead.active_defense
+    subcmd = args[0].lower() if args else "status"
+
+    if subcmd == "status":
+        st = sentinel.get_status()
+        table = Table(title="🛡️ BOUCLIER D'AUTO-DÉFENSE SOUVERAIN (Active Defense Matrix)", border_style="red")
+        table.add_column("Métrique", style="bold cyan")
+        table.add_column("État / Valeur", style="bold green")
+
+        table.add_row("Bouclier Actif", "✅ OUI (Surveillance temps réel)")
+        table.add_row("Mode NÉANT", "✅ 100% Volatile en RAM (0 écriture SSD)")
+        table.add_row("Attaques Neutralisées", str(st["total_neutralized"]))
+        bans_display = f"{st['active_bans_count']} ({', '.join(st['banned_ips']) if st['banned_ips'] else 'Aucune'})"
+        table.add_row("Adresses IP Bannies", bans_display)
+        table.add_row("Leurre Mirage RAM", f"🪞 Actif ({st.get('mirage_traps_count', 0)} piégés, {st.get('mirage_total_stalled', 0)} temporisés)")
+        console.print(table)
+
+    elif subcmd == "mirage":
+        traps = sentinel.mirage.list_trapped() if hasattr(sentinel, "mirage") else []
+        if not traps:
+            console.print("[dim]Aucun attaquant actuellement piégé dans le labyrinthe Mirage (RAM saine).[/]")
+            return
+        table = Table(title="🪞 LEURRE MIRAGE NEURO-FURTIF — Attaquants Temporisés en RAM", border_style="magenta")
+        table.add_column("IP Cible", style="bold red")
+        table.add_column("Vecteur", style="bold yellow")
+        table.add_column("Empreinte Heuristique", style="cyan")
+        table.add_column("Sondes", style="green")
+        table.add_column("Octets Absorbés", style="dim")
+        for t in traps:
+            table.add_row(t["attacker_ip"], t["vector"].upper(), t["signature"], str(t["probes"]), f"{t['bytes_stalled']} B")
+        console.print(table)
+
+    elif subcmd == "ban":
+        if len(args) < 2:
+            console.print("[bold red]Usage :[/] /defense ban <ip> [durée_sec]")
+            return
+        ip = args[1]
+        dur = float(args[2]) if len(args) > 2 else 3600.0
+        sentinel.ban_ip(ip, duration_sec=dur, reason="Ban manuel souverain")
+        console.print(f"[bold red]⛔ IP {ip} bannie du bouclier pour {dur}s.[/]")
+
+    elif subcmd == "unban":
+        if len(args) < 2:
+            console.print("[bold red]Usage :[/] /defense unban <ip>")
+            return
+        ip = args[1]
+        ok = sentinel.unban_ip(ip)
+        if ok:
+            console.print(f"[bold green]✅ IP {ip} débloquée.[/]")
+        else:
+            console.print(f"[yellow]IP {ip} n'était pas bannie.[/]")
+
+    elif subcmd == "test":
+        target_ip = args[1] if len(args) > 1 else "198.51.100.1"
+        from app.security.active_defense import AttackVector
+        incident = await sentinel.defend_against_attack(
+            source_ip=target_ip,
+            attack_vector=AttackVector.BRUTE_FORCE,
+            details="Test de riposte défensive et alerte Telegram simulé par l'utilisateur."
+        )
+        console.print(f"[bold green]✅ Simulation de riposte réussie :[/] IP {target_ip} bannie, alerte Telegram émise.")
+
+    elif subcmd == "incidents":
+        st = sentinel.get_status()
+        incidents = st.get("recent_incidents", [])
+        if not incidents:
+            console.print("[dim]Aucun incident hostile enregistré dans la session RAM.[/]")
+            return
+        table = Table(title="🚨 HISTORIQUE VOLATILE DES RIPOSTES DÉFENSIVES", border_style="red")
+        table.add_column("Horodatage", style="dim")
+        table.add_column("Vecteur", style="bold red")
+        table.add_column("Source IP", style="bold yellow")
+        table.add_column("Riposte Appliquée", style="green")
+        for inc in incidents:
+            table.add_row(
+                time.strftime("%H:%M:%S", time.localtime(inc["timestamp"])),
+                inc["attack_vector"].upper(),
+                inc["source_ip"],
+                inc["countermeasure_summary"]
+            )
+        console.print(table)
+    else:
+        console.print(f"[bold red]Sous-commande inconnue :[/] {subcmd}. Options : status, mirage, ban, unban, incidents, test")
+
+
+
+async def run_cloud(tech_lead, args: List[str]):
+    """Gère le pool de ressources Cloud gratuites et VPS (AETHER-CLOUD-FREE)."""
+    if not hasattr(tech_lead, "free_cloud_pool") or not tech_lead.free_cloud_pool:
+        from app.cluster.free_cloud_pool import FreeCloudPool
+        tech_lead.free_cloud_pool = FreeCloudPool(mode=tech_lead.mode)
+
+    pool = tech_lead.free_cloud_pool
+    subcmd = args[0].lower() if args else "list"
+
+    if subcmd == "list":
+        nodes = pool.list_nodes()
+        table = Table(title="☁️ MATRICE DES RESSOURCES CLOUD GRATUITES & VPS (0€ / Vie)", border_style="cyan")
+        table.add_column("Nœud / Fournisseur", style="bold cyan")
+        table.add_column("Spécifications", style="bold yellow")
+        table.add_column("Capacités", style="green")
+        table.add_column("Statut", style="bold")
+        table.add_column("Latence", style="dim")
+
+        for n in nodes:
+            status_style = "[green]ACTIF[/]" if n["status"] == "active" else "[yellow]STANDBY[/]"
+            specs_str = " | ".join(f"{k}: {v}" for k, v in n["specs"].items())
+            caps_str = ", ".join(n["capabilities"])
+            lat_str = f"{n['latency_ms']:.1f} ms" if n["latency_ms"] > 0 else "-"
+            table.add_row(n["name"], specs_str, caps_str, status_style, lat_str)
+
+        console.print(table)
+
+    elif subcmd == "ping":
+        console.print("[dim]📡 Mesure des latences sur l'ensemble des nœuds cloud gratuits...[/]")
+        results = pool.ping_all()
+        for nid, lat in results.items():
+            node = pool.get_node(nid)
+            name = node.name if node else nid
+            console.print(f"• [bold cyan]{name}[/] : [green]{lat:.1f} ms[/]")
+
+    elif subcmd == "add":
+        if len(args) < 4:
+            console.print("[bold red]Usage :[/] /cloud add <nom> <fournisseur> <endpoint>")
+            return
+        from app.cluster.free_cloud_pool import CloudProviderType
+        name, provider_str, endpoint = args[1], args[2].lower(), args[3]
+        prov = CloudProviderType.CUSTOM_VPS
+        for p in CloudProviderType:
+            if p.value == provider_str:
+                prov = p
+                break
+        node = pool.add_node(name=name, provider=prov, endpoint=endpoint)
+        console.print(f"[bold green]✅ Nœud cloud gratuit '{node.name}' ajouté avec succès au pool souverain (ID: {node.id}).[/]")
+
+    elif subcmd == "dispatch":
+        task_type = args[1] if len(args) > 1 else "neural_train"
+        res = pool.dispatch_workload(task_type, {"initiator": "cli"})
+        if res.get("success"):
+            console.print(f"[bold green]🚀 Tâche '{task_type}' déportée avec succès vers le nœud gratuit :[/] [bold yellow]{res['dispatched_to']}[/]")
+        else:
+            console.print(f"[bold red]❌ Échec du déport :[/] {res.get('error')}")
+    else:
+        console.print(f"[bold red]Sous-commande inconnue :[/] {subcmd}. Options : list, ping, add, dispatch")
+
+
 async def run_legion(tech_lead: TechLeadOrchestrator, args: List[str]):
     """Gère le protocole AETHER-LEGION : Essaim d'éclaireurs autonomes déployés sur le Web mondial."""
     subcmd = args[0].lower() if args else "status"
@@ -3434,6 +3627,10 @@ async def interactive_cli(initial_mode: str = "freeAi"):
                     await run_member(tech_lead, args)
                 elif cmd == "/satellite":
                     await run_satellite(tech_lead, args)
+                elif cmd == "/defense":
+                    await run_defense(tech_lead, args)
+                elif cmd == "/cloud":
+                    await run_cloud(tech_lead, args)
                 elif cmd == "/jarvis":
                     run_jarvis(tech_lead, args)
                 else:
@@ -3572,6 +3769,10 @@ def main():
                 asyncio.run(run_member(tech_lead, args))
             elif cmd == "/satellite":
                 asyncio.run(run_satellite(tech_lead, args))
+            elif cmd == "/defense":
+                asyncio.run(run_defense(tech_lead, args))
+            elif cmd == "/cloud":
+                asyncio.run(run_cloud(tech_lead, args))
             elif cmd == "/jarvis":
                 run_jarvis(tech_lead, args)
             elif cmd == "/help":

@@ -184,6 +184,18 @@ class TechLeadOrchestrator:
         from app.network.resilience import NetworkResilience
         self.network = NetworkResilience(telegram_vault=self.telegram_vault)
 
+        # Free Cloud & VPS Pool
+        from app.cluster.free_cloud_pool import FreeCloudPool
+        self.free_cloud_pool = FreeCloudPool(mode=self.mode)
+
+        # Active Autonomous Self-Defense Shield
+        from app.security.active_defense import ActiveDefenseSentinel
+        self.active_defense = ActiveDefenseSentinel(
+            sovereign_fortress=getattr(self.tool_gateway, "fortress", None),
+            telegram_vault=self.telegram_vault,
+            cloud_pool=self.free_cloud_pool
+        )
+
     def _start_background_tasks(self):
         import asyncio
         if hasattr(self, 'network'):
@@ -699,6 +711,16 @@ class TechLeadOrchestrator:
             fort_safe, fort_reason = self.tool_gateway.fortress.audit_prompt_injection(objective)
             if not fort_safe:
                 logger.critical(f"[TECH LEAD] Objective blocked by Sovereign Fortress: {fort_reason}")
+                if hasattr(self, "active_defense") and self.active_defense:
+                    from app.security.active_defense import AttackVector
+                    try:
+                        await self.active_defense.defend_against_attack(
+                            source_ip="master_or_gateway",
+                            attack_vector=AttackVector.PROMPT_INJECTION,
+                            details=f"Injection hostile neutralisée dans l'objectif : '{objective[:80]}...'"
+                        )
+                    except Exception as e:
+                        logger.error(f"[TECH LEAD] Active defense alert error: {e}")
                 return {
                     "success": False,
                     "error": fort_reason,

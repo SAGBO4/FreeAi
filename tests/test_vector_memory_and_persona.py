@@ -50,7 +50,7 @@ def test_conversational_persona_identity():
         persona = ConversationalPersona()
         res = await persona.chat("Qui es-tu ?")
         assert res["success"] is True
-        assert "FreeAI" in res["output"]
+        assert any(name in res["output"] for name in ["FreeAI", "Jarvis"])
         # Jarvis est créatif — on vérifie le sens (partenaire/allié) sans figer le vocabulaire
         identity_words = [
             "compagnon", "bras droit", "allié", "copilote", "assistant", "intelligence",

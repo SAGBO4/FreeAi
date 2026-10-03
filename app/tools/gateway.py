@@ -6,6 +6,7 @@ import os
 import re
 import fnmatch
 import subprocess
+import shutil
 import logging
 from pathlib import Path
 from typing import Dict, Any, Optional, List
@@ -266,16 +267,29 @@ class ToolGateway:
         sudo_input = None
 
         if self.allow_sudo and self._is_privileged_command(command):
-            sudo_pwd = os.getenv("SUDO_PASSWORD", "")
-            if sudo_pwd:
-                # Pipe password safely via stdin using -S
-                if command.strip().startswith("sudo ") and "-S" not in command:
-                    cmd_to_run = command.strip().replace("sudo ", "sudo -S -p '' ", 1)
-                sudo_input = f"{sudo_pwd}\n"
-            else:
-                # Add -n to avoid blocking/hanging indefinitely on interactive password prompt
+            is_root = (os.geteuid() == 0) if hasattr(os, "geteuid") else False
+            has_sudo = shutil.which("sudo") is not None
+
+            if is_root and not has_sudo:
+                # Inside Docker as root without sudo binary: strip sudo prefix safely
+                if command.strip().startswith("sudo "):
+                    cmd_to_run = command.strip()[5:].lstrip()
+            elif is_root:
+                # Inside Docker as root with sudo installed: sudo -n works without password
                 if command.strip().startswith("sudo ") and "-n" not in command and "-S" not in command:
                     cmd_to_run = command.strip().replace("sudo ", "sudo -n ", 1)
+            else:
+                sudo_pwd = os.getenv("SUDO_PASSWORD", "")
+                if sudo_pwd:
+                    # Pipe password safely via stdin using -S
+                    if command.strip().startswith("sudo ") and "-S" not in command:
+                        cmd_to_run = command.strip().replace("sudo ", "sudo -S -p '' ", 1)
+                    sudo_input = f"{sudo_pwd}\n"
+                else:
+                    # Add -n to avoid blocking/hanging indefinitely on interactive password prompt
+                    if command.strip().startswith("sudo ") and "-n" not in command and "-S" not in command:
+                        cmd_to_run = command.strip().replace("sudo ", "sudo -n ", 1)
+
 
         if cwd:
             exec_cwd = self._resolve_target_path(cwd)
