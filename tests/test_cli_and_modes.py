@@ -275,6 +275,8 @@ class TestRemoteOnlineModels(unittest.TestCase):
         """Verifies remote REST API invocation via mock without downloading model weights."""
         fed = self.tl.free_ai.federation
         fed.deepseek_api_key = "sk-test-deepseek-mock-key"
+        fed.groq_api_key = None
+        fed.remote_gpu_url = None
         fed.set_online_target("deepseek", "deepseek-chat")
 
         mock_response = MagicMock()

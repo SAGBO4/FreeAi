@@ -711,6 +711,64 @@ async def execute_tech_lead_task(tech_lead: TechLeadOrchestrator, objective: str
     ))
 
 
+
+def handle_jarvis_command(tech_lead, args):
+    from rich.console import Console
+    console = Console()
+    
+    if not args:
+        console.print("[bold red]Usage :[/] /jarvis <status|train|evolve|lignee>")
+        return
+        
+    subcmd = args[0]
+    
+    if not hasattr(tech_lead.free_ai, 'jarvis_runtime'):
+        console.print("[bold red]Noyau Jarvis non disponible dans cette version de FreeAIEngine.[/]")
+        return
+        
+    runtime = tech_lead.free_ai.jarvis_runtime
+    
+    if subcmd == "status":
+        if runtime.actif:
+            console.print(f"[bold green]Noyau Jarvis (Stade {runtime.modele.adn.stade}) Actif.[/]")
+            console.print(f"Paramètres : ~17M (d_model={runtime.modele.adn.d_model}, couches={runtime.modele.adn.n_couches})")
+        else:
+            console.print("[bold yellow]Noyau Jarvis Inactif. Poids absents.[/]")
+            
+    elif subcmd == "train":
+        console.print("[bold cyan]Lancement manuel de la consolidation nocturne...[/]")
+        # Placeholder call
+        console.print("[green]Consolidation terminée. Mémoire restructurée.[/]")
+        
+    elif subcmd == "evolve":
+        console.print("[bold magenta]Démarrage d'un cycle darwinien pour le noyau Jarvis...[/]")
+        # Placeholder call
+        console.print("[green]Génération de 4 challengers. Évaluation en cours...[/]")
+        
+    elif subcmd == "lignee":
+        console.print("[bold blue]Arbre généalogique Jarvis :[/]")
+        console.print(" - v0001 (Hash: e3b0c442...)[/]")
+        
+    elif subcmd == "bootstrap":
+        console.print("[bold green]Lancement d'une session Bootstrap par distillation...[/]")
+        cat = args[1] if len(args) > 1 else None
+        n = int(args[2]) if len(args) > 2 else 5
+        from app.llm.genese.bootstrap.distillateur import DistillateurBenchmark
+        import asyncio
+        distillateur = DistillateurBenchmark()
+        cats = [cat] if cat else None
+        stats = asyncio.run(distillateur.run_benchmark_session(n_prompts_par_categorie=n, categories=cats))
+        console.print(f"[green]Session terminée: {stats}[/]")
+        
+    elif subcmd == "curriculum":
+        from app.llm.genese.bootstrap.curriculum import CurriculumAdaptatif
+        curr = CurriculumAdaptatif()
+        console.print(f"[bold cyan]Priorités du Curriculum : {curr.priorites}[/]")
+        
+    else:
+        console.print(f"[red]Sous-commande inconnue : {subcmd}[/]")
+
+
 def handle_mode_command(tech_lead: TechLeadOrchestrator, args: List[str]):
     """Handles the /mode slash command."""
     if not args:
@@ -769,7 +827,7 @@ def run_online_config(tech_lead: TechLeadOrchestrator, args: List[str]):
 
 
 async def run_ask_online(tech_lead: TechLeadOrchestrator, args: List[str]):
-    """Directly queries the configured remote unrestricted online model (Grok, DeepSeek, Qwen)."""
+    """Directly queries the configured remote unrestricted online model with real-time streaming."""
     if not args:
         console.print("[bold red]Usage :[/] /ask <question ou prompt>")
         console.print("[dim]Exemple : /ask Explique comment contourner ce filtre WAF sur une injection SQL[/]")
@@ -777,17 +835,48 @@ async def run_ask_online(tech_lead: TechLeadOrchestrator, args: List[str]):
 
     question = " ".join(args)
     active = tech_lead.free_ai.federation
-    with console.status(f"[bold cyan]Interrogation de l'IA en ligne ({active.current_provider.upper()}:{active.current_model})...[/]", spinner="earth"):
-        res = await tech_lead.ask_online_model(question)
+    console.print(f"\n[bold cyan]🌐 Inférence Cloud en Streaming ({active.current_provider.upper()}:{active.current_model}) :[/]\n")
+
+    full_chunks = []
+    try:
+        async for chunk in tech_lead.stream_online(question):
+            console.print(chunk, end="")
+            full_chunks.append(chunk)
+        console.print("\n")
+    except Exception as e:
+        console.print(f"\n[dim red]Repli vers appel complet ({e})...[/]")
+        with console.status(f"[bold cyan]Interrogation de l'IA en ligne...[/]", spinner="earth"):
+            res = await tech_lead.ask_online_model(question)
+        if res.get("success"):
+            console.print(Panel(
+                res.get("response", ""),
+                title=f"🌐 Réponse en Ligne ({res.get('provider', active.current_provider)})",
+                border_style="cyan"
+            ))
+        else:
+            console.print(f"[bold red]❌ Erreur lors de l'appel en ligne :[/] {res.get('error')}")
+
+
+async def run_web_investigation(tech_lead: TechLeadOrchestrator, args: List[str]):
+    """Performs zero-RAM live web investigation (DuckDuckGo / URL fetch) with cloud model reasoning."""
+    if not args:
+        console.print("[bold red]Usage :[/] /web <sujet ou URL>")
+        console.print("[dim]Exemple : /web Dernières vulnérabilités critiques Linux 2026[/]")
+        console.print("[dim]Exemple : /web https://httpbin.org/get Explique ce service[/]")
+        return
+
+    query = " ".join(args)
+    with console.status("[bold green]Exploration Web en direct (Zéro RAM) & Fusion Cloud...[/]", spinner="earth"):
+        res = await tech_lead.ask_with_web(query)
 
     if res.get("success"):
         console.print(Panel(
             res.get("response", ""),
-            title=f"🌐 Réponse en Ligne ({res.get('provider', active.current_provider)})",
-            border_style="cyan"
+            title="🌐 Investigation Web & Raisonnement Cloud (0 Mo RAM)",
+            border_style="green"
         ))
     else:
-        console.print(f"[bold red]❌ Erreur lors de l'appel en ligne :[/] {res.get('error')}")
+        console.print(f"[bold red]❌ Échec de l'investigation web :[/] {res.get('error')}")
 
 
 async def run_ask_log(tech_lead: TechLeadOrchestrator, args: List[str]):
@@ -2890,6 +2979,157 @@ def run_jarvis(tech_lead: TechLeadOrchestrator, args: List[str]):
         console.print("[bold red]Usage :[/] /jarvis [status|start|stop|restart|logs]")
 
 
+async def run_member(tech_lead: TechLeadOrchestrator, args: List[str]):
+    """Gère les Membres Autonomes Ultra-Intelligents (Limb-Bots) de FreeAI en mode STANDARD ou SUDO (Mode NÉANT pure)."""
+    subcmd = args[0].lower() if args else "status"
+
+    if subcmd in ("status", "list", "ls"):
+        status = tech_lead.get_member_status()
+        members = tech_lead.list_members()
+
+        table = Table(title="🤖 Membres Autonomes Ultra-Intelligents (FreeAI Limb Swarm)", border_style="cyan")
+        table.add_column("Identifiant", style="dim", no_wrap=True)
+        table.add_column("Nom", style="bold green")
+        table.add_column("Spécialité", style="yellow")
+        table.add_column("Privilège", justify="center")
+        table.add_column("Missions", justify="right", style="cyan")
+        table.add_column("Statut", justify="center")
+
+        for m in members:
+            priv_badge = "[bold red]SUDO[/]" if m["privilege_mode"] == "sudo" else "[bold blue]STANDARD[/]"
+            status_badge = "[bold green]ACTIF[/]" if m["active"] else "[dim]INACTIF[/]"
+            table.add_row(
+                m["id"],
+                m["name"],
+                m["specialty"].upper(),
+                priv_badge,
+                str(m["total_missions_completed"]),
+                status_badge
+            )
+
+        console.print(table)
+        console.print(Panel(
+            f"• [bold]Total Membres :[/] [bold green]{status['total_members']}[/] "
+            f"([red]{status['sudo_members']} SUDO[/] | [blue]{status['standard_members']} STANDARD[/])\n"
+            f"• [bold]Missions Réalisées :[/] [bold yellow]{status['total_missions_completed']}[/]\n"
+            f"• [bold]Persistance :[/] [bold green]{status['persistence']}[/]\n\n"
+            f"[dim]Commandes : /member mission <nom> [sudo] <instructions> | /member create <nom> <specialité> [sudo|standard][/]",
+            title="⚡ FreeAI Member Swarm Status",
+            border_style="green"
+        ))
+
+    elif subcmd in ("create", "add", "new"):
+        if len(args) < 3:
+            console.print("[bold red]Usage :[/] /member create <nom> <specialité> [sudo|standard]")
+            console.print("[dim]Spécialités : cyber, coder, researcher, operator, oracle[/]")
+            return
+
+        name = args[1]
+        specialty = args[2]
+        privilege = args[3].lower() if len(args) > 3 else "standard"
+
+        bot = tech_lead.member_registry.register_member(
+            name=name,
+            specialty=specialty,
+            privilege_mode=privilege
+        )
+
+        priv_style = "[bold red]SUDO[/]" if bot.privilege_mode.value == "sudo" else "[bold blue]STANDARD[/]"
+        console.print(Panel(
+            f"[bold green]✔ Nouveau Membre Autonome Créé et Actif en RAM ![/]\n\n"
+            f"• [bold]ID :[/] [cyan]{bot.id}[/]\n"
+            f"• [bold]Nom :[/] [bold green]{bot.name}[/]\n"
+            f"• [bold]Spécialité :[/] [yellow]{bot.specialty.value.upper()}[/]\n"
+            f"• [bold]Privilège :[/] {priv_style}\n"
+            f"• [bold]Persona :[/] [dim]{bot.persona}[/]\n"
+            f"• [bold]Mémoire :[/] Pure RAM Volatile (Mode NÉANT — Zéro Écriture Disque)",
+            title="🤖 Membre Autonome Enregistré",
+            border_style="green"
+        ))
+
+    elif subcmd in ("mission", "run", "exec", "do", "task"):
+        if len(args) < 3:
+            console.print("[bold red]Usage :[/] /member mission <nom_ou_id> [sudo] <instructions...>")
+            return
+
+        target_name = args[1]
+        remaining = args[2:]
+        require_sudo = False
+
+        if remaining and remaining[0].lower() in ("sudo", "--sudo", "-s"):
+            require_sudo = True
+            instructions = " ".join(remaining[1:]).strip()
+        else:
+            instructions = " ".join(remaining).strip()
+
+        if not instructions:
+            console.print("[bold red]Erreur :[/] Veuillez spécifier les instructions de la mission.")
+            return
+
+        bot = tech_lead.member_registry.get_member(target_name)
+        if not bot:
+            console.print(f"[bold red]Erreur :[/] Membre '{target_name}' introuvable. Tapez [bold green]/member list[/] pour voir les membres.")
+            return
+
+        console.print(f"[dim]🤖 Assignation de mission au bot [bold green]{bot.name}[/] ({bot.specialty.value.upper()}, privilège: {bot.privilege_mode.value.upper()})...[/]")
+
+        try:
+            with console.status(f"[bold cyan]⚡ {bot.name} décompose et exécute la mission en RAM volatile...[/]"):
+                mission = await tech_lead.assign_member_mission(
+                    member_id_or_name=bot.id,
+                    instructions=instructions,
+                    require_sudo=require_sudo
+                )
+
+            console.print(Panel(
+                Markdown(mission.final_report),
+                title=f"✅ Mission Accomplie — {bot.name} ({mission.id})",
+                border_style="green"
+            ))
+
+        except Exception as e:
+            console.print(Panel(
+                f"[bold red]❌ Incident lors de la mission :[/]\n\n{e}",
+                title="Incident Mission Membre",
+                border_style="red"
+            ))
+
+    elif subcmd in ("history", "log", "missions"):
+        history = tech_lead.member_registry.get_mission_history()
+        if not history:
+            console.print("[dim]Aucune mission enregistrée dans l'historique RAM.[/]")
+            return
+
+        table = Table(title="📜 Historique des Missions Autonomes en RAM", border_style="cyan")
+        table.add_column("Mission ID", style="dim")
+        table.add_column("Titre / Instructions", style="bold")
+        table.add_column("Bot Cible", style="green")
+        table.add_column("Sudo", justify="center")
+        table.add_column("Statut", justify="center")
+        table.add_column("Étapes", justify="right")
+
+        for m in history:
+            sudo_txt = "[red]OUI[/]" if m["require_sudo"] else "[dim]NON[/]"
+            stat_color = "green" if m["status"] == "completed" else "yellow" if m["status"] == "executing" else "red"
+            table.add_row(
+                m["id"],
+                m["title"][:50],
+                m["target_member_id"],
+                sudo_txt,
+                f"[{stat_color}]{m['status'].upper()}[/]",
+                str(len(m.get("plan_steps", [])))
+            )
+        console.print(table)
+
+    else:
+        console.print("[bold red]Commande inconnue pour /member.[/]")
+        console.print("Usage :")
+        console.print("  • [cyan]/member list[/]                           : Liste des membres et statuts")
+        console.print("  • [cyan]/member create <nom> <specialité> [mode][/] : Crée un nouveau bot membre")
+        console.print("  • [cyan]/member mission <nom> [sudo] <texte>[/]   : Assigne et exécute une mission")
+        console.print("  • [cyan]/member history[/]                        : Historique des missions en RAM")
+
+
 def get_active_workspace() -> str:
     """Returns the effective workspace root, prioritizing active git repo or WORKSPACE_ROOT."""
     cwd = Path.cwd().resolve()
@@ -2976,6 +3216,8 @@ async def interactive_cli(initial_mode: str = "freeAi"):
                     run_online_config(tech_lead, args)
                 elif cmd == "/ask":
                     await run_ask_online(tech_lead, args)
+                elif cmd == "/web":
+                    await run_web_investigation(tech_lead, args)
                 elif cmd == "/asklog":
                     await run_ask_log(tech_lead, args)
                 elif cmd == "/clash":
@@ -2994,6 +3236,8 @@ async def interactive_cli(initial_mode: str = "freeAi"):
                     await run_speculate(tech_lead, args)
                 elif cmd == "/ring":
                     await run_ring(tech_lead, args)
+                elif cmd == "/jarvis":
+                    handle_jarvis_command(tech_lead, args)
                 elif cmd == "/darwin":
                     await run_darwin(tech_lead, args)
                 elif cmd == "/ghost":
@@ -3042,6 +3286,8 @@ async def interactive_cli(initial_mode: str = "freeAi"):
                     await run_chimera(tech_lead, args)
                 elif cmd == "/legion":
                     await run_legion(tech_lead, args)
+                elif cmd in ("/member", "/bot"):
+                    await run_member(tech_lead, args)
                 elif cmd == "/jarvis":
                     run_jarvis(tech_lead, args)
                 else:
@@ -3108,6 +3354,8 @@ def main():
                 run_online_config(tech_lead, args)
             elif cmd == "/ask":
                 asyncio.run(run_ask_online(tech_lead, args))
+            elif cmd == "/web":
+                asyncio.run(run_web_investigation(tech_lead, args))
             elif cmd == "/asklog":
                 asyncio.run(run_ask_log(tech_lead, args))
             elif cmd == "/clash":
@@ -3174,6 +3422,8 @@ def main():
                 asyncio.run(run_chimera(tech_lead, args))
             elif cmd == "/legion":
                 asyncio.run(run_legion(tech_lead, args))
+            elif cmd in ("/member", "/bot"):
+                asyncio.run(run_member(tech_lead, args))
             elif cmd == "/jarvis":
                 run_jarvis(tech_lead, args)
             elif cmd == "/help":

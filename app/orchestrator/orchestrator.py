@@ -408,10 +408,19 @@ class TechLeadOrchestrator:
         return self.free_ai.federation.list_supported_online_models()
 
     async def ask_online_model(self, prompt: str, provider: Optional[str] = None, model: Optional[str] = None) -> Dict[str, Any]:
-        """Directly queries remote unrestricted online models (Grok, DeepSeek, Qwen) without local install."""
+        """Directly queries remote unrestricted online models without local install."""
         if provider:
             self.free_ai.federation.set_online_target(provider, model)
         return await self.free_ai.enrich_with_online_open_models(prompt)
+
+    async def ask_with_web(self, prompt: str) -> Dict[str, Any]:
+        """Gathers live internet intelligence (DuckDuckGo / URL) and answers with cloud open models (0 RAM)."""
+        return await self.free_ai.federation.ask_with_web_enrichment(prompt)
+
+    async def stream_online(self, prompt: str):
+        """Streams cloud LLM tokens in real-time."""
+        async for token in self.free_ai.federation.stream_free_online_model(prompt):
+            yield token
 
     async def ask_online_with_log(self, prompt: str, log_path: str, max_lines: int = 150) -> Dict[str, Any]:
         """Reads a log file from anywhere on the PC and submits it to the remote online AI (DeepSeek/Grok/Qwen) with a question."""
@@ -673,9 +682,9 @@ class TechLeadOrchestrator:
             logger.info("[TECH LEAD] Creating safety checkpoint before autonomous execution...")
             self.tool_gateway.git_checkpoint(f"tech-lead-checkpoint: {objective[:30]}")
 
-        # 3. FreeAI reasoning & plan
-        reasoning = self.free_ai.reason_and_plan(objective, {"autonomous": autonomous, "mode": self.mode})
-        agent_type = reasoning["domain"]
+        # 3. FreeAI Neural reasoning & plan (True neural cognitive breakdown)
+        reasoning = await self.free_ai.reason_and_plan_neural(objective, {"autonomous": autonomous, "mode": self.mode})
+        agent_type = reasoning.get("domain", "code")
 
         # 4. Dynamic Online Resourcing (if FreeAI needs missing information)
         online_knowledge = None

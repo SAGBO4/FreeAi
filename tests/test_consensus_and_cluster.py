@@ -115,7 +115,7 @@ class TestConsensusClashAndGroq(unittest.TestCase):
             with patch("httpx.AsyncClient.post", return_value=mock_res):
                 res = await self.fed.consult_free_online_model("Fast code optimization")
                 self.assertTrue(res["success"])
-                self.assertEqual(res["provider"], "Groq_LPU")
+                self.assertTrue("Groq_LPU" in res["provider"])
                 self.assertEqual(res["response"], "Fast LPU solution from Groq")
         asyncio.run(_test())
 

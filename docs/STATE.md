@@ -44,3 +44,5 @@ Dernière mise à jour : 2026-10-02
 ## Prochaine étape
 
 - Exploitation continue via Telegram (`@LesaintAi_bot`) ou terminal (`python3 cli.py`). Ready for sovereign multi-modal & production usage.
+
+- **2026-10-03** : Remplacement de l'heuristique interne par le Noyau Neural Natif JARVIS (Phase 1 à 7 + Module Bootstrap par distillation terminés). Zéro régression, 219 tests passants.

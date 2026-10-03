@@ -300,27 +300,54 @@ class LANClusterManager:
         system_prompt: Optional[str] = None,
         timeout_sec: int = 30
     ) -> Optional[Dict[str, Any]]:
-        """Dispatches inference to the best online LAN/GPU node, freeing local CPU/RAM."""
+        """Dispatches inference with automatic failover across GPU/LAN nodes.
+        If a remote node drops (Colab timeout, etc.), it switches automatically to the next node.
+        """
         online_nodes = [n for n in self.nodes.values() if n.status == "online"]
         if not online_nodes:
             return None
 
         # Prioritize GPU nodes and lowest latency
-        selected_node = sorted(online_nodes, key=lambda n: (not n.is_gpu, n.latency_ms or 9999))[0]
-        base_url = f"http://{selected_node.host}:{selected_node.port}"
+        candidate_nodes = sorted(online_nodes, key=lambda n: (not n.is_gpu, n.latency_ms or 9999))
 
-        try:
-            if selected_node.node_type == "ollama":
+        for selected_node in candidate_nodes:
+            base_url = f"http://{selected_node.host}:{selected_node.port}"
+            try:
+                if selected_node.node_type == "ollama":
+                    payload = {
+                        "model": selected_node.model_name or "llama3",
+                        "prompt": prompt,
+                        "system": system_prompt or "",
+                        "stream": False
+                    }
+                    async with httpx.AsyncClient(timeout=timeout_sec) as client:
+                        res = await client.post(f"{base_url}/api/generate", json=payload)
+                        if res.status_code == 200:
+                            ans = res.json().get("response", "")
+                            return {
+                                "success": True,
+                                "source": "lan_cluster_node",
+                                "node_id": selected_node.id,
+                                "is_gpu": selected_node.is_gpu,
+                                "response": ans
+                            }
+                        else:
+                            selected_node.status = "offline"
+                            continue
+
+                # OpenAI compatible endpoint (vLLM, FreeAI worker, Colab server)
+                headers = {"Content-Type": "application/json"}
                 payload = {
-                    "model": selected_node.model_name or "llama3",
-                    "prompt": prompt,
-                    "system": system_prompt or "",
-                    "stream": False
+                    "model": selected_node.model_name or "default",
+                    "messages": [
+                        {"role": "system", "content": system_prompt or "You are a distributed AI worker."},
+                        {"role": "user", "content": prompt}
+                    ]
                 }
                 async with httpx.AsyncClient(timeout=timeout_sec) as client:
-                    res = await client.post(f"{base_url}/api/generate", json=payload)
+                    res = await client.post(f"{base_url}/v1/chat/completions", headers=headers, json=payload)
                     if res.status_code == 200:
-                        ans = res.json().get("response", "")
+                        ans = res.json()["choices"][0]["message"]["content"]
                         return {
                             "success": True,
                             "source": "lan_cluster_node",
@@ -328,29 +355,12 @@ class LANClusterManager:
                             "is_gpu": selected_node.is_gpu,
                             "response": ans
                         }
-
-            # OpenAI compatible endpoint (vLLM, FreeAI worker, Colab server)
-            headers = {"Content-Type": "application/json"}
-            payload = {
-                "model": selected_node.model_name or "default",
-                "messages": [
-                    {"role": "system", "content": system_prompt or "You are a distributed AI worker."},
-                    {"role": "user", "content": prompt}
-                ]
-            }
-            async with httpx.AsyncClient(timeout=timeout_sec) as client:
-                res = await client.post(f"{base_url}/v1/chat/completions", headers=headers, json=payload)
-                if res.status_code == 200:
-                    ans = res.json()["choices"][0]["message"]["content"]
-                    return {
-                        "success": True,
-                        "source": "lan_cluster_node",
-                        "node_id": selected_node.id,
-                        "is_gpu": selected_node.is_gpu,
-                        "response": ans
-                    }
-        except Exception as e:
-            logger.error(f"[CLUSTER] Dispatch to {selected_node.id} failed: {e}")
+                    else:
+                        selected_node.status = "offline"
+                        continue
+            except Exception as e:
+                logger.warning(f"[CLUSTER] Node {selected_node.id} failed ({e}), auto-switching to next worker...")
+                selected_node.status = "offline"
 
         return None
 

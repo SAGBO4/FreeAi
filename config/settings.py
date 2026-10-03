@@ -77,7 +77,7 @@ class Settings(BaseModel):
 
     # Online Unrestricted Models (Grok, DeepSeek, Qwen, Groq LPU - 100% Remote API, zero local footprint)
     ONLINE_PROVIDER: str = Field(default_factory=lambda: os.getenv("ONLINE_PROVIDER", "auto"))
-    ONLINE_MODEL: str = Field(default_factory=lambda: os.getenv("ONLINE_MODEL", "deepseek/deepseek-chat"))
+    ONLINE_MODEL: str = Field(default_factory=lambda: os.getenv("ONLINE_MODEL", "openai/gpt-oss-120b"))
     OPENROUTER_API_KEY: str = Field(default_factory=lambda: os.getenv("OPENROUTER_API_KEY", ""))
     DEEPSEEK_API_KEY: str = Field(default_factory=lambda: os.getenv("DEEPSEEK_API_KEY", ""))
     GROK_API_KEY: str = Field(default_factory=lambda: os.getenv("GROK_API_KEY", os.getenv("XAI_API_KEY", "")))

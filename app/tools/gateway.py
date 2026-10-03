@@ -262,6 +262,21 @@ class ToolGateway:
         if not self.allow_sudo and self._is_privileged_command(command):
             return {"success": False, "error": "Sudo is disabled in security policy (ALLOW_SUDO=false)."}
 
+        cmd_to_run = command
+        sudo_input = None
+
+        if self.allow_sudo and self._is_privileged_command(command):
+            sudo_pwd = os.getenv("SUDO_PASSWORD", "")
+            if sudo_pwd:
+                # Pipe password safely via stdin using -S
+                if command.strip().startswith("sudo ") and "-S" not in command:
+                    cmd_to_run = command.strip().replace("sudo ", "sudo -S -p '' ", 1)
+                sudo_input = f"{sudo_pwd}\n"
+            else:
+                # Add -n to avoid blocking/hanging indefinitely on interactive password prompt
+                if command.strip().startswith("sudo ") and "-n" not in command and "-S" not in command:
+                    cmd_to_run = command.strip().replace("sudo ", "sudo -n ", 1)
+
         if cwd:
             exec_cwd = self._resolve_target_path(cwd)
         else:
@@ -270,21 +285,32 @@ class ToolGateway:
         if not self._is_safe_read_path(exec_cwd):
             return {"success": False, "error": f"Working directory outside workspace: {exec_cwd}"}
 
-        logger.info(f"[TOOL:TERMINAL] cwd={exec_cwd} cmd='{command}'")
+        logger.info(f"[TOOL:TERMINAL] cwd={exec_cwd} cmd='{cmd_to_run}'")
         try:
             res = subprocess.run(
-                command,
+                cmd_to_run,
                 shell=True,
                 cwd=str(exec_cwd),
+                input=sudo_input,
                 capture_output=True,
                 text=True,
                 timeout=timeout_sec
             )
+            stderr_out = res.stderr
+            if res.returncode != 0 and any(k in stderr_out.lower() for k in ["password is required", "a password is required"]):
+                stderr_out += (
+                    "\n[AIDE SUDO] Le système exige un mot de passe administrateur non configuré.\n"
+                    "Solutions :\n"
+                    "1. Renseigner SUDO_PASSWORD dans votre fichier .env\n"
+                    "2. Ou autoriser votre compte sans mot de passe : "
+                    "echo \"$USER ALL=(ALL) NOPASSWD: ALL\" | sudo tee /etc/sudoers.d/freeai"
+                )
+
             return {
                 "success": res.returncode == 0,
                 "exit_code": res.returncode,
                 "stdout": res.stdout,
-                "stderr": res.stderr
+                "stderr": stderr_out
             }
         except subprocess.TimeoutExpired:
             logger.error(f"[TOOL:TERMINAL TIMEOUT] '{command}' exceeded {timeout_sec}s")

@@ -40,7 +40,7 @@ class TestFreeAIEngine(unittest.TestCase):
 
     def test_engine_identity_and_sovereignty(self):
         self.assertEqual(self.engine.name, "FreeAI")
-        self.assertEqual(self.engine.version, "1.0-alpha")
+        self.assertEqual(self.engine.version, "2.0-neural")
         self.assertIsNotNone(self.engine.federation)
 
     def test_reasoning_and_planning_security(self):

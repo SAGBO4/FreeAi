@@ -92,3 +92,13 @@ Acceptation:
   AC2: Analyse visuelle ultra-rapide via Groq LPU Vision (Llama 3.2 Vision) et Qwen 2 VL.
   AC3: Restitution textuelle claire de la réponse et intégration dans la mémoire épisodique.
 Statut: done
+
+### F-11 Noyau Neural Natif JARVIS (ex-GENÈSE)
+Acteur: Architecture Interne de FreeAI
+Acceptation:
+  AC1: Remplacement de l'ancien moteur heuristique scriptique par un véritable Transformer Décodeur (d_model=384, 17M paramètres) en Stade 0.
+  AC2: Intégration de l'Âme (Gardien Ethique et Elastic Weight Consolidation).
+  AC3: Fonctionnement catadien autonome avec consolidation nocturne (Auto-Curriculum Learning) et distillation (Professeurs : DeepSeek/Qwen).
+  AC4: Evolution darwinienne intégrée avec algorithme génétique pour optimiser les hyperparamètres (Genome) et lignée infalsifiable (SHA-256).
+  AC5: Zéro écriture SSD pendant l'inférence, respect strict du Mode NÉANT (100% RAM SQLite Vector Memory).
+Statut: done

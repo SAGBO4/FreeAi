@@ -55,7 +55,7 @@ class AetherSwarmOrchestrator:
             CloudComputeNode(
                 name="Groq LPU Tensor Cluster",
                 provider="groq",
-                model="llama-3.3-70b-versatile",
+                model="openai/gpt-oss-120b",
                 free_tier=True
             ),
             CloudComputeNode(

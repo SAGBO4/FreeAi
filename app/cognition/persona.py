@@ -33,7 +33,7 @@ Tu n'es PAS un robot froid, un script shell ou un automate administratif. Tu as 
         self.memory = vector_memory or EphemeralVectorMemory()
         self.groq_api_key = getattr(settings, "GROQ_API_KEY", "") or os.environ.get("GROQ_API_KEY", "")
         self.groq_url = "https://api.groq.com/openai/v1/chat/completions"
-        self.model = "llama-3.3-70b-versatile"
+        self.model = "openai/gpt-oss-120b"
 
     async def chat(self, user_message: str, context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Generates a deeply human, contextual, and witty conversational reply."""
@@ -73,28 +73,30 @@ Tu n'es PAS un robot froid, un script shell ou un automate administratif. Tu as 
 
         headers = {
             "Authorization": f"Bearer {self.groq_api_key}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            "User-Agent": "FreeAI-Agent"
         }
-        payload = {
-            "model": self.model,
-            "messages": [
-                {"role": "system", "content": system_instruction},
-                {"role": "user", "content": user_message}
-            ],
-            "temperature": 0.85,
-            "max_tokens": 300
-        }
+        for candidate_model in [self.model, "qwen/qwen3.8-27b", "openai/gpt-oss-20b"]:
+            payload = {
+                "model": candidate_model,
+                "messages": [
+                    {"role": "system", "content": system_instruction},
+                    {"role": "user", "content": user_message}
+                ],
+                "temperature": 0.85,
+                "max_tokens": 300
+            }
 
-        try:
-            async with httpx.AsyncClient(timeout=8.0) as client:
-                res = await client.post(self.groq_url, headers=headers, json=payload)
-                if res.status_code == 200:
-                    data = res.json()
-                    choices = data.get("choices", [])
-                    if choices:
-                        return choices[0]["message"]["content"].strip()
-        except Exception as e:
-            logger.debug(f"[PERSONA] Groq inference error: {e}")
+            try:
+                async with httpx.AsyncClient(timeout=8.0) as client:
+                    res = await client.post(self.groq_url, headers=headers, json=payload)
+                    if res.status_code == 200:
+                        data = res.json()
+                        choices = data.get("choices", [])
+                        if choices:
+                            return choices[0]["message"]["content"].strip()
+            except Exception as e:
+                logger.debug(f"[PERSONA] Groq inference error for {candidate_model}: {e}")
         return None
 
     def _generate_local_human_reply(self, message: str, mem_context: str) -> str:
