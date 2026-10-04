@@ -688,4 +688,47 @@ Transmettez n'importe quelle image ou vidéo au bot Telegram :
 
 ---
 
+## 20. Supergroupe Telegram & QG Communautaire (Community HQ) 🏛️
+
+FreeAI transforme un supergroupe Telegram avec sujets (forum topics) en véritable centre de commandement unifié avec routage automatique des alertes et des réponses :
+
+### Les 6 Salons Thématiques Officiels
+1. **🎯 Général & Commandement** : Échanges quotidiens, stratégie globale, bascule de mode (`/mode`), appels WebRTC (`/call`) et orchestration (`/swarm`).
+2. **💼 Career & Radar Remote** : Veille automatisée sur les offres remote scorées par Career-OS (`/career radar run`).
+3. **📈 Crypto & Défi 500$** : QG du Défi Anniversaire : suivi du portefeuille $\ge 500\$$ en devises échangeables, simulateur AMM constant-product et gestion du risque (`/domain`).
+4. **🛡️ Cyberdéfense & Sentinelle** : Surveillance en temps réel, pare-feu cognitif, détection d'intrusions (`/defense`) et statut du pool de serveurs cloud gratuits (`/cloud`).
+5. **⚡ Forge & Code Lab** : Rapports de tests, commits Git, inspection et adaptation fidèle de templates Shadcn (`/ui templates`, `/ui inspect`).
+6. **🎁 Sanctuaire Sacré** : Espace hautement confidentiel réservé au profil de Michael SAGBO et à la délivrance des 12 mots secrets BIP-39 le 5 Février.
+
+### Commandes de Gestion du QG
+```bash
+# Provisionner et initialiser les 6 salons officiels
+/setup_hq
+
+# Nettoyer et purger les salons en doublon (ou dire simplement "nettoie les doublons")
+/clean_hq
+
+# Consulter le guide d'utilisation directement dans le salon
+/guide
+
+# Afficher l'état en direct du bot, de la mémoire et de la sentinelle
+/status
+```
+
+---
+
+## 21. Guide Pratique des Deux Modes d'Exécution 🛡️⚡
+
+| Critère | Mode Standard (`freeAi`) | Mode Super-Utilisateur (`lesaintAi` ⚡) |
+| :--- | :--- | :--- |
+| **Philosophie** | Frugal, hermétique, zéro altération système | Pleins pouvoirs souverains de Michael SAGBO |
+| **Privilèges Sudo** | ❌ **Désactivés** (`ALLOW_SUDO=False`) | ✔ **Activés** (`ALLOW_SUDO=True`) |
+| **Isolation** | RAM pure volatile (Mode NÉANT, 0 résidu SSD) | Confinement Shadow-Docker volatile en mémoire vive |
+| **Sécurité Vitale** | Sentinelle active | 🛡️ Veto inviolable du *SacredLifeSentinel* (intégrité vitale) |
+| **Lecture Système** | 🌐 Partout sur la machine hôte | 🌐 Partout sur la machine hôte |
+| **Écriture Système** | Confinée au workspace ou mémoire éphémère | Tout le système sous contrôle souverain |
+| **Commandes types** | Code, audits, calculs AMM, recherche | Installations apt/pip root, configuration réseau, builds lourds |
+
+---
+
 *FreeAI Sovereign Assistant — Conçu pour l'autonomie, la liberté et l'excellence technique.*

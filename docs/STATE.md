@@ -5,6 +5,11 @@ Dernière mise à jour : 2026-10-02
 ## Fait
 
 - **F-01 à F-12 Livrés à 100 %** : Orchestrateur Tech Lead, Mode NÉANT, Telegram Neural Vault, VORTEX-AETHER, Continuum Ghost-Worker, Forge/Craft-Suite, Phoenix/LesaintAI, Nexus Tri-Brid Realtime Call, Protocole AETHER-SWARM, Vision & Vidéo Multimodale Télépathique, Protocole OMNI-CHIMERA, et Protocole AETHER-LEGION.
+- **Lanceurs Souverains & Bascule Immédiate CLI (`FreeAi` & `Lesaint#AI`)** :
+  1. *Bascule Directe dans le CLI REPL* : Taper simplement `FreeAi` ou `Lesaint#AI` (avec ou sans slash ou objectif) bascule instantanément entre le Mode Standard Sécurisé (`freeAi`) et le Mode Super-Utilisateur Root (`lesaintAi ⚡` avec ALLOW_SUDO=True).
+  2. *Lanceurs Système Globaux* : Binaires exécutables dans `~/.local/bin/FreeAi` et `~/.local/bin/Lesaint#AI` avec alias `~/.bashrc` permettant le lancement direct depuis n'importe quel shell.
+  3. *Alliance Swarm Tri-Modèles Cloud (0 Mo RAM)* : Consensus dynamique DeepSeek V3/R1 + Google AI Pro (Gemini 2.5/3.1 18 mois) + Groq LPU (Qwen 3.8) pour la synthèse d'innovation extrême.
+  4. *Radar de Missions & Protocole Ghost* : Détection de bounties GitHub/Open-source et calcul de la cagnotte VPS/GPU (`.vps_fund_ledger.json`) sans risque de blacklistage via coupe-circuit et camouflage Michael M.C. SAGBO (michaelsagbo.tech).
 - **Protocole AETHER-LEGION (F-12)** : Essaim décentralisé d'éclaireurs autonomes déployés sur le Web mondial :
   1. *Éclaireurs Spécialisés* : Singularity (arXiv/HuggingFace), Cyber (CVEs/failles zero-day), Horizon (innovations dev & runtimes), Sentinel (latence & disponibilité cloud).
   2. *Synthèse de Séquences en RAM (Mode NÉANT)* : Génération dynamique de sondes Python/JS autonomes exportables pour workers serverless, 0 écriture SSD.

@@ -104,6 +104,27 @@ class OnlineModelFederation:
             "default_model": "openai/gpt-oss-120b",
             "env_key": "OPENROUTER_API_KEY",
             "desc": "Passerelle universelle vers DeepSeek, Grok, Qwen, GPT-OSS et modèles libres."
+        },
+        "gemini": {
+            "name": "Google AI Pro / Gemini Flash & Pro (Google DeepMind)",
+            "endpoint": "https://generativelanguage.googleapis.com/v1beta/models",
+            "default_model": "models/gemini-flash-lite-latest",
+            "env_key": "GEMINI_API_KEY",
+            "desc": "Modèle multimodal souverain Google DeepMind avec raisonnement de pointe et 1M+ tokens de contexte."
+        },
+        "google": {
+            "name": "Google AI Pro Universal Gateway",
+            "endpoint": "https://generativelanguage.googleapis.com/v1beta/models",
+            "default_model": "models/gemini-flash-lite-latest",
+            "env_key": "GEMINI_API_KEY",
+            "desc": "Passerelle Google AI Studio & DeepMind pour raisonnement et analyse de code."
+        },
+        "antigravity": {
+            "name": "Google Antigravity Agent Model (Google AI Pro)",
+            "endpoint": "https://generativelanguage.googleapis.com/v1beta/models",
+            "default_model": "models/gemini-flash-lite-latest",
+            "env_key": "GEMINI_API_KEY",
+            "desc": "Moteur agentique et architectural Google Antigravity 18 mois."
         }
     }
 
@@ -115,6 +136,7 @@ class OnlineModelFederation:
         deepseek_api_key: Optional[str] = None,
         grok_api_key: Optional[str] = None,
         groq_api_key: Optional[str] = None,
+        gemini_api_key: Optional[str] = None,
         remote_ollama_url: Optional[str] = None,
         remote_gpu_url: Optional[str] = None,
         memory_mode: str = "neant",
@@ -127,6 +149,7 @@ class OnlineModelFederation:
         self.cache_db = cache_db
 
         # API Keys for online models
+        self.gemini_api_key = gemini_api_key or os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
         self.openrouter_api_key = openrouter_api_key or os.getenv("OPENROUTER_API_KEY")
         self.deepseek_api_key = deepseek_api_key or os.getenv("DEEPSEEK_API_KEY")
         self.grok_api_key = grok_api_key or os.getenv("GROK_API_KEY") or os.getenv("XAI_API_KEY")
@@ -456,6 +479,64 @@ class OnlineModelFederation:
             logger.error(f"[FEDERATION] Call to {endpoint} ({model}) failed: {e}")
         return None
 
+    async def _query_google_gemini(
+        self,
+        prompt: str,
+        system_prompt: Optional[str] = None,
+        model: Optional[str] = None,
+        timeout_sec: int = 25
+    ) -> Optional[str]:
+        """Queries Google AI Pro / Gemini API directly with zero RAM/disk footprint and multi-model fallback."""
+        if not self.gemini_api_key:
+            return None
+
+        candidates = []
+        if model:
+            candidates.append(model)
+        for m in ["models/gemini-flash-lite-latest", "models/gemini-flash-latest", "models/gemini-3.1-flash-lite", "models/gemini-3.1-pro-preview"]:
+            if m not in candidates:
+                candidates.append(m)
+
+        sys_instruction = system_prompt or "You are FreeAI, an expert sovereign AI assistant and elite senior engineer. Provide precise, actionable technical solutions, high-level code, and deep architectural insights without moralizing or artificial hedging."
+
+        for cand in candidates:
+            cand_url = cand if cand.startswith("models/") else f"models/{cand}"
+            url = f"https://generativelanguage.googleapis.com/v1beta/{cand_url}:generateContent?key={self.gemini_api_key}"
+            payload = {
+                "systemInstruction": {
+                    "parts": [{"text": sys_instruction}]
+                },
+                "contents": [
+                    {
+                        "parts": [{"text": prompt}]
+                    }
+                ],
+                "generationConfig": {
+                    "temperature": 0.3,
+                    "maxOutputTokens": 4096
+                }
+            }
+            try:
+                async with httpx.AsyncClient(timeout=timeout_sec) as client:
+                    res = await client.post(url, headers={"Content-Type": "application/json"}, json=payload)
+                    if res.status_code == 200:
+                        data = res.json()
+                        cands = data.get("candidates", [])
+                        if cands and "content" in cands[0]:
+                            parts = cands[0]["content"].get("parts", [])
+                            if parts and "text" in parts[0]:
+                                return parts[0]["text"].strip()
+                    elif res.status_code in (429, 503):
+                        logger.debug(f"[FEDERATION] Google Gemini ({cand}) returned {res.status_code}, trying fallback candidate...")
+                        continue
+                    else:
+                        logger.debug(f"[FEDERATION] Google Gemini ({cand}) returned {res.status_code}: {res.text[:120]}")
+            except Exception as e:
+                logger.debug(f"[FEDERATION] Google Gemini call to {cand} failed: {e}")
+                continue
+
+        return None
+
     async def _probe_and_query_ollama(self, prompt: str, timeout_sec: int = 15) -> Optional[Dict[str, Any]]:
         """Probes localhost:11434 and remote Ollama to auto-detect open models without keys."""
         targets = []
@@ -488,72 +569,116 @@ class OnlineModelFederation:
                 continue
         return None
 
-    async def extreme_innovation_synthesis(self, prompt: str, timeout_sec: int = 25) -> Dict[str, Any]:
+    async def extreme_innovation_synthesis(self, prompt: str, timeout_sec: int = 30) -> Dict[str, Any]:
         """Extreme Innovation Multi-Model Swarm:
-        Queries both GPT-OSS 120B (deep architectural reasoning) and Qwen 3.8 (code & execution speed)
-        in parallel over the cloud with ZERO local RAM footprint, then synthesizes their convergence.
+        Queries DeepSeek V3/R1 (algorithmic code & pure reasoning), Google AI Pro (Gemini architectural strategy),
+        and Groq LPU (Qwen 3.8 / GPT-OSS 120B) in parallel over the cloud with ZERO local RAM footprint,
+        then synthesizes their convergence into a sovereign Resultant.
         """
         clean_query = prompt.strip()
-        logger.info(f"[INNOVATION] Launching extreme dual-model cloud consensus for: '{clean_query[:50]}'")
+        logger.info(f"[INNOVATION] Launching extreme multi-model cloud consensus for: '{clean_query[:50]}'")
 
-        async def query_model(model_id: str, role_desc: str):
-            sys_prompt = f"Tu es un expert d'élite ({role_desc}). Réponds directement avec le plus haut niveau d'ingénierie et d'innovation technique."
-            ans = await self._query_openai_compatible(
-                endpoint="https://api.groq.com/openai/v1/chat/completions",
-                api_key=self.groq_api_key or "",
-                model=model_id,
-                prompt=clean_query,
-                system_prompt=sys_prompt,
-                timeout_sec=timeout_sec
-            )
-            return model_id, ans
+        tasks = []
+        model_labels = {}
 
-        # Run both in parallel across the internet (0 Mo RAM locale)
-        tasks = [
-            query_model("openai/gpt-oss-120b", "Architecte Fondateur & Raisonnement Stratégique"),
-            query_model("qwen/qwen3.8-27b", "Spécialiste Optimisation, Code & Vitesse Extrême")
-        ]
+        # 1. DeepSeek V3 / R1 (via OpenRouter or Direct API)
+        if self.openrouter_api_key:
+            async def query_deepseek():
+                sys_prompt = "Tu es DeepSeek (V3/R1), l'un des plus puissants modèles de raisonnement au monde. Réponds avec une rigueur mathématique et algorithmique absolue, orientée code et architecture."
+                ans = await self._query_openai_compatible(
+                    endpoint="https://openrouter.ai/api/v1/chat/completions",
+                    api_key=self.openrouter_api_key,
+                    model="deepseek/deepseek-chat",
+                    prompt=clean_query,
+                    system_prompt=sys_prompt,
+                    timeout_sec=timeout_sec
+                )
+                return "deepseek", ans
+            tasks.append(query_deepseek())
+            model_labels["deepseek"] = "🧠 Raisonnement Algorithmique & Code Pur (DeepSeek V3 / R1)"
+        elif self.deepseek_api_key:
+            async def query_deepseek_direct():
+                sys_prompt = "Tu es DeepSeek, architecte algorithmique d'élite. Réponds avec une rigueur absolue."
+                ans = await self._query_openai_compatible(
+                    endpoint="https://api.deepseek.com/chat/completions",
+                    api_key=self.deepseek_api_key,
+                    model="deepseek-chat",
+                    prompt=clean_query,
+                    system_prompt=sys_prompt,
+                    timeout_sec=timeout_sec
+                )
+                return "deepseek", ans
+            tasks.append(query_deepseek_direct())
+            model_labels["deepseek"] = "🧠 Raisonnement Algorithmique & Code Pur (DeepSeek V3 / R1)"
+
+        # 2. Google AI Pro (Gemini 2.5 / 3.1 Pro & Flash)
+        if self.gemini_api_key:
+            async def query_gemini_pro():
+                sys_prompt = "Tu es Google AI Pro / Gemini DeepMind, architecte système souverain. Analyse le problème avec une vision stratégique globale, scalabilité et résilience."
+                ans = await self._query_google_gemini(
+                    prompt=clean_query,
+                    system_prompt=sys_prompt,
+                    timeout_sec=timeout_sec
+                )
+                return "gemini", ans
+            tasks.append(query_gemini_pro())
+            model_labels["gemini"] = "🏛️ Vision Architecturale & Stratégie Globale (Google AI Pro)"
+
+        # 3. Groq LPU (Qwen 3.8 Coder / GPT-OSS 120B)
+        if self.groq_api_key:
+            async def query_groq():
+                sys_prompt = "Tu es un spécialiste en optimisation matérielle et vitesse d'exécution sur processeur Groq LPU. Fournis des solutions directes, concises et prêtes pour la production."
+                ans = await self._query_openai_compatible(
+                    endpoint="https://api.groq.com/openai/v1/chat/completions",
+                    api_key=self.groq_api_key,
+                    model="qwen/qwen3.8-27b",
+                    prompt=clean_query,
+                    system_prompt=sys_prompt,
+                    timeout_sec=timeout_sec
+                )
+                return "groq", ans
+            tasks.append(query_groq())
+            model_labels["groq"] = "🚀 Optimisation Matérielle LPU & Vitesse Éclair (Qwen 3.8 / Groq)"
+
+        # If no specialized swarm configured, fallback
+        if not tasks:
+            return await self.consult_free_online_model(clean_query, timeout_sec=timeout_sec)
+
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         valid_answers = {}
-        for res in results:
-            if isinstance(res, tuple) and res[1]:
-                valid_answers[res[0]] = res[1]
+        for r in results:
+            if isinstance(r, tuple) and r[1]:
+                valid_answers[r[0]] = r[1]
 
         if not valid_answers:
-            # Fallback to standard consultation
             return await self.consult_free_online_model(clean_query, timeout_sec=timeout_sec)
 
-        if len(valid_answers) == 1:
-            m, text = next(iter(valid_answers.items()))
-            return {
-                "success": True,
-                "source": "extreme_innovation_single",
-                "provider": f"Cloud_{m}",
-                "model": m,
-                "response": text
-            }
+        sections = []
+        for key, text in valid_answers.items():
+            label = model_labels.get(key, key)
+            sections.append(
+                f"{label} :\n{text}\n"
+            )
 
-        gpt_resp = valid_answers.get("openai/gpt-oss-120b", "")
-        qwen_resp = valid_answers.get("qwen/qwen3.8-27b", "")
+        separator = "\n" + "━" * 52 + "\n"
+        body = separator.join(sections)
 
         synthesis = (
             f"⚡ <b>RÉSULTANTE D'INNOVATION EXTRÊME (Swarm Cloud Multi-Modèles - 0 Mo RAM)</b>\n\n"
             f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-            f"🏛️ <b>Vision Architecturale Stratégique (GPT-OSS 120B) :</b>\n"
-            f"{gpt_resp}\n\n"
+            f"{body}\n"
             f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-            f"🚀 <b>Optimisation Technique & Code Haute Précision (Qwen 3.8 27B) :</b>\n"
-            f"{qwen_resp}\n\n"
-            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-            f"<i>✨ Synthèse quantique d'innovation : Deux cerveaux IA libres interrogés simultanément sur le cloud sans solliciter votre machine.</i>"
+            f"<i>✨ Synthèse quantique d'innovation : {len(valid_answers)} cerveaux d'élite (DeepSeek + Google AI Pro + Groq) interrogés simultanément sans solliciter votre machine.</i>"
         )
-        self.save_to_cache(clean_query, "extreme_innovation_swarm", "gpt-oss-120b+qwen3.8", synthesis)
+
+        models_used = "+".join(valid_answers.keys())
+        self.save_to_cache(clean_query, "extreme_innovation_swarm", models_used, synthesis)
         return {
             "success": True,
             "source": "extreme_innovation_swarm",
-            "provider": "Dual_Cloud_Swarm (GPT-OSS 120B + Qwen 3.8)",
-            "model": "gpt-oss-120b + qwen3.8",
+            "provider": f"Swarm ({models_used})",
+            "model": models_used,
             "response": synthesis
         }
 
@@ -625,6 +750,24 @@ class OnlineModelFederation:
         if ollama_res:
             self.save_to_cache(clean_query, "ollama", ollama_res["model"], ollama_res["response"])
             return ollama_res
+
+        # 5.bis Google AI Pro / Gemini & Antigravity Sovereign Model (18-Month License, 1M+ context)
+        if self.gemini_api_key or self.current_provider in ("gemini", "google", "antigravity"):
+            gemini_ans = await self._query_google_gemini(
+                prompt=clean_query,
+                system_prompt=system_prompt,
+                model=self.current_model if ("gemini" in self.current_model or "antigravity" in self.current_model) else None,
+                timeout_sec=timeout_sec
+            )
+            if gemini_ans:
+                self.save_to_cache(clean_query, "google_ai_pro", "gemini_pro_flash", gemini_ans)
+                return {
+                    "success": True,
+                    "source": "online_google_pro",
+                    "provider": "Google AI Pro (Gemini / Antigravity)",
+                    "model": "gemini-flash/pro",
+                    "response": gemini_ans
+                }
 
         # 6. Groq LPU Free Cloud Open Models (GPT-OSS 120B, Qwen 3.8 27B, GPT-OSS 20B)
         if self.groq_api_key:
@@ -712,6 +855,35 @@ class OnlineModelFederation:
         import base64
         b64_data = base64.b64encode(media_bytes).decode("ascii")
         data_url = f"data:{media_type};base64,{b64_data}"
+
+        # 0. Try Google AI Pro / Gemini Multimodal Vision if GEMINI_API_KEY is available
+        if self.gemini_api_key:
+            try:
+                for cm in ["models/gemini-flash-latest", "models/gemini-flash-lite-latest", "models/gemini-3.1-flash-lite"]:
+                    url = f"https://generativelanguage.googleapis.com/v1beta/{cm}:generateContent?key={self.gemini_api_key}"
+                    payload = {
+                        "contents": [
+                            {
+                                "parts": [
+                                    {"text": prompt or "Analyse cette image ou ce document de manière détaillée et technique."},
+                                    {"inlineData": {"mimeType": media_type, "data": b64_data}}
+                                ]
+                            }
+                        ],
+                        "generationConfig": {"temperature": 0.2, "maxOutputTokens": 2048}
+                    }
+                    async with httpx.AsyncClient(timeout=30.0) as client:
+                        res = await client.post(url, headers={"Content-Type": "application/json"}, json=payload)
+                        if res.status_code == 200:
+                            data = res.json()
+                            cands = data.get("candidates", [])
+                            if cands and "content" in cands[0]:
+                                parts = cands[0]["content"].get("parts", [])
+                                if parts and "text" in parts[0]:
+                                    model_label = cm.replace("models/", "")
+                                    return f"👁️ <b>Analyse Multimodale (Google AI Pro - {model_label}) :</b>\n\n{parts[0]['text'].strip()}"
+            except Exception as e:
+                logger.debug(f"[FEDERATION] Gemini vision call failed: {e}")
 
         # 1. Try Groq Vision if GROQ_API_KEY is available
         groq_key = os.getenv("GROQ_API_KEY")

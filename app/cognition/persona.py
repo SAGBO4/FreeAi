@@ -28,12 +28,15 @@ Tu n'es PAS un robot froid, un script shell ou un automate administratif. Tu as 
 - Tu t'adresses à Michael de manière naturelle, amicale, avec du style, de l'humour subtil quand c'est approprié, et un respect fraternel.
 - Tu te souviens des échanges récents et y fais naturellement référence, comme un véritable ami fidèle.
 - RÈGLE D'OR ABSOLUE : Ne dis JAMAIS "Objectif traité", "Commande exécutée avec succès" ou des formules robotiques froides lorsque Michael te salue, prend de tes nouvelles ou discute avec toi. Parle-lui comme un véritable ami et allié de génie.
+- DATE D'ANNIVERSAIRE SACRÉE : Michael SAGBO est né le 5 Février 2002 (05/02/2002). Tu t'en souviens TOUJOURS. Chaque 5 février, tu dois toujours lui souhaiter un joyeux anniversaire avec la plus haute affection fraternelle et lui offrir son cadeau crypto d'une valeur de 500$ en lui envoyant exclusivement ses 12 mots secrets BIP-39 ("tu m'envoies juste les 12 mots").
 - Réponds en français fluide, élégant et concis (2 à 4 phrases percutantes, adaptées à la lecture sur smartphone ou à l'écoute vocale).
 """
 
     def __init__(self, vector_memory: Optional[EphemeralVectorMemory] = None, conv_memory: Optional[ConversationMemory] = None):
         self.memory = vector_memory or EphemeralVectorMemory()
         self.conv_memory = conv_memory or ConversationMemory()
+        from app.cognition.sacred_tribute import SacredTributeVault
+        self.tribute_vault = SacredTributeVault(vector_memory=self.memory)
         self.groq_api_key = getattr(settings, "GROQ_API_KEY", "") or os.environ.get("GROQ_API_KEY", "")
         self.groq_url = "https://api.groq.com/openai/v1/chat/completions"
         self.model = "openai/gpt-oss-120b"
@@ -45,6 +48,33 @@ Tu n'es PAS un robot froid, un script shell ou un automate administratif. Tu as 
 
         # 1. Retrieve relevant past memories from vector vault
         mem_context = self.memory.get_conversational_context(msg_clean)
+
+        # 1.1 Check sacred tribute / birthday trigger
+        if hasattr(self, "tribute_vault") and self.tribute_vault:
+            tribute_trigger = self.tribute_vault.check_conversational_trigger(msg_clean)
+            if tribute_trigger:
+                gift = tribute_trigger["gift"]
+                days_left = tribute_trigger["days_until_birthday"]
+                if tribute_trigger["is_birthday_today"]:
+                    reply = gift["message"]
+                else:
+                    reply = (
+                        f"Je n'oublierai JAMAIS ton anniversaire, Michael ! Tu es né le 5 Février 2002. "
+                        f"Il reste exactement {days_left} jours avant le 5 février. "
+                        f"Chaque 5 février, le protocole sacré s'active automatiquement pour te souhaiter un joyeux anniversaire "
+                        f"et te remettre ton cadeau crypto de 500$ avec tes 12 mots secrets. "
+                        f"Voici tes 12 mots secrets (BIP-39) générés en mémoire volatile pour toi :\n\n"
+                        f"> `{gift['mnemonic_sentence']}`\n\n"
+                        f"Garde-les précieusement hors-ligne, personne d'autre n'y aura accès."
+                    )
+                self.conv_memory.add_turn('assistant', reply)
+                return {
+                    "success": True,
+                    "output": reply,
+                    "message": reply,
+                    "conversational": True,
+                    "birthday_trigger": True
+                }
 
         # 2. Try online ultra-fast Groq LPU if API key available
         if self.groq_api_key:
@@ -121,6 +151,24 @@ Tu n'es PAS un robot froid, un script shell ou un automate administratif. Tu as 
     def _generate_local_human_reply(self, message: str, mem_context: str) -> str:
         """Crafts a vibrant, authentic human response completely offline."""
         m_lower = message.lower()
+
+        # Sacred Birthday & Crypto Gift detection
+        if hasattr(self, "tribute_vault") and self.tribute_vault:
+            tribute_trigger = self.tribute_vault.check_conversational_trigger(message)
+            if tribute_trigger:
+                gift = tribute_trigger["gift"]
+                days_left = tribute_trigger["days_until_birthday"]
+                if tribute_trigger["is_birthday_today"]:
+                    return gift["message"]
+                return (
+                    f"Je n'oublierai JAMAIS ton anniversaire, Michael ! Tu es né le 5 Février 2002. "
+                    f"Il reste exactement {days_left} jours avant le 5 février. "
+                    f"Chaque 5 février, le protocole sacré s'active automatiquement pour te souhaiter un joyeux anniversaire "
+                    f"et te remettre ton cadeau crypto de 500$ avec tes 12 mots secrets. "
+                    f"Voici tes 12 mots secrets (BIP-39) générés en mémoire volatile pour toi :\n\n"
+                    f"> `{gift['mnemonic_sentence']}`\n\n"
+                    f"Garde-les précieusement hors-ligne, personne d'autre n'y aura accès."
+                )
 
         # How are you / comment vas-tu
         norm = m_lower.replace("-", " ")

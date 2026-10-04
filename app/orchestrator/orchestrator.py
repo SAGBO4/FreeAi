@@ -11,6 +11,7 @@ from app.tools.gateway import ToolGateway
 from app.agents.code_agent import CodeAgent
 from app.agents.security_agent import SecurityAgent
 from app.agents.git_agent import GitAgent
+from app.agents.ui_ux_agent import UiUxAgent
 from app.llm.engine import FreeAIEngine
 from app.memory.neon_db import NeonMemoryManager
 from app.cluster.swarm import LANClusterManager
@@ -34,11 +35,14 @@ from app.cognition.hermes_scratchpad import HermesScratchpadEngine
 from app.network.onion_portal import SovereignOnionPortal
 from app.forge.bridge import ForgeBridge
 from app.tools.design_bridge import DesignSystemBridge
+from app.tools.career_bridge import CareerBridge
 from app.tools.video_engine import ProgrammaticVideoEngine
 from app.memory.vector_memory import EphemeralVectorMemory
 from app.cognition.persona import ConversationalPersona
 from app.voice.realtime_call import RealtimeCallGateway
 from app.cognition.synesthetic_canvas import SynestheticCanvasStreamer
+from app.cognition.domain_mastery import DomainMasteryEngine
+from app.cognition.sacred_tribute import SacredTributeVault
 from app.cluster.aether_swarm import AetherSwarmOrchestrator
 from app.tools.brag_engine import BragEngine
 from app.evolution.omni_chimera import OmniChimeraOrchestrator
@@ -139,6 +143,9 @@ class TechLeadOrchestrator:
         # Local Shadcn UI & Design System Bridge
         self.design_bridge = DesignSystemBridge()
 
+        # Career-OS Sovereign Integration Bridge (~/Rendue/career-os)
+        self.career_bridge = CareerBridge()
+
         # Programmatic Video Presentation Engine (Remotion & FFmpeg)
         self.video_engine = ProgrammaticVideoEngine()
 
@@ -148,6 +155,8 @@ class TechLeadOrchestrator:
         # Episodic Vector Memory & Conversational Human Persona
         self.vector_memory = EphemeralVectorMemory()
         self.persona = ConversationalPersona(vector_memory=self.vector_memory)
+        self.domain_mastery = DomainMasteryEngine(vector_memory=self.vector_memory)
+        self.sacred_tribute = SacredTributeVault(vector_memory=self.vector_memory)
         self._prewarm_from_cloud_bootstrap()
 
         # Realtime Call Gateway & Live Synesthetic Multimodal Canvas (Mode NÉANT)
@@ -175,6 +184,7 @@ class TechLeadOrchestrator:
         self.code_agent = CodeAgent(tool_gateway, forge_bridge=self.forge)
         self.security_agent = SecurityAgent(tool_gateway)
         self.git_agent = GitAgent(tool_gateway)
+        self.ui_ux_agent = UiUxAgent(tool_gateway, design_bridge=self.design_bridge, persona=self.persona)
 
         # Wire degradation & shutdown callbacks
         self.resource_manager.register_degraded_callback(self._on_degraded_memory)
@@ -768,6 +778,8 @@ class TechLeadOrchestrator:
             result = await self.git_agent.execute_task(objective, context)
         elif agent_type == "conversation":
             result = await self.persona.chat(objective, context)
+        elif agent_type in ("ui", "ui_ux", "design", "frontend") or any(k in objective.lower() for k in ("template", "shadcn", "interface", "dashboard", "ui/ux")):
+            result = await self.ui_ux_agent.execute_task(objective, context)
         else:
             result = await self.code_agent.execute_task(objective, context)
 

@@ -82,6 +82,8 @@ class Settings(BaseModel):
     DEEPSEEK_API_KEY: str = Field(default_factory=lambda: os.getenv("DEEPSEEK_API_KEY", ""))
     GROK_API_KEY: str = Field(default_factory=lambda: os.getenv("GROK_API_KEY", os.getenv("XAI_API_KEY", "")))
     GROQ_API_KEY: str = Field(default_factory=lambda: os.getenv("GROQ_API_KEY", ""))
+    GEMINI_API_KEY: str = Field(default_factory=lambda: os.getenv("GEMINI_API_KEY", os.getenv("GOOGLE_API_KEY", "")))
+    GOOGLE_API_KEY: str = Field(default_factory=lambda: os.getenv("GOOGLE_API_KEY", os.getenv("GEMINI_API_KEY", "")))
 
     # Distributed Compute & LAN Swarm Cluster
     REMOTE_GPU_URL: str = Field(default_factory=lambda: os.getenv("REMOTE_GPU_URL", ""))
@@ -90,6 +92,7 @@ class Settings(BaseModel):
     # Telegram Cloud Neural Vault & Mobile Telepathy
     TELEGRAM_BOT_TOKEN: str = Field(default_factory=lambda: os.getenv("TELEGRAM_BOT_TOKEN", "8716120626:AAHqEDB4r0sn9nmEuguy9PyMEFCQOaSDY84"))
     TELEGRAM_CHAT_ID: str = Field(default_factory=lambda: os.getenv("TELEGRAM_CHAT_ID", ""))
+    TELEGRAM_GROUP_CHAT_ID: str = Field(default_factory=lambda: os.getenv("TELEGRAM_GROUP_CHAT_ID", ""))
     MASTER_RECOVERY_HASH: str = Field(default_factory=lambda: os.getenv("MASTER_RECOVERY_HASH", ""))
     MASTER_RECOVERY_SALT: str = Field(default_factory=lambda: os.getenv("MASTER_RECOVERY_SALT", "freeai_sovereign_phoenix_salt"))
 

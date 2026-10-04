@@ -70,6 +70,10 @@ async def _smart_telegram_send(vault, response: str, cmd=None):
 
 
 SLASH_COMMANDS = [
+    "FreeAi",
+    "Lesaint#AI",
+    "/FreeAi",
+    "/Lesaint#AI",
     "/mode",
     "/mode freeAi",
     "/mode lesaintAi",
@@ -115,6 +119,10 @@ SLASH_COMMANDS = [
     "/forge",
     "/craft",
     "/design",
+    "/ui",
+    "/ui templates",
+    "/ui inspect",
+    "/ui adapt",
     "/cyber",
     "/skills",
     "/video",
@@ -141,6 +149,20 @@ SLASH_COMMANDS = [
     "/cloud ping",
     "/cloud add",
     "/cloud dispatch",
+    "/career",
+    "/career status",
+    "/career radar",
+    "/career test",
+    "/domain",
+    "/domain train",
+    "/domain blockchain",
+    "/domain trading",
+    "/domain mobile",
+    "/birthday",
+    "/birthday status",
+    "/birthday gift",
+    "/birthday wish",
+    "/gift",
     "/help",
     "/clear",
     "/exit",
@@ -241,6 +263,16 @@ def print_help():
     table.add_column("Description", style="white")
     table.add_column("Exemple d'utilisation", style="green")
 
+    table.add_row(
+        "FreeAi",
+        "Bascule directe en Mode Standard Sécurisé (écriture confinée, sudo bloqué, frugalité RAM).",
+        "FreeAi [objectif optionnel]"
+    )
+    table.add_row(
+        "Lesaint#AI",
+        "Bascule directe en Mode Super-Utilisateur (ALLOW_SUDO=True, privilèges root et déverrouillage total).",
+        "Lesaint#AI [objectif optionnel]"
+    )
     table.add_row(
         "/mode freeAi",
         "Mode Standard sécurisé : écriture confinée au workspace, lecture globale autorisée, sudo désactivé.",
@@ -1510,7 +1542,7 @@ async def run_think(tech_lead: TechLeadOrchestrator, args: List[str]):
         console.print("[bold red]Usage :[/] /think [status|pulse|stream|speech on|off]")
 
 
-async def dispatch_telegram_order(tech_lead: TechLeadOrchestrator, order: str, user: str, is_voice: bool = False, media_bytes: Optional[bytes] = None, media_type: Optional[str] = None):
+async def dispatch_telegram_order(tech_lead: TechLeadOrchestrator, order: str, user: str, is_voice: bool = False, media_bytes: Optional[bytes] = None, media_type: Optional[str] = None, message_thread_id: Optional[int] = None, target_chat_id: Optional[str] = None):
     """Processes an incoming command from Telegram with native shortcuts, autonomous AI,
     multimodal vision/video analysis, and bidirectional telepathy.
     """
@@ -1530,18 +1562,166 @@ async def dispatch_telegram_order(tech_lead: TechLeadOrchestrator, order: str, u
             prompt=order_clean,
             media_type=media_type or "image/jpeg"
         )
-        await tech_lead.telegram_vault.send_message(analysis)
+        await tech_lead.telegram_vault.send_message(analysis, message_thread_id=message_thread_id, target_chat_id=target_chat_id)
         console.print("[bold green]✔ Rapport d'analyse visuelle transmis sur Telegram ![/]")
         if wants_voice:
             voice_ogg = await tech_lead.voice.synthesize_speech("Analyse visuelle terminée, Michael.")
             if voice_ogg and voice_ogg.getbuffer().nbytes > 0:
-                await tech_lead.telegram_vault.send_voice(voice_ogg)
+                await tech_lead.telegram_vault.send_voice(voice_ogg, message_thread_id=message_thread_id, target_chat_id=target_chat_id)
+        return
+
+    # 0.1 Community Dedup / Clean Command
+    if any(cmd in order_lower for cmd in ("/clean_hq", "/nettoyer", "/dedup", "/reset_hq")) or ("nettoie" in order_lower and "doublon" in order_lower):
+        console.print("[dim]Nettoyage des salons en doublon sur Telegram en cours...[/]")
+        await tech_lead.telegram_vault.send_message(
+            "🧹 <b>Nettoyage & Dé-doublonnage des salons en cours...</b>\n"
+            "Veuillez patienter quelques instants pendant que je supprime les doublons.",
+            message_thread_id=message_thread_id,
+            target_chat_id=target_chat_id
+        )
+        clean_res = await tech_lead.telegram_vault.clean_duplicate_topics(target_chat_id=target_chat_id)
+        if clean_res.get("success"):
+            await tech_lead.telegram_vault.send_message(
+                f"✅ <b>Nettoyage Terminé avec Succès !</b>\n\n"
+                f"• Salons en doublon purgés : <b>{clean_res.get('deleted_count', 0)}</b>\n"
+                f"• Les <b>{clean_res.get('total_canonical', 6)} salons officiels</b> sont désormais uniques, propres et opérationnels sans aucun doublon.",
+                target_chat_id=target_chat_id
+            )
+        else:
+            await tech_lead.telegram_vault.send_message(
+                f"⚠️ Erreur lors du nettoyage : {clean_res.get('error')}",
+                message_thread_id=message_thread_id,
+                target_chat_id=target_chat_id
+            )
+        return
+
+    # 0.2 Community Setup Command
+    if any(cmd in order_lower for cmd in ("/setup_hq", "/setup", "/init_topics")):
+        console.print("[dim]Configuration du QG Communauté sur Telegram en cours...[/]")
+        setup_res = await tech_lead.telegram_vault.setup_community_hq(target_chat_id=target_chat_id)
+        if setup_res.get("success"):
+            await tech_lead.telegram_vault.send_message(
+                f"🏛️ <b>Quartier Général Configuré avec Succès !</b>\n\n"
+                f"• Salons opérationnels : <b>{setup_res.get('total_created', 6)}</b>\n"
+                f"• Salons configurés : Général, Career, Crypto, Cyberdéfense, Forge, Sanctuaire Sacré.",
+                target_chat_id=target_chat_id
+            )
+        else:
+            await tech_lead.telegram_vault.send_message(
+                f"⚠️ Impossible de créer les salons : {setup_res.get('error')}. "
+                f"Vérifiez que le bot est Administrateur avec la permission 'Gérer les sujets'.",
+                message_thread_id=message_thread_id,
+                target_chat_id=target_chat_id
+            )
+        return
+
+    # 0.3 Morning Briefing / Daily Report Command
+    if any(cmd in order_lower for cmd in ("/briefing", "/matin", "/rapport", "rapport du matin", "briefing du matin")) or ("rapport" in order_lower and ("matin" in order_lower or "jour" in order_lower)):
+        console.print("[dim]Génération et diffusion du Rapport du Matin en cours...[/]")
+        from app.tools.morning_briefing import MorningBriefingEngine
+        briefing_engine = MorningBriefingEngine(telegram_vault=tech_lead.telegram_vault)
+        briefing_res = await briefing_engine.broadcast_morning_briefing(target_chat_id=target_chat_id)
+        if briefing_res.get("success"):
+            console.print("[bold green]✔ Rapport du matin diffusé avec succès sur Telegram ![/]")
+            if wants_voice:
+                voice_ogg = await tech_lead.voice.synthesize_speech("Bonjour Michael, le rapport du matin et les alertes Career-OS ont été publiés dans le groupe.")
+                if voice_ogg and voice_ogg.getbuffer().nbytes > 0:
+                    await tech_lead.telegram_vault.send_voice(voice_ogg, message_thread_id=message_thread_id, target_chat_id=target_chat_id)
+        else:
+            await tech_lead.telegram_vault.send_message(
+                f"⚠️ Erreur lors de la génération du rapport du matin : {briefing_res.get('error')}",
+                message_thread_id=message_thread_id,
+                target_chat_id=target_chat_id
+            )
+        return
+
+    # 0.4 Auto-Apply / Candidature 1-Click Command
+    if order_lower.startswith(("/apply", "/postuler", "/candidature")) or "postule" in order_lower:
+        console.print("[dim]Génération du dossier de candidature 1-Click Apply...[/]")
+        parts = order_clean.split()
+        job_idx = 1
+        for p in parts[1:]:
+            if p.isdigit():
+                job_idx = int(p)
+                break
+        from app.tools.auto_apply import AutoApplyEngine
+        apply_engine = AutoApplyEngine(telegram_vault=tech_lead.telegram_vault)
+        apply_res = await apply_engine.prepare_and_dispatch_application(job_index=job_idx, target_chat_id=target_chat_id)
+        if apply_res.get("success"):
+            pkg = apply_res["package"]
+            console.print(f"[bold green]✔ Dossier de candidature généré pour : {pkg['job_title']} chez {pkg['company']} ![/]")
+            if wants_voice:
+                voice_ogg = await tech_lead.voice.synthesize_speech(f"Dossier de candidature généré avec succès pour le poste chez {pkg['company']}.")
+                if voice_ogg and voice_ogg.getbuffer().nbytes > 0:
+                    await tech_lead.telegram_vault.send_voice(voice_ogg, message_thread_id=message_thread_id, target_chat_id=target_chat_id)
+        else:
+            await tech_lead.telegram_vault.send_message(
+                f"⚠️ Impossible de préparer la candidature : {apply_res.get('error')}",
+                message_thread_id=message_thread_id,
+                target_chat_id=target_chat_id
+            )
+        return
+
+    # 0.5 Bounty Radar & War Chest (VPS/GPU Fund) Commands
+    if any(cmd in order_lower for cmd in ("/bounty", "/bounties", "/missions", "/cash", "/vps", "/fund", "chasse aux primes", "cagnotte vps")):
+        console.print("[dim]Scan des micro-missions et calcul du Trésor de Guerre (VPS/GPU)...[/]")
+        from app.tools.bounty_radar import BountyRadarEngine
+        bounty_radar = BountyRadarEngine(telegram_vault=tech_lead.telegram_vault, federation=tech_lead.federation)
+        res = await bounty_radar.broadcast_bounties_summary(target_chat_id=target_chat_id)
+        if res.get("success"):
+            console.print("[bold green]✔ Radar de missions & Cagnotte diffusés avec succès sur Telegram ![/]")
+            if wants_voice:
+                voice_ogg = await tech_lead.voice.synthesize_speech("Rapport des primes et état de la cagnotte VPS diffusés dans le salon Forge.")
+                if voice_ogg and voice_ogg.getbuffer().nbytes > 0:
+                    await tech_lead.telegram_vault.send_voice(voice_ogg, message_thread_id=message_thread_id, target_chat_id=target_chat_id)
+        else:
+            await tech_lead.telegram_vault.send_message(
+                f"⚠️ Erreur lors du scan des missions : {res.get('error')}",
+                message_thread_id=message_thread_id,
+                target_chat_id=target_chat_id
+            )
+        return
+
+    # 0.6 Solve Bounty Command
+    if order_lower.startswith("/solve") or ("résous la mission" in order_lower or "resous la mission" in order_lower):
+        console.print("[dim]Résolution de la mission avec Google AI Pro & Forge...[/]")
+        parts = order_clean.split()
+        b_idx = 1
+        for p in parts[1:]:
+            if p.isdigit():
+                b_idx = int(p)
+                break
+        from app.tools.bounty_radar import BountyRadarEngine
+        bounty_radar = BountyRadarEngine(telegram_vault=tech_lead.telegram_vault, federation=tech_lead.federation)
+        bounties = await bounty_radar.scan_bounties(limit=5)
+        if 1 <= b_idx <= len(bounties):
+            target_b = bounties[b_idx - 1]
+            sol_res = await bounty_radar.solve_bounty(target_b)
+            if sol_res.get("success"):
+                pkg = sol_res["package"]
+                reply_txt = (
+                    f"🎯 <b>SOLUTION GÉNÉRÉE : {pkg['title']}</b>\n"
+                    f"💵 <b>Prime :</b> <code>${pkg['estimated_reward_usd']:.0f} USD</code>\n"
+                    f"🔗 <b>Dépôt :</b> {pkg['repo_url']}\n"
+                    f"🌿 <b>Branche :</b> <code>{pkg['branch']}</code>\n\n"
+                    f"📝 <b>Message de PR :</b>\n<code>{pkg['commit_message']}</code>\n\n"
+                    f"💻 <b>Extrait du Patch :</b>\n"
+                    f"<code>{pkg['solution_code'][:1500]}</code>\n\n"
+                    f"✅ <i>Dossier enregistré dans le Trésor de Guerre (.vps_fund_ledger.json). Prêt à soumettre sous la signature Michael M.C. SAGBO.</i>"
+                )
+                topic_forge_id = tech_lead.telegram_vault.topics.get("forge", 103) if hasattr(tech_lead.telegram_vault, "topics") else 103
+                await tech_lead.telegram_vault.send_message(reply_txt, message_thread_id=topic_forge_id, target_chat_id=target_chat_id)
+                console.print(f"[bold green]✔ Solution pour {pkg['bounty_id']} générée et postée sur Telegram ![/]")
+            else:
+                await tech_lead.telegram_vault.send_message(f"⚠️ Erreur de résolution : {sol_res.get('error')}", message_thread_id=message_thread_id, target_chat_id=target_chat_id)
+        else:
+            await tech_lead.telegram_vault.send_message("⚠️ Numéro de mission introuvable. Tapez /bounty pour voir la liste.", message_thread_id=message_thread_id, target_chat_id=target_chat_id)
         return
 
     # 1. Native shortcut: /clone, /backup
     if order_lower in ("/clone", "/backup", "reclone", "clone", "backup") or "reclone" in order_lower:
         console.print("[dim]Génération du Kit de Secours et Auto-Clonage en RAM...[/]")
-        await tech_lead.telegram_vault.send_message("📦 <b>Génération du Kit de Secours et Auto-Clonage en RAM en cours...</b>")
+        await tech_lead.telegram_vault.send_message("📦 <b>Génération du Kit de Secours et Auto-Clonage en RAM en cours...</b>", message_thread_id=message_thread_id, target_chat_id=target_chat_id)
         res = await tech_lead.telegram_vault.backup_codebase_bundle(workspace)
         if res.get("uploaded_to_telegram"):
             console.print("[bold green]✔ Auto-Clonage téléversé vers Telegram ![/]")
@@ -1552,20 +1732,24 @@ async def dispatch_telegram_order(tech_lead: TechLeadOrchestrator, order: str, u
                 f"• Poids compressé GZIP : <code>{res['size_kb']:.2f} Ko</code>\n"
                 f"• Empreinte SSD locale : <b>0 octet (Mode NÉANT pur)</b>\n"
                 f"• Intégrité SHA-256 : <code>{res['sha256'][:16]}...</code>\n\n"
-                f"<i>Archive disponible ci-dessus pour restauration instantanée.</i>"
+                f"<i>Archive disponible ci-dessus pour restauration instantanée.</i>",
+                message_thread_id=message_thread_id,
+                target_chat_id=target_chat_id
             )
             # Vocal response only if requested
             if wants_voice:
                 voice_ogg = await tech_lead.voice.synthesize_speech("Auto-clonage terminé avec succès. Votre kit de secours complet est disponible dans ce chat.")
                 if voice_ogg and voice_ogg.getbuffer().nbytes > 0:
-                    await tech_lead.telegram_vault.send_voice(voice_ogg)
+                    await tech_lead.telegram_vault.send_voice(voice_ogg, message_thread_id=message_thread_id, target_chat_id=target_chat_id)
         else:
-            await tech_lead.telegram_vault.send_message("❌ Échec de l'envoi de l'archive vers Telegram.")
+            await tech_lead.telegram_vault.send_message("❌ Échec de l'envoi de l'archive vers Telegram.", message_thread_id=message_thread_id, target_chat_id=target_chat_id)
         return
 
     # 2. Native shortcut: /guide, guide, /doc
     if order_lower in ("/guide", "guide", "/doc", "doc", "aide", "/help"):
         console.print("[dim]Envoi du Guide d'Utilisation vers Telegram...[/]")
+        guide_text = tech_lead.telegram_vault.get_community_guide_text()
+        await tech_lead.telegram_vault.send_message(guide_text, message_thread_id=message_thread_id, target_chat_id=target_chat_id)
         guide_path = Path(workspace) / "GUIDE_UTILISATION_FREEAI.md"
         if guide_path.exists():
             data = guide_path.read_bytes()
@@ -1575,15 +1759,11 @@ async def dispatch_telegram_order(tech_lead: TechLeadOrchestrator, order: str, u
                 "• Modules : Daemon Jarvis 24/7, Design Shadcn, Moteur Vidéo Remotion, Matrix Cyber (24 modules)\n"
                 "• Support : 100% Hors-Ligne & Télépathie Mobile"
             )
-            ok = await tech_lead.telegram_vault.send_document("GUIDE_UTILISATION_FREEAI.md", data, caption=caption)
-            if ok:
-                console.print("[bold green]✔ Guide envoyé sur Telegram ![/]")
-                if wants_voice:
-                    voice_ogg = await tech_lead.voice.synthesize_speech("Voici le guide officiel souverain de FreeAI mis à jour.")
-                    if voice_ogg and voice_ogg.getbuffer().nbytes > 0:
-                        await tech_lead.telegram_vault.send_voice(voice_ogg)
-        else:
-            await tech_lead.telegram_vault.send_message("❌ Fichier GUIDE_UTILISATION_FREEAI.md introuvable.")
+            await tech_lead.telegram_vault.send_document("GUIDE_UTILISATION_FREEAI.md", data, caption=caption, message_thread_id=message_thread_id, target_chat_id=target_chat_id)
+        if wants_voice:
+            voice_ogg = await tech_lead.voice.synthesize_speech("Voici le guide complet souverain de FreeAI et de la communauté.")
+            if voice_ogg and voice_ogg.getbuffer().nbytes > 0:
+                await tech_lead.telegram_vault.send_voice(voice_ogg, message_thread_id=message_thread_id, target_chat_id=target_chat_id)
         return
 
     # 3. Native shortcut: /update, /evolve
@@ -1869,8 +2049,171 @@ async def dispatch_telegram_order(tech_lead: TechLeadOrchestrator, order: str, u
                         logger.debug(f"[TELEGRAM] Voice error: {e}")
 
             except Exception as e:
-                await tech_lead.telegram_vault.send_message(f"❌ <b>Incident Mission :</b>\n{e}")
+                await tech_lead.telegram_vault.send_message(f"❌ <b>Incident Mission :</b>\n{e}", message_thread_id=message_thread_id, target_chat_id=target_chat_id)
         return
+
+    # 7.4 Native shortcut: /career
+    if order_lower.startswith("/career"):
+        tokens = order_clean.split()
+        sub = tokens[1].lower() if len(tokens) > 1 else "status"
+        if sub == "status":
+            st = tech_lead.career_bridge.get_status()
+            await tech_lead.telegram_vault.send_message(
+                f"💼 <b>[CAREER-OS BRIDGE STATUS]</b>\n\n"
+                f"• Dépôt : <code>{st.get('repo_path')}</code>\n"
+                f"• Opérationnel : <b>{'✔ Oui' if st.get('available') else '❌ Non'}</b>\n"
+                f"• Indexeurs Remote : WeWorkRemotely, RemoteOK, Remotive",
+                message_thread_id=message_thread_id,
+                target_chat_id=target_chat_id
+            )
+        elif sub in ("radar", "scan"):
+            await tech_lead.telegram_vault.send_message("💼 <b>[CAREER-OS RADAR]</b> Balayage et validation du moteur de missions remote...", message_thread_id=message_thread_id, target_chat_id=target_chat_id)
+            res = tech_lead.career_bridge.run_radar_test()
+            await tech_lead.telegram_vault.send_message(
+                f"✅ <b>Banc d'Essai Radar Career-OS :</b>\n"
+                f"• Statut : <b>{'✔ 7/7 Tests Validés (0 échec)' if res.get('success') else '⚠️ Échec'}</b>\n"
+                f"• Moteur de scoring prêt pour la veille automatisée.",
+                message_thread_id=message_thread_id,
+                target_chat_id=target_chat_id
+            )
+        return
+
+    # 7.5 Native shortcut: /birthday
+    if order_lower.startswith("/birthday"):
+        tokens = order_clean.split()
+        sub = tokens[1].lower() if len(tokens) > 1 else "status"
+        tribute = tech_lead.sacred_tribute
+        if sub in ("challenge", "status"):
+            days = tribute.days_until_next_birthday()
+            c_msg = (
+                f"🎂 <b>ANNIVERSAIRE SACRÉ DE MICHAEL SAGBO</b>\n\n"
+                f"• <b>Date de naissance :</b> <code>5 Février 2002</code>\n"
+                f"• <b>Prochaine célébration :</b> 5 Février 2027 (25 ans)\n"
+                f"• <b>Compte à rebours :</b> <b>{days} jours</b>\n"
+                f"• <b>Défi Crypto Autonome :</b> Portefeuille &ge; 500$ constitué en monnaie échangeable\n"
+                f"• <b>Protocole de remise :</b> Strictement 12 mots secrets BIP-39 remis le jour J en RAM volatile (0 résidu SSD)."
+            )
+            await tech_lead.telegram_vault.send_message(c_msg, message_thread_id=message_thread_id, target_chat_id=target_chat_id)
+        elif sub in ("gift", "words", "12mots"):
+            gift = tribute.generate_crypto_gift()
+            await tech_lead.telegram_vault.send_message(gift["message"], message_thread_id=message_thread_id, target_chat_id=target_chat_id)
+        return
+
+    # 7.6 Native shortcut: /defense
+    if order_lower.startswith("/defense"):
+        tokens = order_clean.split()
+        sub = tokens[1].lower() if len(tokens) > 1 else "status"
+        if sub == "status":
+            st = tech_lead.active_defense.get_status()
+            d_msg = (
+                f"🛡️ <b>[CYBERDÉFENSE ACTIVE & SENTINELLE]</b>\n\n"
+                f"• Pare-feu cognitif : <b>{'✔ Actif' if st.get('active') else 'Inactif'}</b>\n"
+                f"• Mode NÉANT : <b>100% Volatile (0 écriture disque)</b>\n"
+                f"• Intrusions détectées : <code>{st.get('intrusions_detected', 0)}</code>\n"
+                f"• IPs bannies en RAM : <code>{st.get('banned_ips_count', 0)}</code>"
+            )
+            await tech_lead.telegram_vault.send_message(d_msg, message_thread_id=message_thread_id, target_chat_id=target_chat_id)
+        elif sub == "test" and len(tokens) > 2:
+            test_ip = tokens[2]
+            res = tech_lead.active_defense.audit_and_defend_request(source_ip=test_ip, query="Test intrusion probe")
+            await tech_lead.telegram_vault.send_message(
+                f"🛡️ <b>[TEST AUDIT INTRUSION]</b> IP: <code>{test_ip}</code>\n"
+                f"• Autorisé : <b>{res.get('allowed')}</b>\n"
+                f"• Action : <code>{res.get('action')}</code>\n"
+                f"• Raison : <i>{res.get('reason')}</i>",
+                message_thread_id=message_thread_id,
+                target_chat_id=target_chat_id
+            )
+        return
+
+    # 7.7 Native shortcut: /cloud
+    if order_lower.startswith("/cloud"):
+        tokens = order_clean.split()
+        sub = tokens[1].lower() if len(tokens) > 1 else "list"
+        if sub in ("list", "status"):
+            st = tech_lead.free_cloud_pool.get_status()
+            c_lines = [
+                "☁️ <b>[POOL CLOUD GRATUIT DE SECOURS]</b>\n",
+                f"• <b>Nœuds Actifs :</b> {st.get('active_nodes', 0)}",
+                f"• <b>Services Gratuits :</b> {st.get('free_tiers_catalog', 0)}\n",
+                "<b>Ressources Always Free :</b>",
+                "• <b>Oracle Always Free :</b> 4 OCPU ARM, 24 Go RAM",
+                "• <b>GCP e2-micro :</b> 1 vCPU, 1 Go RAM (Always Free)",
+                "• <b>GitHub Actions :</b> 2000 min/mois CI/CD",
+                "• <b>HuggingFace Spaces :</b> CPU & T4 GPU éphémère"
+            ]
+            await tech_lead.telegram_vault.send_message("\n".join(c_lines), message_thread_id=message_thread_id, target_chat_id=target_chat_id)
+        return
+
+    # 7.8 Native shortcut: /ui
+    if order_lower.startswith("/ui"):
+        tokens = order_clean.split()
+        sub = tokens[1].lower() if len(tokens) > 1 else "templates"
+        if sub in ("templates", "list"):
+            templates = tech_lead.design_bridge.list_available_templates()
+            u_lines = ["🎨 <b>[TEMPLATES SHADCN DISPONIBLES PAR DOMAINE]</b>\n"]
+            for dom, paths in templates.items():
+                u_lines.append(f"• <b>{dom.capitalize()}</b> : <code>{len(paths)}</code> composants clés")
+            u_lines.append("\n<i>Commandes : <code>/ui inspect &lt;domaine&gt;</code> ou <code>/ui adapt &lt;domaine&gt;</code></i>")
+            await tech_lead.telegram_vault.send_message("\n".join(u_lines), message_thread_id=message_thread_id, target_chat_id=target_chat_id)
+        elif sub == "inspect" and len(tokens) > 2:
+            dom = tokens[2].lower()
+            res = tech_lead.design_bridge.inspect_domain_template(dom)
+            if res.get("found"):
+                await tech_lead.telegram_vault.send_message(
+                    f"🎨 <b>[INSPECTION TEMPLATE {dom.upper()}]</b>\n\n"
+                    f"• Fichiers inspectés : <code>{len(res.get('files', []))}</code>\n"
+                    f"• Composants clés : <code>{', '.join(res.get('components', [])[:6])}</code>",
+                    message_thread_id=message_thread_id,
+                    target_chat_id=target_chat_id
+                )
+            else:
+                await tech_lead.telegram_vault.send_message(f"❌ <i>Domaine '{dom}' non trouvé. Tapez /ui templates</i>", message_thread_id=message_thread_id, target_chat_id=target_chat_id)
+        return
+
+    # 7.9 Native shortcut: /domain
+    if order_lower.startswith("/domain"):
+        tokens = order_clean.split()
+        sub = tokens[1].lower() if len(tokens) > 1 else "status"
+        if sub == "amm" and len(tokens) >= 5:
+            try:
+                rx, ry, dx = float(tokens[2]), float(tokens[3]), float(tokens[4])
+                res = tech_lead.domain_mastery.calculate_amm_swap(reserve_x=rx, reserve_y=ry, amount_in_x=dx)
+                await tech_lead.telegram_vault.send_message(
+                    f"📈 <b>[SIMULATION SWAP AMM x·y=k]</b>\n\n"
+                    f"• Montant reçu : <b>{res.get('amount_out_y', 0):.4f} Y</b>\n"
+                    f"• Impact prix : <b>{res.get('price_impact_pct', 0):.2f}%</b>\n"
+                    f"• Nouveau prix : <code>{res.get('execution_price', 0):.4f}</code>",
+                    message_thread_id=message_thread_id,
+                    target_chat_id=target_chat_id
+                )
+            except Exception as e:
+                await tech_lead.telegram_vault.send_message(f"⚠️ <i>Erreur AMM : {e} (Usage: /domain amm &lt;rx&gt; &lt;ry&gt; &lt;dx&gt;)</i>", message_thread_id=message_thread_id, target_chat_id=target_chat_id)
+            return
+        elif sub == "risk" and len(tokens) >= 5:
+            try:
+                cap, r_pct, sl_pct = float(tokens[2]), float(tokens[3]), float(tokens[4])
+                res = tech_lead.domain_mastery.calculate_position_size(capital=cap, risk_pct=r_pct, stop_loss_pct=sl_pct)
+                await tech_lead.telegram_vault.send_message(
+                    f"📈 <b>[GESTION DE RISQUE POSITION SIZING]</b>\n\n"
+                    f"• Taille recommandée : <b>{res.get('recommended_position_size', 0):.2f} $</b>\n"
+                    f"• Risque max en cash : <b>{res.get('max_risk_amount', 0):.2f} $</b>\n"
+                    f"• Conforme 2% règle d'or : <b>{'✔ Oui' if res.get('compliant_2pct_rule') else '⚠️ Non'}</b>",
+                    message_thread_id=message_thread_id,
+                    target_chat_id=target_chat_id
+                )
+            except Exception as e:
+                await tech_lead.telegram_vault.send_message(f"⚠️ <i>Erreur Risk : {e} (Usage: /domain risk &lt;cap&gt; &lt;risk%&gt; &lt;sl%&gt;)</i>", message_thread_id=message_thread_id, target_chat_id=target_chat_id)
+            return
+        else:
+            await tech_lead.telegram_vault.send_message(
+                "📈 <b>[MAÎTRISE DES DOMAINES]</b>\n"
+                "• <code>/domain amm &lt;reserve_x&gt; &lt;reserve_y&gt; &lt;dx&gt;</code>\n"
+                "• <code>/domain risk &lt;capital&gt; &lt;risk_pct&gt; &lt;stop_loss_pct&gt;</code>",
+                message_thread_id=message_thread_id,
+                target_chat_id=target_chat_id
+            )
+            return
 
     # 8. Standard AI objective or Human Conversation execution
     console.print(f"[dim]Exécution de l'ordre en mode {tech_lead.mode}...[/]")
@@ -1974,7 +2317,9 @@ async def run_telegram(tech_lead: TechLeadOrchestrator, args: List[str]):
             is_voice = getattr(cmd_info, "is_voice", False)
             media_bytes = getattr(cmd_info, "media_bytes", None)
             media_type = getattr(cmd_info, "media_type", None)
-            await dispatch_telegram_order(tech_lead, order, user, is_voice=is_voice, media_bytes=media_bytes, media_type=media_type)
+            message_thread_id = getattr(cmd_info, "message_thread_id", None)
+            target_chat_id = getattr(cmd_info, "target_chat_id", None)
+            await dispatch_telegram_order(tech_lead, order, user, is_voice=is_voice, media_bytes=media_bytes, media_type=media_type, message_thread_id=message_thread_id, target_chat_id=target_chat_id)
         else:
             console.print("[dim]Aucun nouvel ordre reçu sur Telegram lors de cette vérification.[/]")
 
@@ -1995,7 +2340,36 @@ async def run_telegram(tech_lead: TechLeadOrchestrator, args: List[str]):
                     is_voice = getattr(cmd_info, "is_voice", False)
                     media_bytes = getattr(cmd_info, "media_bytes", None)
                     media_type = getattr(cmd_info, "media_type", None)
-                    await dispatch_telegram_order(tech_lead, order, user, is_voice=is_voice, media_bytes=media_bytes, media_type=media_type)
+                    message_thread_id = getattr(cmd_info, "message_thread_id", None)
+                    target_chat_id = getattr(cmd_info, "target_chat_id", None)
+                    await dispatch_telegram_order(tech_lead, order, user, is_voice=is_voice, media_bytes=media_bytes, media_type=media_type, message_thread_id=message_thread_id, target_chat_id=target_chat_id)
+
+                # Check for autonomous morning briefing (every morning at/after 7:00 AM)
+                from datetime import date, datetime
+                now_dt = datetime.now()
+                today_str = str(date.today())
+                if now_dt.hour >= 7 and getattr(tech_lead, "_last_morning_briefing_date", None) != today_str:
+                    try:
+                        from app.tools.morning_briefing import MorningBriefingEngine
+                        briefing_engine = MorningBriefingEngine(telegram_vault=tech_lead.telegram_vault)
+                        await briefing_engine.broadcast_morning_briefing()
+                        tech_lead._last_morning_briefing_date = today_str
+                        console.print(f"[bold green]✔ Diffusion automatique du rapport du matin effectuée pour le {today_str}.[/]")
+                    except Exception as e:
+                        logger.debug(f"[TELEGRAM DAEMON] Morning briefing error: {e}")
+
+                # Check for autonomous offline applications (when Michael is offline / away)
+                if hasattr(tech_lead.telegram_vault, "is_master_online") and not tech_lead.telegram_vault.is_master_online(idle_threshold_seconds=1800):
+                    now_ts = time.time()
+                    if now_ts - getattr(tech_lead, "_last_offline_apply_ts", 0) > 1800:
+                        try:
+                            from app.tools.auto_apply import AutoApplyEngine
+                            apply_engine = AutoApplyEngine(telegram_vault=tech_lead.telegram_vault)
+                            await apply_engine.run_offline_autonomous_cycle()
+                            tech_lead._last_offline_apply_ts = now_ts
+                        except Exception as e:
+                            logger.debug(f"[TELEGRAM DAEMON] Offline apply error: {e}")
+
                 await asyncio.sleep(2)
         except (KeyboardInterrupt, asyncio.CancelledError):
             console.print("\n[yellow]Sentinelle Telegram interrompue.[/]")
@@ -2027,8 +2401,26 @@ async def run_telegram(tech_lead: TechLeadOrchestrator, args: List[str]):
                 border_style="yellow"
             ))
 
+    elif subcmd in ("clean", "dedup", "clean_hq"):
+        console.print("[dim]🧹 Dé-doublonnage et nettoyage complet des salons sur le supergroupe...[/]")
+        target_chat = args[1] if len(args) > 1 else None
+        res = await tech_lead.telegram_vault.clean_duplicate_topics(target_chat_id=target_chat)
+        if res.get("success"):
+            console.print(f"[bold green]✔ Nettoyage réussi : {res.get('deleted_count', 0)} doublons supprimés, {res.get('total_canonical', 6)} salons opérationnels ![/]")
+        else:
+            console.print(f"[bold red]❌ Échec du nettoyage : {res.get('error')}[/]")
+
+    elif subcmd in ("setup", "setup_hq", "init"):
+        console.print("[dim]🏛️ Configuration des 5 salons officiels sur le supergroupe...[/]")
+        target_chat = args[1] if len(args) > 1 else None
+        res = await tech_lead.telegram_vault.setup_community_hq(target_chat_id=target_chat)
+        if res.get("success"):
+            console.print(f"[bold green]✔ QG configuré : {res.get('total_created', 6)} salons opérationnels ![/]")
+        else:
+            console.print(f"[bold red]❌ Échec de configuration : {res.get('error')}[/]")
+
     else:
-        console.print("[bold red]Usage :[/] /telegram [status|sync|backup|clone|push <topic> <texte>|listen|loop]")
+        console.print("[bold red]Usage :[/] /telegram [status|sync|backup|clone|push <topic> <texte>|listen|loop|clean|setup]")
 
 
 async def run_vortex(tech_lead: TechLeadOrchestrator, args: List[str]):
@@ -2596,10 +2988,77 @@ def run_craft(tech_lead: TechLeadOrchestrator, args: List[str]):
 
 
 async def run_design(tech_lead: TechLeadOrchestrator, args: List[str]):
-    """Gère le pont Design System, les composants Shadcn UI locaux et ai-elements."""
-    subcmd = args[0].lower() if args else "catalog"
+    """Gère le pont Design System, les composants Shadcn UI locaux, les templates métiers et le Copy & Adapt Protocol."""
+    subcmd = args[0].lower() if args else "templates"
 
-    if subcmd == "catalog":
+    if subcmd in ("templates", "domains", "list-templates"):
+        templates = tech_lead.design_bridge.list_domains()
+        table = Table(title="🎨 Matrice de Templates & Tableaux de Bord Métiers (~/Rendue/shadcn)", border_style="magenta")
+        table.add_column("Domaine", style="bold cyan")
+        table.add_column("Titre du Template", style="bold green")
+        table.add_column("Composants Clés", style="yellow")
+        table.add_column("Animations", style="blue")
+        table.add_column("Statut Local", style="magenta")
+
+        for t in templates:
+            comps_summary = ", ".join(t["components"][:3]) + ("..." if len(t["components"]) > 3 else "")
+            table.add_row(
+                t["key"],
+                t["title"],
+                comps_summary or "Page Complète",
+                ", ".join(t["animations"]),
+                "✔ Disponible" if t["available"] else "❌ Introuvable"
+            )
+        console.print(table)
+        console.print("\n[dim]Commandes :[/]")
+        console.print("  • [cyan]/ui inspect <domaine>[/]                 : Inspection architecturale et primitives d'un template")
+        console.print("  • [cyan]/ui adapt <domaine> <dossier> [titre][/] : Exécute le Copy & Adapt Protocol sans hallucination")
+        console.print("  • [cyan]/ui catalog[/]                           : Liste des 61+ composants UI individuels")
+
+    elif subcmd in ("inspect-template", "inspect", "info"):
+        if len(args) < 2:
+            console.print("[bold red]Usage :[/] /ui inspect <domaine> (ex: crypto, finance, ai-chat, crm, mobile-tasks)")
+            return
+        dom = args[1]
+        info = tech_lead.design_bridge.inspect_domain_template(dom)
+        if not info.get("success"):
+            console.print(f"[bold red]{info.get('error')}[/]")
+            return
+        console.print(Panel(
+            f"• [bold green]Domaine :[/] {info['title']} ([bold cyan]{info['domain']}[/])\n"
+            f"• [bold green]Source locale :[/] <code>{info['source_path']}</code>\n"
+            f"• [bold green]Fichiers inclus :[/] {', '.join(info['files'][:8])}{'...' if len(info['files']) > 8 else ''}\n"
+            f"• [bold green]Primitives Shadcn requises :[/] {', '.join(info['required_ui_primitives'])}\n"
+            f"• [bold green]Animations recommandées :[/] {', '.join(info['animations'])}\n\n"
+            f"[dim]Aperçu page.tsx :[/]\n{info['page_preview'][:400]}...",
+            title=f"🏛️ Architecture du Template : {info['title']}",
+            border_style="cyan"
+        ))
+
+    elif subcmd == "adapt":
+        if len(args) < 3:
+            console.print("[bold red]Usage :[/] /ui adapt <domaine> <dossier_cible> [titre_application]")
+            return
+        dom = args[1]
+        target = args[2]
+        title = " ".join(args[3:]) if len(args) > 3 else None
+        console.print(f"[dim]⚡ Exécution du Copy & Adapt Protocol pour '{dom}' vers '{target}'...[/]")
+        res = tech_lead.design_bridge.adapt_and_copy_template(dom, target, app_title=title)
+        if res.get("success"):
+            console.print(Panel(
+                f"✔ [bold green]Template {res['app_title']} adapté avec succès ![/]\n\n"
+                f"• Dossier cible : [bold cyan]{res['target_dir']}[/]\n"
+                f"• Fichiers de domaine copiés : [bold green]{len(res['copied_domain_files'])} fichiers[/]\n"
+                f"• Primitives UI installées : [bold cyan]{', '.join(res['copied_ui_primitives']) or 'Aucune'}[/]\n"
+                f"• Animations requises : [bold yellow]{', '.join(res['required_animations'])}[/]\n"
+                f"• Méthodologie : [bold green]{res['protocol']}[/]",
+                title="🚀 Copy & Adapt Réussi (Zéro Hallucination)",
+                border_style="green"
+            ))
+        else:
+            console.print(f"[bold red]Échec de l'adaptation : {res.get('error')}[/]")
+
+    elif subcmd == "catalog":
         cats = tech_lead.design_bridge.get_catalog_by_categories()
         total = len(tech_lead.design_bridge.list_components())
         lines = [f"[bold green]Palette de Design System Shadcn UI & AI Elements ({total} composants en local) :[/]\n"]
@@ -2611,13 +3070,13 @@ async def run_design(tech_lead: TechLeadOrchestrator, args: List[str]):
             border_style="magenta"
         ))
         console.print("[dim]Commandes :[/]")
-        console.print("  • [cyan]/design search <nom>[/] : Recherche un composant UI")
-        console.print("  • [cyan]/design export[/]       : Compile et téléverse le kit Shadcn complet sur Telegram Cloud")
-        console.print("  • [cyan]/design code <nom>[/]   : Affiche le code TypeScript d'un composant")
+        console.print("  • [cyan]/ui search <nom>[/]  : Recherche un composant UI")
+        console.print("  • [cyan]/ui export[/]        : Compile et téléverse le kit Shadcn complet sur Telegram Cloud")
+        console.print("  • [cyan]/ui code <nom>[/]    : Affiche le code TypeScript d'un composant")
 
     elif subcmd == "search":
         if len(args) < 2:
-            console.print("[bold red]Usage :[/] /design search <mot-clé>")
+            console.print("[bold red]Usage :[/] /ui search <mot-clé>")
             return
         query = args[1]
         matches = tech_lead.design_bridge.search_components(query)
@@ -2643,9 +3102,9 @@ async def run_design(tech_lead: TechLeadOrchestrator, args: List[str]):
         else:
             console.print(f"[yellow]Archive prête ({res.get('files_count')} fichiers) mais téléversement en attente. Vérifiez Telegram.[/]")
 
-    elif subcmd in ("code", "show", "inspect"):
+    elif subcmd in ("code", "show"):
         if len(args) < 2:
-            console.print("[bold red]Usage :[/] /design code <nom du composant>")
+            console.print("[bold red]Usage :[/] /ui code <nom du composant>")
             return
         c_name = args[1]
         code = tech_lead.design_bridge.read_component_code(c_name)
@@ -2659,7 +3118,7 @@ async def run_design(tech_lead: TechLeadOrchestrator, args: List[str]):
             console.print(f"[bold red]Composant '{c_name}' introuvable dans ~/Rendue/shadcn/components/ui.[/]")
 
     else:
-        console.print("[bold red]Usage :[/] /design [catalog|search <kw>|export|code <nom>]")
+        console.print("[bold red]Usage :[/] /ui [templates|inspect <dom>|adapt <dom> <dir>|catalog|search <kw>|export|code <nom>]")
 
 
 async def run_cyber(tech_lead: TechLeadOrchestrator, args: List[str]):
@@ -3497,6 +3956,225 @@ async def run_network(tech_lead, args: List[str]):
     else:
         console.print("[dim]Usage: /network [status|test|hotspot][/]")
 
+
+async def run_career(tech_lead: TechLeadOrchestrator, args: List[str]):
+    """Gère l'intégration souveraine du Career-OS de Gilchrist Kanté (~/Rendue/career-os)."""
+    subcmd = args[0].lower() if args else "status"
+
+    if subcmd in ("status", "info"):
+        st = tech_lead.career_bridge.get_status()
+        if not st.get("available"):
+            console.print(f"[bold red]Career-OS introuvable : {st.get('error')}[/]")
+            return
+
+        node_status = "[bold green]✔ Installés[/]" if st["has_node_modules"] else "[bold yellow]En cours d'installation[/]"
+        conf_status = "[bold green]✔ Oui[/]" if st["configured"] else "[bold yellow]⚠️ En attente des clés Supabase[/]"
+        sql_status = "✔ schema.sql & radar.sql prêts" if st["has_schema_sql"] and st["has_radar_sql"] else "Manquants"
+
+        lines = [
+            f"• [bold green]Répertoire :[/] <code>{st['path']}</code>",
+            f"• [bold green]Configuré (.env.local) :[/] {conf_status}",
+            f"• [bold green]Node modules :[/] {node_status}",
+            f"• [bold green]Schémas SQL :[/] {sql_status}",
+            "\n[bold cyan]Modules de Pilotage de Carrière :[/]"
+        ]
+        for m in st["modules"]:
+            lines.append(f"  - [yellow]{m}[/]")
+
+        console.print(Panel(
+            "\n".join(lines),
+            title="🎯 Career-OS Cockpit — Gilchrist Kanté",
+            border_style="magenta"
+        ))
+        console.print("[dim]Commandes :[/]")
+        console.print("  • [cyan]/career radar test[/] : Valide la suite de tests de détection des offres remote")
+        console.print("  • [cyan]/career radar dry[/]  : Exécute un scan à blanc des opportunités sans écriture")
+
+    elif subcmd in ("radar", "scan"):
+        action = args[1].lower() if len(args) > 1 else "test"
+        if action == "test":
+            console.print("[dim]Exécution des tests unitaires du radar...[/]")
+            res = tech_lead.career_bridge.run_radar_tests()
+            if res.get("success"):
+                console.print(Panel(res.get("stdout", ""), title="✔ Tests Radar Validés (7/7)", border_style="green"))
+            else:
+                console.print(f"[bold red]Erreur tests radar : {res.get('stderr') or res.get('error')}[/]")
+        elif action in ("dry", "run"):
+            console.print("[dim]Lancement du scan d'offres en mode dry-run...[/]")
+            res = tech_lead.career_bridge.run_radar_dry()
+            if res.get("success"):
+                console.print(Panel(res.get("output", "")[:2000] or "Scan terminé sans erreur.", title="📡 Scan Radar Terminé", border_style="cyan"))
+            else:
+                console.print(f"[yellow]Résultat radar : {res.get('errors') or res.get('error')}[/]")
+        else:
+            console.print("[bold red]Usage :[/] /career radar [test|dry]")
+
+    elif subcmd == "test":
+        res = tech_lead.career_bridge.run_radar_tests()
+        if res.get("success"):
+            console.print(Panel(res.get("stdout", ""), title="✔ Tests Radar Validés (7/7)", border_style="green"))
+        else:
+            console.print(f"[bold red]Erreur : {res.get('stderr') or res.get('error')}[/]")
+
+    else:
+        console.print("[bold red]Usage :[/] /career [status|radar [test|dry]]")
+
+
+async def run_domain(tech_lead: TechLeadOrchestrator, args: List[str]):
+    """Gère l'entraînement autonome et l'expertise avancée par domaine."""
+    subcmd = args[0].lower() if args else "status"
+
+    if subcmd in ("status", "domains", "list"):
+        console.print(Panel(
+            "• [bold cyan]Blockchain & Web3 :[/] AMM (Constant Product), Solana Anchor & EVM, Smart Contracts, Gas Optimization\n"
+            "• [bold green]Trading & Finance :[/] RSI, EMA, Bollinger Bands, Order Books, Gestion du risque & Position Sizing\n"
+            "• [bold yellow]Applications Mobiles :[/] Ergonomie tactile 48dp, Thumb Zone, Offline-First SQLite, Sheets fluides\n"
+            "• [bold magenta]IA & Innovation Extrême :[/] Consensus Aether-Swarm, Honeypot Mirage RAM, Mode NÉANT pur",
+            title="🧠 FreeAI Domain Mastery & Extreme Training",
+            border_style="cyan"
+        ))
+        console.print("[dim]Commandes :[/]")
+        console.print("  • [cyan]/domain train <blockchain|trading|mobile|ai>[/] : Lance une session d'entraînement autonome")
+        console.print("  • [cyan]/domain amm <reserve_in> <reserve_out> <in>[/]  : Simulation mathématique d'échange DEX")
+        console.print("  • [cyan]/domain risk <capital> <risk%> <entry> <stop>[/] : Calcul de dimensionnement de position")
+
+    elif subcmd == "train":
+        target_domain = args[1].lower() if len(args) > 1 else "blockchain"
+        console.print(f"[dim]⚡ Lancement de la session d'auto-entraînement souverain pour '{target_domain}'...[/]")
+        res = tech_lead.domain_mastery.run_autonomous_training_session(target_domain)
+        lines = [f"[bold green]✔ Entraînement {res['domain'].upper()} achevé avec succès ![/]\n\n[bold cyan]Insights assimilés en mémoire vectorielle :[/]"]
+        for ins in res["insights_generated"]:
+            lines.append(f"  • {ins}")
+        console.print(Panel(
+            "\n".join(lines),
+            title=f"🚀 Auto-Entraînement : {res['domain'].upper()}",
+            border_style="green"
+        ))
+
+    elif subcmd == "amm":
+        if len(args) < 4:
+            console.print("[bold red]Usage :[/] /domain amm <reserve_in> <reserve_out> <amount_in>")
+            return
+        try:
+            r_in = float(args[1])
+            r_out = float(args[2])
+            amt = float(args[3])
+            sim = tech_lead.domain_mastery.calculate_amm_swap(r_in, r_out, amt)
+            if sim.get("success"):
+                console.print(Panel(
+                    f"• Entrée : [bold cyan]{sim['amount_in']:,.2f}[/]\n"
+                    f"• Sortie reçue : [bold green]{sim['amount_out']:.6f}[/]\n"
+                    f"• Prix effectif : [yellow]{sim['effective_price']:.6f}[/]\n"
+                    f"• Impact Prix (Slippage) : [bold red]{sim['price_impact_pct']:.2f}%[/]\n"
+                    f"• Frais de pool (0.3%) : [dim]{sim['fee_paid']:.4f}[/]",
+                    title="⚡ Simulation AMM Uniswap v2 (x * y = k)",
+                    border_style="magenta"
+                ))
+            else:
+                console.print(f"[bold red]Erreur AMM : {sim.get('error')}[/]")
+        except ValueError:
+            console.print("[bold red]Veuillez fournir des valeurs numériques valides.[/]")
+
+    elif subcmd == "risk":
+        if len(args) < 5:
+            console.print("[bold red]Usage :[/] /domain risk <capital> <risk_pct> <entry_price> <stop_loss>")
+            return
+        try:
+            cap = float(args[1])
+            rpct = float(args[2])
+            ep = float(args[3])
+            sl = float(args[4])
+            pos = tech_lead.domain_mastery.calculate_position_size(cap, rpct, ep, sl)
+            if pos.get("success"):
+                console.print(Panel(
+                    f"• Capital du compte : [bold green]${pos['account_balance']:,.2f}[/]\n"
+                    f"• Risque max consenti ({pos['risk_percentage']}%) : [bold red]${pos['risk_amount']:,.2f}[/]\n"
+                    f"• Unités à trader : [bold cyan]{pos['units_to_trade']}[/]\n"
+                    f"• Valeur totale de position : [bold yellow]${pos['total_position_value']:,.2f}[/]\n"
+                    f"• Levier effectif : [bold magenta]{pos['effective_leverage']}x[/]\n"
+                    f"• Statut conformité : [bold green]{pos['status']}[/]",
+                    title="🛡️ Risk Budgeting & Position Sizing",
+                    border_style="green"
+                ))
+            else:
+                console.print(f"[bold red]Erreur : {pos.get('error')}[/]")
+        except ValueError:
+            console.print("[bold red]Veuillez fournir des valeurs numériques valides.[/]")
+
+    else:
+        console.print("[bold red]Usage :[/] /domain [status|train <domaine>|amm <rin> <rout> <in>|risk <cap> <%> <in> <sl>]")
+
+
+async def run_birthday(tech_lead: TechLeadOrchestrator, args: List[str]):
+    """Gère le protocole d'anniversaire sacré et de cadeau crypto de Michael SAGBO."""
+    subcmd = args[0].lower() if args else "status"
+    tribute = tech_lead.sacred_tribute
+    from datetime import date
+
+    if subcmd in ("status", "check", "info"):
+        st = tribute.get_status()
+        console.print(Panel(
+            f"• [bold cyan]Bénéficiaire :[/] {st['master_name']}\n"
+            f"• [bold green]Date de naissance sacrée :[/] {st['birthdate']}\n"
+            f"• [bold yellow]Âge actuel :[/] {st['current_age']} ans\n"
+            f"• [bold magenta]Jours restants avant l'anniversaire :[/] {st['days_until_next_birthday']} jours\n"
+            f"• [bold white]Est-ce aujourd'hui ? :[/] {'🎉 OUI ! JOYEUX ANNIVERSAIRE ! 🎉' if st['is_birthday_today'] else 'Non'}\n"
+            f"• [bold cyan]Protocole Cadeau Crypto :[/] {st['gift_value_usd']} ({st['protocol']})\n"
+            f"• [bold green]Statut :[/] {st['status']}",
+            title="🎂 Protocole d'Anniversaire Sacré de Michael SAGBO",
+            border_style="magenta"
+        ))
+        console.print("[dim]Commandes :[/]")
+        console.print("  • [cyan]/birthday status[/]    : Affiche le statut du protocole et le décompte")
+        console.print("  • [cyan]/birthday challenge[/] : Détail des 4 piliers de constitution autonome des 500$")
+        console.print("  • [cyan]/birthday gift[/]      : Simule la génération sécurisée du cadeau crypto et des 12 mots")
+        console.print("  • [cyan]/birthday wish[/]      : Déclenche le souhait d'anniversaire personnalisé")
+
+    elif subcmd in ("challenge", "target", "hunt", "bounty"):
+        ov = tribute.get_challenge_overview()
+        lines = [
+            f"[bold cyan]🎯 Défi :[/] {ov['challenge_name']}",
+            f"[bold green]💰 Objectif :[/] Minimum {ov['target_amount_usd']:.0f}$ en devise échangeable ({', '.join(ov['acceptable_currencies'])})",
+            f"[bold yellow]⏳ Échéance :[/] {ov['target_date']} ({ov['days_remaining']} jours restants)",
+            f"[bold magenta]🔑 Format de remise :[/] {ov['delivery_format']}",
+            "\n[bold white]4 Piliers Autonomes d'Acquisition :[/]"
+        ]
+        for p in ov["pillars"]:
+            lines.append(f"  • [bold green]{p['name']}[/] ({p['currency']}) : {p['mechanism']}")
+        console.print(Panel(
+            "\n".join(lines),
+            title="🚀 Challenge Autonome 500$ Crypto Accepté & Engagé",
+            border_style="green"
+        ))
+
+    elif subcmd in ("gift", "trigger", "generate", "12words"):
+        gift = tribute.generate_crypto_gift(target_usd=500.0)
+        console.print(Panel(
+            gift["message"],
+            title="🎁 Cadeau Crypto Anniversaire (500$ - 12 Mots BIP-39)",
+            border_style="green"
+        ))
+        console.print("[bold yellow]⚠ CONFIDENTIALITÉ ABSOLUE :[/] Ces 12 mots sont générés en mémoire RAM volatile et ne sont jamais journalisés sur disque.")
+
+    elif subcmd in ("wish", "greeting"):
+        today = date.today()
+        is_today = tribute.is_birthday(today)
+        days = tribute.get_days_until_birthday(today)
+        if is_today:
+            gift = tribute.generate_crypto_gift()
+            console.print(Panel(gift["message"], title="🎉 JOYEUX ANNIVERSAIRE MICHAEL ! 🎉", border_style="gold1"))
+        else:
+            console.print(Panel(
+                f"Michael, ton anniversaire est gravé dans ma mémoire au [bold cyan]5 Février 2002[/].\n"
+                f"Il reste [bold yellow]{days} jours[/] avant notre célébration annuelle.\n"
+                f"Chaque 5 février, je te remets ton compte crypto de 500$ avec tes 12 mots secrets !",
+                title="🎂 Souvenir Immuable de ton Anniversaire",
+                border_style="cyan"
+            ))
+    else:
+        console.print("[bold red]Usage :[/] /birthday [status|gift|wish]")
+
+
 async def interactive_cli(initial_mode: str = "freeAi"):
     """Main interactive REPL loop."""
     workspace = get_active_workspace()
@@ -3534,6 +4212,33 @@ async def interactive_cli(initial_mode: str = "freeAi"):
 
             if not user_input:
                 continue
+
+            # Direct Mode Launchers inside the CLI: FreeAi vs Lesaint#AI
+            first_token = user_input.split()[0].strip()
+            first_token_norm = first_token.lstrip("/").lower()
+            remaining_cmd = user_input[len(first_token):].strip()
+
+            if first_token_norm in ("freeai", "free-ai", "free_ai", "free"):
+                handle_mode_command(tech_lead, ["freeAi"])
+                if remaining_cmd:
+                    if remaining_cmd.startswith("/"):
+                        user_input = remaining_cmd
+                    else:
+                        await tech_lead.dispatch_objective(remaining_cmd)
+                        continue
+                else:
+                    continue
+
+            elif first_token_norm in ("lesaint#ai", "lesaintai", "lesaint-ai", "lesaint_ai", "lesaint"):
+                handle_mode_command(tech_lead, ["lesaintAi"])
+                if remaining_cmd:
+                    if remaining_cmd.startswith("/"):
+                        user_input = remaining_cmd
+                    else:
+                        await tech_lead.dispatch_objective(remaining_cmd)
+                        continue
+                else:
+                    continue
 
             # Slash command handling
             if user_input.startswith("/"):
@@ -3628,7 +4333,7 @@ async def interactive_cli(initial_mode: str = "freeAi"):
                     run_forge(tech_lead, args)
                 elif cmd == "/craft":
                     run_craft(tech_lead, args)
-                elif cmd == "/design":
+                elif cmd in ("/design", "/ui"):
                     await run_design(tech_lead, args)
                 elif cmd == "/cyber":
                     await run_cyber(tech_lead, args)
@@ -3650,6 +4355,12 @@ async def interactive_cli(initial_mode: str = "freeAi"):
                     await run_defense(tech_lead, args)
                 elif cmd == "/cloud":
                     await run_cloud(tech_lead, args)
+                elif cmd == "/career":
+                    await run_career(tech_lead, args)
+                elif cmd == "/domain":
+                    await run_domain(tech_lead, args)
+                elif cmd in ("/birthday", "/gift"):
+                    await run_birthday(tech_lead, args)
                 elif cmd == "/jarvis":
                     run_jarvis(tech_lead, args)
                 else:
@@ -3671,8 +4382,11 @@ async def interactive_cli(initial_mode: str = "freeAi"):
 def main():
     """CLI entry point handling flags or starting interactive session."""
     import argparse
+    prog_name = Path(sys.argv[0]).name.lower()
+    default_initial_mode = "lesaintAi" if "lesaint" in prog_name else "freeAi"
+
     parser = argparse.ArgumentParser(description="FreeAI Sovereign Assistant CLI")
-    parser.add_argument("--mode", choices=["freeAi", "lesaintAi"], default="freeAi", help="Mode de privilèges initial")
+    parser.add_argument("--mode", choices=["freeAi", "lesaintAi"], default=default_initial_mode, help="Mode de privilèges initial")
     parser.add_argument("objective", nargs="*", help="Objectif direct à exécuter sans session interactive")
 
     parsed = parser.parse_args()
@@ -3770,7 +4484,7 @@ def main():
                 run_forge(tech_lead, args)
             elif cmd == "/craft":
                 run_craft(tech_lead, args)
-            elif cmd == "/design":
+            elif cmd in ("/design", "/ui"):
                 asyncio.run(run_design(tech_lead, args))
             elif cmd == "/cyber":
                 asyncio.run(run_cyber(tech_lead, args))
@@ -3792,6 +4506,12 @@ def main():
                 asyncio.run(run_defense(tech_lead, args))
             elif cmd == "/cloud":
                 asyncio.run(run_cloud(tech_lead, args))
+            elif cmd == "/career":
+                asyncio.run(run_career(tech_lead, args))
+            elif cmd == "/domain":
+                asyncio.run(run_domain(tech_lead, args))
+            elif cmd in ("/birthday", "/gift"):
+                asyncio.run(run_birthday(tech_lead, args))
             elif cmd == "/jarvis":
                 run_jarvis(tech_lead, args)
             elif cmd == "/help":
