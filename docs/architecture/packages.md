@@ -13,7 +13,8 @@
 | orchestrator | app/orchestrator | Orchestrateur Tech Lead et routage autonome d'objectifs | agents, memory, cognition, security |
 | resource_manager | app/resource_manager | Gestion frugale de la RAM (< 70 Mo) et budgets stricts | - |
 | security | app/security | Sentinelle Sanctuaire de la Vie et sandbox d'exécution | - |
-| tools | app/tools | Passerelle d'exécution d'outils contraints et sandbox Shadow Docker | security |
+| satellite | app/satellite | Surveillance satellite globale et données spatiales temps réel | security |
+| tools | app/tools | Passerelle d'exécution d'outils contraints, sandbox et pont d'audit peer-sync | security |
 | voice | app/voice | Synthèse vocale native Linux TTS et reconnaissance Groq Whisper STT | - |
 
 ```mermaid
@@ -33,4 +34,5 @@ flowchart TD
     cluster --> security
     network --> security
     memory --> security
+    satellite --> security
 ```

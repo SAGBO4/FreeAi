@@ -29,4 +29,11 @@ class ProgrammaticVideoEngine {
   +render_cinematic_teaser_in_ram(title, subtitle, duration_sec)
   +export_video_to_telegram(telegram_vault, title, subtitle, duration_sec)
 }
+class PeerSyncBridge {
+  +satellite_dir
+  +get_satellite_status()
+  +fetch_peer_updates()
+  +get_diff_against_base(base_ref, target_ref)
+  +audit_diff(diff_text)
+}
 ```
