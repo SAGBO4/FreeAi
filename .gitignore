@@ -20,3 +20,8 @@ logs/*.log
 models/*.gguf
 scratch/
 video_presentations/
+
+# Runtime state and ledger cache
+.applied_jobs.json
+.telegram_topics.json
+.vps_fund_ledger.json

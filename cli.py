@@ -70,6 +70,10 @@ async def _smart_telegram_send(vault, response: str, cmd=None):
 
 
 SLASH_COMMANDS = [
+    "FreeAi",
+    "Lesaint#AI",
+    "/FreeAi",
+    "/Lesaint#AI",
     "/mode",
     "/mode freeAi",
     "/mode lesaintAi",
@@ -259,6 +263,16 @@ def print_help():
     table.add_column("Description", style="white")
     table.add_column("Exemple d'utilisation", style="green")
 
+    table.add_row(
+        "FreeAi",
+        "Bascule directe en Mode Standard Sécurisé (écriture confinée, sudo bloqué, frugalité RAM).",
+        "FreeAi [objectif optionnel]"
+    )
+    table.add_row(
+        "Lesaint#AI",
+        "Bascule directe en Mode Super-Utilisateur (ALLOW_SUDO=True, privilèges root et déverrouillage total).",
+        "Lesaint#AI [objectif optionnel]"
+    )
     table.add_row(
         "/mode freeAi",
         "Mode Standard sécurisé : écriture confinée au workspace, lecture globale autorisée, sudo désactivé.",
@@ -1601,6 +1615,109 @@ async def dispatch_telegram_order(tech_lead: TechLeadOrchestrator, order: str, u
             )
         return
 
+    # 0.3 Morning Briefing / Daily Report Command
+    if any(cmd in order_lower for cmd in ("/briefing", "/matin", "/rapport", "rapport du matin", "briefing du matin")) or ("rapport" in order_lower and ("matin" in order_lower or "jour" in order_lower)):
+        console.print("[dim]Génération et diffusion du Rapport du Matin en cours...[/]")
+        from app.tools.morning_briefing import MorningBriefingEngine
+        briefing_engine = MorningBriefingEngine(telegram_vault=tech_lead.telegram_vault)
+        briefing_res = await briefing_engine.broadcast_morning_briefing(target_chat_id=target_chat_id)
+        if briefing_res.get("success"):
+            console.print("[bold green]✔ Rapport du matin diffusé avec succès sur Telegram ![/]")
+            if wants_voice:
+                voice_ogg = await tech_lead.voice.synthesize_speech("Bonjour Michael, le rapport du matin et les alertes Career-OS ont été publiés dans le groupe.")
+                if voice_ogg and voice_ogg.getbuffer().nbytes > 0:
+                    await tech_lead.telegram_vault.send_voice(voice_ogg, message_thread_id=message_thread_id, target_chat_id=target_chat_id)
+        else:
+            await tech_lead.telegram_vault.send_message(
+                f"⚠️ Erreur lors de la génération du rapport du matin : {briefing_res.get('error')}",
+                message_thread_id=message_thread_id,
+                target_chat_id=target_chat_id
+            )
+        return
+
+    # 0.4 Auto-Apply / Candidature 1-Click Command
+    if order_lower.startswith(("/apply", "/postuler", "/candidature")) or "postule" in order_lower:
+        console.print("[dim]Génération du dossier de candidature 1-Click Apply...[/]")
+        parts = order_clean.split()
+        job_idx = 1
+        for p in parts[1:]:
+            if p.isdigit():
+                job_idx = int(p)
+                break
+        from app.tools.auto_apply import AutoApplyEngine
+        apply_engine = AutoApplyEngine(telegram_vault=tech_lead.telegram_vault)
+        apply_res = await apply_engine.prepare_and_dispatch_application(job_index=job_idx, target_chat_id=target_chat_id)
+        if apply_res.get("success"):
+            pkg = apply_res["package"]
+            console.print(f"[bold green]✔ Dossier de candidature généré pour : {pkg['job_title']} chez {pkg['company']} ![/]")
+            if wants_voice:
+                voice_ogg = await tech_lead.voice.synthesize_speech(f"Dossier de candidature généré avec succès pour le poste chez {pkg['company']}.")
+                if voice_ogg and voice_ogg.getbuffer().nbytes > 0:
+                    await tech_lead.telegram_vault.send_voice(voice_ogg, message_thread_id=message_thread_id, target_chat_id=target_chat_id)
+        else:
+            await tech_lead.telegram_vault.send_message(
+                f"⚠️ Impossible de préparer la candidature : {apply_res.get('error')}",
+                message_thread_id=message_thread_id,
+                target_chat_id=target_chat_id
+            )
+        return
+
+    # 0.5 Bounty Radar & War Chest (VPS/GPU Fund) Commands
+    if any(cmd in order_lower for cmd in ("/bounty", "/bounties", "/missions", "/cash", "/vps", "/fund", "chasse aux primes", "cagnotte vps")):
+        console.print("[dim]Scan des micro-missions et calcul du Trésor de Guerre (VPS/GPU)...[/]")
+        from app.tools.bounty_radar import BountyRadarEngine
+        bounty_radar = BountyRadarEngine(telegram_vault=tech_lead.telegram_vault, federation=tech_lead.federation)
+        res = await bounty_radar.broadcast_bounties_summary(target_chat_id=target_chat_id)
+        if res.get("success"):
+            console.print("[bold green]✔ Radar de missions & Cagnotte diffusés avec succès sur Telegram ![/]")
+            if wants_voice:
+                voice_ogg = await tech_lead.voice.synthesize_speech("Rapport des primes et état de la cagnotte VPS diffusés dans le salon Forge.")
+                if voice_ogg and voice_ogg.getbuffer().nbytes > 0:
+                    await tech_lead.telegram_vault.send_voice(voice_ogg, message_thread_id=message_thread_id, target_chat_id=target_chat_id)
+        else:
+            await tech_lead.telegram_vault.send_message(
+                f"⚠️ Erreur lors du scan des missions : {res.get('error')}",
+                message_thread_id=message_thread_id,
+                target_chat_id=target_chat_id
+            )
+        return
+
+    # 0.6 Solve Bounty Command
+    if order_lower.startswith("/solve") or ("résous la mission" in order_lower or "resous la mission" in order_lower):
+        console.print("[dim]Résolution de la mission avec Google AI Pro & Forge...[/]")
+        parts = order_clean.split()
+        b_idx = 1
+        for p in parts[1:]:
+            if p.isdigit():
+                b_idx = int(p)
+                break
+        from app.tools.bounty_radar import BountyRadarEngine
+        bounty_radar = BountyRadarEngine(telegram_vault=tech_lead.telegram_vault, federation=tech_lead.federation)
+        bounties = await bounty_radar.scan_bounties(limit=5)
+        if 1 <= b_idx <= len(bounties):
+            target_b = bounties[b_idx - 1]
+            sol_res = await bounty_radar.solve_bounty(target_b)
+            if sol_res.get("success"):
+                pkg = sol_res["package"]
+                reply_txt = (
+                    f"🎯 <b>SOLUTION GÉNÉRÉE : {pkg['title']}</b>\n"
+                    f"💵 <b>Prime :</b> <code>${pkg['estimated_reward_usd']:.0f} USD</code>\n"
+                    f"🔗 <b>Dépôt :</b> {pkg['repo_url']}\n"
+                    f"🌿 <b>Branche :</b> <code>{pkg['branch']}</code>\n\n"
+                    f"📝 <b>Message de PR :</b>\n<code>{pkg['commit_message']}</code>\n\n"
+                    f"💻 <b>Extrait du Patch :</b>\n"
+                    f"<code>{pkg['solution_code'][:1500]}</code>\n\n"
+                    f"✅ <i>Dossier enregistré dans le Trésor de Guerre (.vps_fund_ledger.json). Prêt à soumettre sous la signature Michael M.C. SAGBO.</i>"
+                )
+                topic_forge_id = tech_lead.telegram_vault.topics.get("forge", 103) if hasattr(tech_lead.telegram_vault, "topics") else 103
+                await tech_lead.telegram_vault.send_message(reply_txt, message_thread_id=topic_forge_id, target_chat_id=target_chat_id)
+                console.print(f"[bold green]✔ Solution pour {pkg['bounty_id']} générée et postée sur Telegram ![/]")
+            else:
+                await tech_lead.telegram_vault.send_message(f"⚠️ Erreur de résolution : {sol_res.get('error')}", message_thread_id=message_thread_id, target_chat_id=target_chat_id)
+        else:
+            await tech_lead.telegram_vault.send_message("⚠️ Numéro de mission introuvable. Tapez /bounty pour voir la liste.", message_thread_id=message_thread_id, target_chat_id=target_chat_id)
+        return
+
     # 1. Native shortcut: /clone, /backup
     if order_lower in ("/clone", "/backup", "reclone", "clone", "backup") or "reclone" in order_lower:
         console.print("[dim]Génération du Kit de Secours et Auto-Clonage en RAM...[/]")
@@ -2226,6 +2343,33 @@ async def run_telegram(tech_lead: TechLeadOrchestrator, args: List[str]):
                     message_thread_id = getattr(cmd_info, "message_thread_id", None)
                     target_chat_id = getattr(cmd_info, "target_chat_id", None)
                     await dispatch_telegram_order(tech_lead, order, user, is_voice=is_voice, media_bytes=media_bytes, media_type=media_type, message_thread_id=message_thread_id, target_chat_id=target_chat_id)
+
+                # Check for autonomous morning briefing (every morning at/after 7:00 AM)
+                from datetime import date, datetime
+                now_dt = datetime.now()
+                today_str = str(date.today())
+                if now_dt.hour >= 7 and getattr(tech_lead, "_last_morning_briefing_date", None) != today_str:
+                    try:
+                        from app.tools.morning_briefing import MorningBriefingEngine
+                        briefing_engine = MorningBriefingEngine(telegram_vault=tech_lead.telegram_vault)
+                        await briefing_engine.broadcast_morning_briefing()
+                        tech_lead._last_morning_briefing_date = today_str
+                        console.print(f"[bold green]✔ Diffusion automatique du rapport du matin effectuée pour le {today_str}.[/]")
+                    except Exception as e:
+                        logger.debug(f"[TELEGRAM DAEMON] Morning briefing error: {e}")
+
+                # Check for autonomous offline applications (when Michael is offline / away)
+                if hasattr(tech_lead.telegram_vault, "is_master_online") and not tech_lead.telegram_vault.is_master_online(idle_threshold_seconds=1800):
+                    now_ts = time.time()
+                    if now_ts - getattr(tech_lead, "_last_offline_apply_ts", 0) > 1800:
+                        try:
+                            from app.tools.auto_apply import AutoApplyEngine
+                            apply_engine = AutoApplyEngine(telegram_vault=tech_lead.telegram_vault)
+                            await apply_engine.run_offline_autonomous_cycle()
+                            tech_lead._last_offline_apply_ts = now_ts
+                        except Exception as e:
+                            logger.debug(f"[TELEGRAM DAEMON] Offline apply error: {e}")
+
                 await asyncio.sleep(2)
         except (KeyboardInterrupt, asyncio.CancelledError):
             console.print("\n[yellow]Sentinelle Telegram interrompue.[/]")
@@ -4069,6 +4213,33 @@ async def interactive_cli(initial_mode: str = "freeAi"):
             if not user_input:
                 continue
 
+            # Direct Mode Launchers inside the CLI: FreeAi vs Lesaint#AI
+            first_token = user_input.split()[0].strip()
+            first_token_norm = first_token.lstrip("/").lower()
+            remaining_cmd = user_input[len(first_token):].strip()
+
+            if first_token_norm in ("freeai", "free-ai", "free_ai", "free"):
+                handle_mode_command(tech_lead, ["freeAi"])
+                if remaining_cmd:
+                    if remaining_cmd.startswith("/"):
+                        user_input = remaining_cmd
+                    else:
+                        await tech_lead.dispatch_objective(remaining_cmd)
+                        continue
+                else:
+                    continue
+
+            elif first_token_norm in ("lesaint#ai", "lesaintai", "lesaint-ai", "lesaint_ai", "lesaint"):
+                handle_mode_command(tech_lead, ["lesaintAi"])
+                if remaining_cmd:
+                    if remaining_cmd.startswith("/"):
+                        user_input = remaining_cmd
+                    else:
+                        await tech_lead.dispatch_objective(remaining_cmd)
+                        continue
+                else:
+                    continue
+
             # Slash command handling
             if user_input.startswith("/"):
                 try:
@@ -4211,8 +4382,11 @@ async def interactive_cli(initial_mode: str = "freeAi"):
 def main():
     """CLI entry point handling flags or starting interactive session."""
     import argparse
+    prog_name = Path(sys.argv[0]).name.lower()
+    default_initial_mode = "lesaintAi" if "lesaint" in prog_name else "freeAi"
+
     parser = argparse.ArgumentParser(description="FreeAI Sovereign Assistant CLI")
-    parser.add_argument("--mode", choices=["freeAi", "lesaintAi"], default="freeAi", help="Mode de privilèges initial")
+    parser.add_argument("--mode", choices=["freeAi", "lesaintAi"], default=default_initial_mode, help="Mode de privilèges initial")
     parser.add_argument("objective", nargs="*", help="Objectif direct à exécuter sans session interactive")
 
     parsed = parser.parse_args()
