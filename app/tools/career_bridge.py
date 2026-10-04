@@ -99,7 +99,31 @@ class CareerBridge:
             return {
                 "success": res.returncode == 0,
                 "output": res.stdout,
+                "stdout": res.stdout,
                 "errors": res.stderr
             }
         except Exception as e:
             return {"success": False, "error": str(e)}
+
+    def get_rich_offers(self) -> List[Dict[str, Any]]:
+        """Scrapes and returns structured job offers including direct URLs, company names,
+        scores, and locations for actionable applications."""
+        radar_script = self.career_dir / "scripts" / "radar" / "radar.mjs"
+        if not radar_script.exists():
+            return []
+
+        try:
+            res = subprocess.run(
+                ["node", str(radar_script), "json"],
+                cwd=str(self.career_dir),
+                capture_output=True,
+                text=True,
+                timeout=60
+            )
+            if res.returncode == 0 and res.stdout.strip():
+                data = json.loads(res.stdout.strip())
+                if isinstance(data, list):
+                    return data
+        except Exception as e:
+            logger.debug(f"[CAREER BRIDGE] Error getting rich offers: {e}")
+        return []

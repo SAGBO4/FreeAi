@@ -58,6 +58,7 @@ class TelegramNeuralVault:
         self._volatile_knowledge_vault: Dict[str, Dict[str, Any]] = {}
         self.recovery_hash = getattr(settings, "MASTER_RECOVERY_HASH", "") or os.environ.get("MASTER_RECOVERY_HASH", "")
         self.recovery_salt = getattr(settings, "MASTER_RECOVERY_SALT", "freeai_sovereign_phoenix_salt") or os.environ.get("MASTER_RECOVERY_SALT", "freeai_sovereign_phoenix_salt")
+        self.last_master_activity_ts: float = time.time()
         self._load_persisted_topic_map()
 
     def _get_topics_cache_path(self) -> Path:
@@ -143,6 +144,10 @@ class TelegramNeuralVault:
             if u_clean in ("speedylesaint", "sagbo4"):
                 return True
         return False
+
+    def is_master_online(self, idle_threshold_seconds: int = 1800) -> bool:
+        """Returns True if Michael SAGBO was active recently (within idle_threshold_seconds)."""
+        return (time.time() - getattr(self, "last_master_activity_ts", 0)) < idle_threshold_seconds
 
     def verify_recovery_passphrase(self, candidate: str) -> bool:
         """Verifies candidate passphrase against salted master recovery hash in constant time."""
@@ -273,7 +278,7 @@ class TelegramNeuralVault:
             "text": text[:4000],  # Telegram max length protection
             "parse_mode": parse_mode
         }
-        if effective_thread:
+        if effective_thread and effective_thread != 1:
             payload["message_thread_id"] = effective_thread
 
         try:
@@ -282,6 +287,13 @@ class TelegramNeuralVault:
                 if res.status_code == 200:
                     self.synced_records_count += 1
                     return True
+                elif "message thread not found" in res.text and "message_thread_id" in payload:
+                    payload.pop("message_thread_id", None)
+                    retry_res = await client.post(f"{self.base_url}/sendMessage", json=payload)
+                    if retry_res.status_code == 200:
+                        self.synced_records_count += 1
+                        return True
+                    return False
                 else:
                     logger.debug(f"[TELEGRAM VAULT] sendMessage failed ({res.status_code}): {res.text}")
                     return False
@@ -306,7 +318,7 @@ class TelegramNeuralVault:
         effective_thread = message_thread_id if message_thread_id is not None else self.active_thread_id
         files = {"document": (filename, data, "application/gzip")}
         data_fields = {"chat_id": chat}
-        if effective_thread:
+        if effective_thread and effective_thread != 1:
             data_fields["message_thread_id"] = effective_thread
         if caption:
             data_fields["caption"] = caption[:1000]
@@ -317,6 +329,10 @@ class TelegramNeuralVault:
                 if res.status_code == 200:
                     self.synced_records_count += 1
                     return True
+                elif "message thread not found" in res.text and "message_thread_id" in data_fields:
+                    data_fields.pop("message_thread_id", None)
+                    retry_res = await client.post(f"{self.base_url}/sendDocument", data=data_fields, files=files)
+                    return retry_res.status_code == 200
                 else:
                     logger.debug(f"[TELEGRAM VAULT] sendDocument failed: {res.text}")
                     return False
@@ -354,14 +370,20 @@ class TelegramNeuralVault:
         effective_thread = message_thread_id if message_thread_id is not None else self.active_thread_id
         files = {"voice": ("reply.ogg", voice_data.getvalue(), "audio/ogg")}
         data_fields = {"chat_id": chat}
-        if effective_thread:
+        if effective_thread and effective_thread != 1:
             data_fields["message_thread_id"] = effective_thread
         if caption:
             data_fields["caption"] = caption[:1000]
         try:
             async with httpx.AsyncClient(timeout=20.0) as client:
                 res = await client.post(f"{self.base_url}/sendVoice", data=data_fields, files=files)
-                return res.status_code == 200
+                if res.status_code == 200:
+                    return True
+                elif "message thread not found" in res.text and "message_thread_id" in data_fields:
+                    data_fields.pop("message_thread_id", None)
+                    retry_res = await client.post(f"{self.base_url}/sendVoice", data=data_fields, files=files)
+                    return retry_res.status_code == 200
+                return False
         except Exception as e:
             logger.debug(f"[TELEGRAM VAULT] sendVoice error: {e}")
             return False
@@ -374,14 +396,20 @@ class TelegramNeuralVault:
         effective_thread = message_thread_id if message_thread_id is not None else self.active_thread_id
         files = {"video": (filename, video_data.getvalue(), "video/mp4")}
         data_fields = {"chat_id": chat, "supports_streaming": "true"}
-        if effective_thread:
+        if effective_thread and effective_thread != 1:
             data_fields["message_thread_id"] = effective_thread
         if caption:
             data_fields["caption"] = caption[:1000]
         try:
             async with httpx.AsyncClient(timeout=60.0) as client:
                 res = await client.post(f"{self.base_url}/sendVideo", data=data_fields, files=files)
-                return res.status_code == 200
+                if res.status_code == 200:
+                    return True
+                elif "message thread not found" in res.text and "message_thread_id" in data_fields:
+                    data_fields.pop("message_thread_id", None)
+                    retry_res = await client.post(f"{self.base_url}/sendVideo", data=data_fields, files=files)
+                    return retry_res.status_code == 200
+                return False
         except Exception as e:
             logger.debug(f"[TELEGRAM VAULT] sendVideo error: {e}")
             return False
@@ -549,6 +577,8 @@ class TelegramNeuralVault:
 
                         sender_user_id = str(msg.get("from", {}).get("id", ""))
                         is_master = self.is_master_user(sender_user_id, user_name)
+                        if is_master:
+                            self.last_master_activity_ts = time.time()
 
                         # Group vs Private authentication logic
                         if is_group:
@@ -790,10 +820,10 @@ class TelegramNeuralVault:
                 await self.send_message(welcome_msg, message_thread_id=thread_id, target_chat_id=chat)
                 await asyncio.sleep(0.15)  # Telegram API flood control
 
-        # Automatically publish the comprehensive guide into the General topic (thread 1)
+        # Automatically publish the comprehensive guide into the General topic (root forum)
         await self.send_message(
             self.get_community_guide_text(),
-            message_thread_id=1,
+            message_thread_id=None,
             target_chat_id=chat
         )
 
