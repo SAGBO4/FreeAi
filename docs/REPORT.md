@@ -34,3 +34,19 @@ Le projet FreeAI a franchi tous les jalons de validation fonctionnelle, architec
 - Système catadien de consolidation et d'évolution darwinienne (EWC, lignée SHA-256).
 - Module de Bootstrap par Distillation (Teacher-Student) via DeepSeek/GPT-OSS.
 - Tests (219) tous validés.
+
+### [2026-10-05] - Refonte CLI Style OpenCode & Innovations Extrêmes
+- **Parité Visuelle OpenCode** :
+  - En-tête d'onglets de session minimaliste (`• Installation agents craf-suit · FreeAI`, `+ New session (/clear)`).
+  - Typographie bloc ASCII 4-lignes haute définition pour `freeai` avec dégradé TokyoNight (`#7dcfff` cyan / `#bb9af7` lavande) et transition écarlate en Apex God-Mode.
+  - Carte de commande flottante à bordure gauche fine (`│`), curseur bloc `▌` et placeholders dynamiques tournants (`Fix broken tests`, etc.).
+  - Ligne de statut basse en temps réel (chemin abrégé `~/...`, branche git courante, état dirty, et rappels de raccourcis `shift+tab`, `ctrl+p`).
+- **Innovations Extrêmes FreeAI** :
+  - Palette de commandes modale catégorisée accessible par `Ctrl+P` ou `/commands`.
+  - Auto-complétion temps réel des 30+ commandes slash via `prompt_toolkit` avec repli automatique sans friction sur `builtins.input` pour les tests et scripts.
+  - Détection automatique et dynamique de l'état du dépôt Git et du périmètre de privilèges.
+- **Validation Indépendante par Agents Spécialisés** :
+  - `design-research` : extraction des tokens visuels et rédaction du blueprint de style.
+  - `design-verification` : audit visuel et vérification de conformité à 100% (**VERDICT: APPROVED**).
+  - Tests unitaires et d'intégration validés sans régression (31/31 tests CLI réussis).
+

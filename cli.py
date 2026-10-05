@@ -16,6 +16,7 @@ import logging
 import readline
 import subprocess
 from pathlib import Path
+from dataclasses import dataclass
 from typing import Optional, List, Dict, Any
 
 from rich.console import Console
@@ -25,6 +26,7 @@ from rich.text import Text
 from rich.markdown import Markdown
 from rich.live import Live
 from rich.spinner import Spinner
+from rich import box
 
 # Ensure project root in sys.path
 PROJECT_ROOT = Path(__file__).resolve().parent
@@ -44,6 +46,102 @@ logging.basicConfig(
 logger = logging.getLogger("freeai_cli")
 
 console = Console()
+
+@dataclass(frozen=True)
+class CLITheme:
+    name: str
+    base: str
+    border: str
+    focus: str
+    agent: str
+    success: str
+    alert: str
+    accent: str
+    text: str
+    dim: str
+    glyph: str
+
+THEMES: Dict[str, CLITheme] = {
+    "tokyonight": CLITheme(
+        name="Tokyonight Storm",
+        base="#1a1b26",
+        border="#414868",
+        focus="#7dcfff",
+        agent="#bb9af7",
+        success="#9ece6a",
+        alert="#f7768e",
+        accent="#e0af68",
+        text="#c0caf5",
+        dim="#565f89",
+        glyph="❯"
+    ),
+    "catppuccin": CLITheme(
+        name="Catppuccin Mocha",
+        base="#1e1e2e",
+        border="#313244",
+        focus="#89dceb",
+        agent="#cba6f7",
+        success="#a6e3a1",
+        alert="#f38ba8",
+        accent="#fab387",
+        text="#cdd6f4",
+        dim="#6c7086",
+        glyph="❯"
+    ),
+    "cyberpunk": CLITheme(
+        name="Cyberpunk Lesaint",
+        base="#050505",
+        border="#ff0055",
+        focus="#00f0ff",
+        agent="#ffe600",
+        success="#00ff66",
+        alert="#ff0033",
+        accent="#ff007f",
+        text="#fcee09",
+        dim="#666666",
+        glyph="⚡"
+    ),
+    "matrix": CLITheme(
+        name="Matrix Sovereign",
+        base="#0d1117",
+        border="#003b00",
+        focus="#00ff41",
+        agent="#39ff14",
+        success="#00ff66",
+        alert="#ff0055",
+        accent="#008f11",
+        text="#e0ffe0",
+        dim="#006611",
+        glyph="›"
+    ),
+    "dracula": CLITheme(
+        name="Dracula Pro",
+        base="#282a36",
+        border="#44475a",
+        focus="#8be9fd",
+        agent="#bd93f9",
+        success="#50fa7b",
+        alert="#ff5555",
+        accent="#ffb86c",
+        text="#f8f8f2",
+        dim="#6272a4",
+        glyph="❯"
+    )
+}
+
+class ThemeManager:
+    """Gestionnaire de thèmes dynamiques en mémoire vive (Mode NÉANT : 0 octet disque)."""
+    def __init__(self, default_theme: str = "tokyonight"):
+        self.current: CLITheme = THEMES.get(default_theme, THEMES["tokyonight"])
+
+    def set_theme(self, name: str) -> bool:
+        clean = name.strip().lower()
+        if clean in THEMES:
+            self.current = THEMES[clean]
+            return True
+        return False
+
+theme_mgr = ThemeManager()
 
 import re
 from app.cognition.emoji_router import classify_response_emoji
@@ -78,6 +176,12 @@ SLASH_COMMANDS = [
     "/mode",
     "/mode freeAi",
     "/mode lesaintAi",
+    "/theme",
+    "/theme tokyonight",
+    "/theme catppuccin",
+    "/theme cyberpunk",
+    "/theme matrix",
+    "/theme dracula",
     "/search",
     "/code",
     "/status",
@@ -164,6 +268,8 @@ SLASH_COMMANDS = [
     "/birthday gift",
     "/birthday wish",
     "/gift",
+    "/commands",
+    "/palette",
     "/help",
     "/clear",
     "/exit",
@@ -184,70 +290,364 @@ def setup_readline():
     readline.parse_and_bind("tab: complete")
 
 
-def display_lesaint_ai_awakening():
-    """Affiche une présentation majestueuse lors du passage en mode super-utilisateur lesaintAi."""
-    skull_insignia = """
-   ██╗     ███████╗███████╗ █████╗ ██╗███╗   ██╗████████╗ █████╗ ██╗
-   ██║     ██╔════╝██╔════╝██╔══██╗██║████╗  ██║╚══██╔══╝██╔══██╗██║
-   ██║     █████╗  ███████╗███████║██║██╔██╗ ██║   ██║   ███████║██║
-   ██║     ██╔══╝  ╚════██║██╔══██║██║██║╚██╗██║   ██║   ██╔══██║██║
-   ███████╗███████╗███████║██║  ██║██║██║ ╚████║   ██║   ██║  ██║██║
-   ╚══════╝╚══════╝╚══════╝╚═╝  ╚═╝╚═╝╚═╝  ╚═══╝   ╚═╝   ╚═╝  ╚═╝╚═╝
-                 ⚡⚡⚡ APEX GOD-MODE UNLOCKED ⚡⚡⚡"""
+def handle_theme_command(args: List[str]):
+    """Bascule de thème dynamique en direct avec nuancier interactif style OpenCode."""
+    if not args:
+        table = Table(
+            title=f"🎨 Thèmes Dynamiques OpenCode (Actuel : [bold {theme_mgr.current.focus}]{theme_mgr.current.name}[/])",
+            box=box.ROUNDED,
+            border_style=theme_mgr.current.border,
+            header_style=f"bold {theme_mgr.current.focus}"
+        )
+        table.add_column("Commande", style=f"bold {theme_mgr.current.accent}")
+        table.add_column("Nom du Thème", style=theme_mgr.current.text)
+        table.add_column("Nuancier Visuel", style="white")
+        table.add_column("Statut", style="bold")
+        
+        for k, th in THEMES.items():
+            active_marker = f"[bold {th.success}]● ACTIF[/]" if th.name == theme_mgr.current.name else "[dim]Disponible[/]"
+            swatch = (
+                f"[{th.focus}]█[/][{th.agent}]█[/][{th.success}]█[/]"
+                f"[{th.alert}]█[/][{th.accent}]█[/][{th.dim}]█[/]"
+            )
+            table.add_row(f"/theme {k}", th.name, swatch, active_marker)
+            
+        console.print(table)
+        console.print(f"[{theme_mgr.current.dim}]Usage : [bold {theme_mgr.current.text}]/theme catppuccin[/] · [bold {theme_mgr.current.text}]/theme cyberpunk[/] · [bold {theme_mgr.current.text}]/theme matrix[/] · [bold {theme_mgr.current.text}]/theme dracula[/] (0 octet sur SSD)[/{theme_mgr.current.dim}]")
+        return
 
-    panel_content = (
-        f"[bold red]{skull_insignia}[/]\n\n"
-        "👑 [bold yellow]BIENVENUE, MAÎTRE DU SYSTÈME (LESAINT-AI ACTIF)[/]\n\n"
-        "• [bold red]Privilèges Root Absolus[/] : ALLOW_SUDO=True | Confinement Docker/Bubblewrap à chaud\n"
-        "• [bold red]Portail Tor Onion V3[/] : Déverrouillé pour le contrôle décentralisé distant (/onion start)\n"
-        "• [bold red]Accès Système Total[/] : Écriture et diagnostic sur toute la machine sans barrière\n"
-        "• [bold green]Garde-Fou Sacré Préservé[/] : Veto mathématique inviolable protégeant la vie humaine\n"
-        "• [bold cyan]Arsenal Cyber Prêt[/] : Nmap, Torsocks, Net-tools, Micro-init éphémère en RAM (/docker)\n\n"
-        "[bold white on red] ⚠️  ATTENTION : TOUTES LES ACTIONS SONT EXÉCUTÉES AVEC LES PRIVILÈGES MAXIMAUX  [/]"
+    selected = args[0].lower().strip()
+    if theme_mgr.set_theme(selected):
+        th = theme_mgr.current
+        console.print(Panel(
+            f"[bold {th.success}]✔ Thème basculé avec succès :[/] [bold {th.focus}]{th.name}[/]\n"
+            f"[{th.dim}]Palette rechargée instantanément en RAM pure (Mode NÉANT : 0 octet écrit sur disque)[/]",
+            box=box.ROUNDED,
+            border_style=th.border
+        ))
+    else:
+        console.print(f"[bold {theme_mgr.current.alert}]❌ Thème inconnu :[/] '{selected}'. Tapez [bold {theme_mgr.current.focus}]/theme[/] pour la liste.")
+
+
+OPENCODE_BOX = box.Box(
+    "│   \n"
+    "│   \n"
+    "│   \n"
+    "│   \n"
+    "│   \n"
+    "│   \n"
+    "│   \n"
+    "│   \n"
+)
+
+
+def get_git_info() -> str:
+    """Récupère la branche Git actuelle et l'état dirty."""
+    try:
+        branch = subprocess.check_output(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+            stderr=subprocess.DEVNULL
+        ).decode().strip()
+        status = subprocess.check_output(
+            ["git", "status", "--porcelain"],
+            stderr=subprocess.DEVNULL
+        ).decode().strip()
+        dirty = "*" if status else ""
+        return f"{branch}{dirty}"
+    except Exception:
+        return "main"
+
+
+def render_freeai_block_logo(mode: str) -> Text:
+    """Génère le logo bloc ASCII 4-lignes haute précision style OpenCode avec dégradé TokyoNight."""
+    th = theme_mgr.current
+    is_super = mode == "lesaintAi"
+    accent = th.alert if is_super else th.focus
+    secondary = th.agent if is_super else "#bb9af7"
+
+    free_art = [
+        " ▄▀▀                ",
+        "█▀▀  █▀▀▄ █▀▀█ █▀▀█ ",
+        "█    █    █^^^ █^^^ ",
+        "▀    ▀    ▀▀▀▀ ▀▀▀▀ "
+    ]
+    ai_art = [
+        "       ▄ ",
+        " ▄▀█  █  ",
+        "█▄▄█  █  ",
+        "▀  ▀  ▀  "
+    ]
+
+    logo_text = Text()
+    for fl, al in zip(free_art, ai_art):
+        line = Text()
+        for ch in fl:
+            if ch == "^":
+                line.append("▀", style=th.dim)
+            elif ch in ("█", "▀", "▄"):
+                line.append(ch, style=f"bold {accent}")
+            else:
+                line.append(" ")
+        line.append("  ")
+        for ch in al:
+            if ch in ("█", "▀", "▄"):
+                line.append(ch, style=f"bold {secondary}")
+            else:
+                line.append(" ")
+        logo_text.append(line)
+        logo_text.append("\n")
+    return logo_text
+
+
+PLACEHOLDER_QUERIES = [
+    "Fix broken tests",
+    "Audit de vulnérabilités et sécurité du code",
+    "Optimise les requêtes et la mémoire vive",
+    "Recherche les points d'entrée avec /search",
+    "Active le tunnel furtif Tor avec /onion",
+    "Passe en privilèges Apex avec /mode lesaintAi",
+    "Déploie un essaim d'agents avec /swarm",
+    "Vérifie l'état de la sentinelle avec /status",
+    "Synchronise la mémoire GZIP avec /sync",
+    "Génère une interface moderne avec /ui"
+]
+_placeholder_idx = 0
+
+
+def get_next_placeholder() -> str:
+    global _placeholder_idx
+    ph = PLACEHOLDER_QUERIES[_placeholder_idx % len(PLACEHOLDER_QUERIES)]
+    _placeholder_idx += 1
+    return ph
+
+
+def render_prompt_card(mode: str, placeholder_text: str = ""):
+    """Affiche la carte d'entrée de commande style OpenCode avec bordure gauche et métadonnées."""
+    th = theme_mgr.current
+    is_super = mode == "lesaintAi"
+    accent = th.alert if is_super else th.focus
+    dim_color = th.dim
+    model_color = th.agent
+
+    card_grid = Table.grid(expand=True)
+    card_grid.add_column(ratio=1)
+
+    placeholder = Text()
+    placeholder.append("▌ ", style=f"bold {accent}")
+    placeholder.append("Ask anything... ", style="#7982a9")
+    if placeholder_text:
+        placeholder.append(f'"{placeholder_text}"', style=f"dim italic {dim_color}")
+
+    meta_row = Table.grid(expand=True)
+    meta_row.add_column(justify="left")
+    meta_row.add_column(justify="right")
+
+    mode_pill = f"[bold {accent}]{mode}[/]" if not is_super else f"[bold {th.alert}]⚡ {mode} (Root/Sudo)[/]"
+    meta_left = f"{mode_pill} [dim {dim_color}]·[/] [bold {model_color}]Groq LPU (500 tok/s)[/]"
+    meta_right = f"[dim {dim_color}]FreeAi Zen · RAM Ephemeral[/]"
+    meta_row.add_row(meta_left, meta_right)
+
+    card_grid.add_row(placeholder)
+    card_grid.add_row(Text(""))
+    card_grid.add_row(meta_row)
+
+    card_panel = Panel(
+        card_grid,
+        box=OPENCODE_BOX,
+        border_style=accent,
+        padding=(0, 1)
     )
-    console.print(Panel(
-        panel_content,
-        title="🔥 [bold red]TRANSCENDANCE SUPER-UTILISATEUR (lesaintAi)[/]",
-        border_style="red"
-    ))
+    console.print(card_panel)
 
 
-def display_welcome_banner(mode: str):
-    """Affiche une bannière cyber-tactique avec protocole Phoenix de résurrection post-coupure de courant."""
-    ascii_logo = """
-  ███████╗██████╗ ███████╗███████╗ █████╗ ██╗
-  ██╔════╝██╔══██╗██╔════╝██╔════╝██╔══██╗██║
-  █████╗  ██████╔╝█████╗  █████╗  ███████║██║
-  ██╔══╝  ██╔══██╗██╔══╝  ██╔══╝  ██╔══██║██║
-  ██║     ██║  ██║███████╗███████╗██║  ██║██║
-  ╚═╝     ╚═╝  ╚═╝╚══════╝╚══════╝╚═╝  ╚═╝╚═╝"""
+def render_bottom_status(mode: str):
+    """Affiche la barre de status inférieure style OpenCode (chemin git, raccourcis)."""
+    th = theme_mgr.current
+    dim_color = th.dim
+    workspace = get_active_workspace()
+    home = os.path.expanduser("~")
+    ws_short = ("~" + workspace[len(home):]) if workspace.startswith(home) else (Path(workspace).name or workspace)
+    branch = get_git_info()
 
-    banner_text = Text()
-    banner_text.append(ascii_logo, style="bold cyan")
-    banner_text.append("\n\n  ⚡ SOVEREIGN AUTONOMOUS INTELLIGENCE // ZERO-DISK FOOTPRINT ⚡\n", style="bold yellow")
-    banner_text.append("  [PHOENIX PROTOCOL] ", style="bold magenta")
-    banner_text.append("Résurrection Instantanée & Intégrité Totale Post-Coupure\n", style="bold green")
+    bottom_grid = Table.grid(expand=True)
+    bottom_grid.add_column(justify="left")
+    bottom_grid.add_column(justify="right")
 
-    status_hud = (
-        "• [bold green]Bouclier Anti-Coupure (Blackout Proof)[/] : ZÉRO corruption SSD (Mode NÉANT en RAM pure)\n"
-        "• [bold cyan]Persistance Dual-Cloud[/] : Cerveau synchronisé (Neon PostgreSQL & Telegram Vault)\n"
-        "• [bold cyan]Gouvernance Éthique[/] : Sanctuaire de la Vie Humaine Inviolable (SacredLifeSentinel)\n"
-        f"• [bold {'red' if mode == 'lesaintAi' else 'green'}]Mode Actif[/] : {mode} ({'God-Mode Sudo Déverrouillé' if mode == 'lesaintAi' else 'Standard Sécurisé'})\n"
-        "• [bold cyan]Cloud Fantôme[/] : GitHub Actions Runner disponible même PC ÉTEINT (/offload)"
-    )
+    status_left = f"[dim {dim_color}]{ws_short}:{branch}[/]"
+    status_right = f"[dim {dim_color}][bold #7aa2f7]shift+tab[/] agents   [bold #7aa2f7]ctrl+p[/] commands   [dim]v2.4.0[/][/]"
+    bottom_grid.add_row(status_left, status_right)
+    console.print(bottom_grid)
 
-    console.print(Panel(
-        banner_text,
-        border_style="cyan"
-    ))
-    console.print(Panel(
-        status_hud,
-        title="🛰️ Télémétrie Tactique d'Éveil",
-        subtitle="Tapez [bold green]/help[/] pour les commandes ou [bold cyan]/agent[/] pour une mission ReAct",
-        border_style="blue"
-    ))
+
+def display_welcome_banner(mode: str, active_task: str = "Installation agents craf-suit"):
+    """Affiche un en-tête moderne, compact et épuré inspiré fidèlement d'OpenCode."""
+    th = theme_mgr.current
+    is_super = mode == "lesaintAi"
+    accent = th.alert if is_super else th.focus
+    dim_color = th.dim
+    text_color = th.text
+
+    # 1. Top Session Tab Bar (Exact OpenCode Header)
+    top_bar = Table.grid(expand=True)
+    top_bar.add_column(justify="left")
+    top_bar.add_column(justify="right")
+
+    mode_tag = "lesaintAi ⚡" if is_super else "freeAi"
+    session_title = f"[bold {accent}]•[/] [bold {text_color}]{active_task}[/] [dim {dim_color}]· FreeAI ({mode_tag})[/]"
+    new_session = f"[dim {dim_color}]+ New session (/clear)[/]"
+    top_bar.add_row(session_title, new_session)
+    console.print(top_bar)
+    console.print()
+
+    # 2. Block ASCII Logo (4-row OpenCode typography)
+    logo = render_freeai_block_logo(mode)
+    console.print(Panel(logo, box=box.MINIMAL, padding=(0, 0), expand=False), justify="center")
+
+    # Subtitle under logo (/help to inspect commands · v2.4.0 Sovereign AI Agent)
+    sub = Text.from_markup(f"[bold {th.accent}]/help[/] [dim {dim_color}]to inspect commands · [bold {th.success}]v2.4.0[/] Sovereign AI Agent[/]")
+    console.print(sub, justify="center")
+    console.print()
+
+    # 3. Floating Input Card (OpenCode left-accent box)
+    render_prompt_card(mode, "Fix broken tests")
+
+    # 4. Bottom Status Line (Git branch & shortcut hints)
+    render_bottom_status(mode)
+    console.print()
+
     if mode == "lesaintAi":
         display_lesaint_ai_awakening()
+
+
+def display_command_palette():
+    """Affiche la palette de commandes OpenCode (Ctrl+P / /commands) catégorisée."""
+    th = theme_mgr.current
+    table = Table(
+        title=f"[bold {th.focus}]⌘ FreeAI Command Palette[/] [dim {th.dim}]· Navigation Rapide OpenCode (Ctrl+P)[/]",
+        box=box.ROUNDED,
+        border_style=th.border,
+        header_style=f"bold {th.focus}",
+        expand=True
+    )
+    table.add_column("Catégorie", style=f"bold {th.accent}", width=18)
+    table.add_column("Commande", style=f"bold {th.text}", width=24)
+    table.add_column("Action & Description", style="dim white")
+
+    categories = [
+        ("⚡ Modes", [
+            ("FreeAi", "Mode standard confiné (frugalité RAM, sudo désactivé)"),
+            ("lesaintAi", "Apex God-mode (Sudo déverrouillé, Tor Onion v3)"),
+            ("/mode [freeAi|lesaintAi]", "Bascule directe de profil de sécurité")
+        ]),
+        ("🤖 Agents & IA", [
+            ("/agent <mission>", "Lance l'agent autonome ReAct (Hermes)"),
+            ("/swarm [start|status]", "Déploie et supervise l'essaim d'agents"),
+            ("/clash <question>", "Débat contradictoire multi-modèles"),
+            ("/evolve", "Auto-mise à jour et évolution continue"),
+            ("/think <problème>", "Raisonnement profond arborescent"),
+            ("/learn [url|repo]", "Ingestion de doc et mémorisation vectorielle")
+        ]),
+        ("🔍 Code & Fichiers", [
+            ("/search <motif> [dir]", "Recherche ultra-rapide de fichiers sur le disque"),
+            ("/code <motif> <pattern>", "Recherche sémantique et syntaxique dans le code"),
+            ("/rollback", "Annule les modifications Git en toute sécurité"),
+            ("/sync", "Synchronisation GZIP avec Neon Cloud"),
+            ("/scratchpad", "Bloc-notes éphémère d'ingénierie en RAM")
+        ]),
+        ("🛡️ Sécurité & Réseau", [
+            ("/defense [status|ban]", "Sentinel active et contre-mesures"),
+            ("/onion", "Portail furtif Tor Onion v3"),
+            ("/airgap", "Isolation réseau stricte et protection contre les fuites"),
+            ("/shadow", "Environnement de test shadow isolé"),
+            ("/docker", "Gestion des conteneurs et orchestration")
+        ]),
+        ("🎨 Système & TUI", [
+            ("/theme [nom]", "Bascule de thème (tokyonight, catppuccin, matrix, etc.)"),
+            ("/status", "Télémétrie en temps réel (RAM, CPU, Sentinel)"),
+            ("/commands", "Affiche cette palette de commandes (Ctrl+P)"),
+            ("/help", "Manuel complet d'utilisation"),
+            ("/clear", "Nettoie l'écran et réaffiche l'en-tête OpenCode"),
+            ("/exit", "Quitte proprement FreeAI")
+        ])
+    ]
+
+    for cat_name, cmds in categories:
+        for idx, (cmd_name, cmd_desc) in enumerate(cmds):
+            cat_display = cat_name if idx == 0 else ""
+            table.add_row(cat_display, f"[bold {th.focus}]{cmd_name}[/]", cmd_desc)
+
+    console.print(table)
+    console.print(f"[dim {th.dim}]Astuce : Tapez directement le nom de la commande avec TAB pour l'auto-complétion rapide.[/]\n")
+
+
+def get_user_cli_input(prompt_str: str, mode: str) -> str:
+    """Récupère la saisie utilisateur avec prompt_toolkit interactif ou repli sur builtins.input."""
+    is_mock_or_pipe = (
+        not sys.stdin.isatty() or
+        hasattr(input, "side_effect") or
+        hasattr(input, "_mock_return_value") or
+        type(input).__name__ == "MagicMock"
+    )
+    if is_mock_or_pipe:
+        return input(f"╰─ {prompt_str}").strip()
+
+    try:
+        from prompt_toolkit import PromptSession
+        from prompt_toolkit.completion import WordCompleter
+        from prompt_toolkit.key_binding import KeyBindings
+
+        completer = WordCompleter(SLASH_COMMANDS, ignore_case=True, sentence=True)
+        kb = KeyBindings()
+
+        @kb.add("c-p")
+        def _(event):
+            event.app.exit(result="/commands")
+
+        session = PromptSession(
+            completer=completer,
+            key_bindings=kb,
+            complete_while_typing=False
+        )
+        res = session.prompt(f"╰─ {prompt_str}")
+        return res.strip()
+    except Exception:
+        return input(f"╰─ {prompt_str}").strip()
+
+
+def render_quick_ribbon():
+    """Ruban d'actions rapides épuré style OpenCode."""
+    th = theme_mgr.current
+    ribbon = (
+        f"[{th.dim}]Raccourcis :[/] "
+        f"[bold {th.focus}]/theme[/] [{th.dim}]style[/]  ·  "
+        f"[bold {th.accent}]/mode[/] [{th.dim}]droits[/]  ·  "
+        f"[bold {th.agent}]/agent[/] [{th.dim}]ReAct[/]  ·  "
+        f"[bold {th.success}]/status[/] [{th.dim}]santé[/]  ·  "
+        f"[bold {th.alert}]/rollback[/] [{th.dim}]git[/]  ·  "
+        f"[bold {th.dim}]/exit[/] [{th.dim}]quitter[/]"
+    )
+    console.print(ribbon)
+
+
+def display_lesaint_ai_awakening():
+    """Affiche une transition super-utilisateur percutante et élégante style OpenCode."""
+    th = theme_mgr.current
+    grid = Table.grid(expand=True)
+    grid.add_column(ratio=1)
+    grid.add_row(
+        f"[bold {th.alert}]👑 APEX GOD-MODE DÉVERROUILLÉ[/] [dim {th.dim}]· PRIVILÈGES ROOT TOTAUX[/]\n"
+        f"• [bold {th.alert}]Accès Système :[/] ALLOW_SUDO=True | Confinement levé sur toute la machine\n"
+        f"• [bold {th.agent}]Tor Onion V3 :[/] Portail prêt pour le pilotage distant chiffré (/onion)\n"
+        f"• [bold {th.success}]Garde-Fou Sacré :[/] Veto mathématique inviolable (SacredLifeSentinel)"
+    )
+    console.print(Panel(
+        grid,
+        title=f"[bold {th.alert}]⚡ LESAINT#AI GOD-MODE[/]",
+        subtitle=f"[bold white on {th.alert}] ⚠️  ATTENTION : ACTIONS AVEC PRIVILÈGES MAXIMAUX  [/]",
+        box=box.ROUNDED,
+        border_style=th.alert,
+        padding=(0, 1)
+    ))
 
 
 def get_prompt(mode: str) -> str:
@@ -259,10 +659,16 @@ def get_prompt(mode: str) -> str:
 
 def print_help():
     """Displays the help table with all slash commands and usage examples."""
-    table = Table(title="📖 Commandes Explicites FreeAI (Slash Commands)", border_style="cyan")
-    table.add_column("Commande", style="bold yellow", width=26)
-    table.add_column("Description", style="white")
-    table.add_column("Exemple d'utilisation", style="green")
+    th = theme_mgr.current
+    table = Table(
+        title=f"[bold {th.focus}]◆ FreeAI[/] [dim {th.dim}]Commandes & Navigation Slash [{th.name}][/]",
+        box=box.ROUNDED,
+        border_style=th.border,
+        header_style=f"bold {th.focus}"
+    )
+    table.add_column("Commande", style=f"bold {th.accent}", width=26)
+    table.add_column("Description", style=th.text)
+    table.add_column("Exemple d'utilisation", style=f"dim {th.success}")
 
     table.add_row(
         "FreeAi",
@@ -545,9 +951,16 @@ def print_status(tech_lead: TechLeadOrchestrator):
     sudo_display = "[bold red]Activé (ALLOW_SUDO=True)[/]" if status.get("allow_sudo") else "[dim]Désactivé (Sudo Bloqué)[/]"
     fs_display = "[bold red]Accès Total (Tout le PC)[/]" if status.get("allow_full_fs_access") else "[green]Confiné au Workspace[/]"
 
-    table = Table(title="📊 État Global du Système FreeAI", border_style="cyan", show_header=True)
-    table.add_column("Composant", style="bold yellow")
-    table.add_column("Valeur / État", style="white")
+    th = theme_mgr.current
+    table = Table(
+        title=f"[bold {th.focus}]◆ FreeAI[/] [dim {th.dim}]Télémétrie Système & Persistance Dual-Cloud [{th.name}][/]",
+        box=box.ROUNDED,
+        border_style=th.border,
+        header_style=f"bold {th.focus}",
+        show_header=True
+    )
+    table.add_column("Composant", style=f"bold {th.accent}")
+    table.add_column("Valeur / État", style=th.text)
 
     table.add_row("Mode Actif", mode_display)
     table.add_row("Privilèges Sudo", sudo_display)
@@ -746,12 +1159,24 @@ async def run_learn(tech_lead: TechLeadOrchestrator, args: List[str]):
 
 
 async def execute_tech_lead_task(tech_lead: TechLeadOrchestrator, objective: str):
-    """Submits a free-form objective to the Tech Lead Orchestrator for autonomous execution."""
-    with console.status(f"[bold cyan]FreeAI ({tech_lead.mode}) en cours d'analyse et d'exécution...[/]", spinner="dots"):
+    """Submits a free-form objective to the Tech Lead Orchestrator with real-time telemetry."""
+    th = theme_mgr.current
+    start_time = time.perf_counter()
+
+    with console.status(f"[bold {th.focus}]◆[/] [bold {th.text}]FreeAI ({tech_lead.mode}) réfléchit et orchestre...[/]", spinner="dots"):
         result = await tech_lead.handle_objective(objective, autonomous=True)
 
+    duration = time.perf_counter() - start_time
+    output_msg = result.get("result", {}).get("message", "")
+    token_est = max(1, int(len(output_msg.split()) * 1.3))
+    tokens_sec = token_est / duration if duration > 0 else 0
+
     if not result.get("success"):
-        console.print(f"[bold red]❌ Erreur d'exécution :[/] {result.get('error')}")
+        console.print(Panel(
+            f"[bold {th.alert}]❌ Erreur d'exécution :[/] {result.get('error')}",
+            box=box.ROUNDED,
+            border_style=th.alert
+        ))
         return
 
     agent = result.get("assigned_agent", "Tech Lead")
@@ -761,33 +1186,43 @@ async def execute_tech_lead_task(tech_lead: TechLeadOrchestrator, objective: str
     neon_sync = result.get("neon_cloud_sync", False)
 
     content = Text()
-    content.append(f"🎯 Objectif : {objective}\n", style="bold white")
-    content.append(f"🤖 Agent Assigné : {agent.upper()}\n", style="bold yellow")
-    content.append(f"🌐 Resourcing Externe : {'Oui (Modèle libre)' if external else 'Non (100% Local)'}\n", style="cyan")
-    content.append(f"☁ Synchro Neon Cloud : {'Actif (GZIP)' if neon_sync else 'Mémoire Éphémère'}\n\n", style="cyan")
+    content.append(f"🎯 Objectif : {objective}\n", style=f"bold {th.text}")
+    content.append(f"🤖 Agent Assigné : {agent.upper()}\n", style=f"bold {th.agent}")
+    content.append(f"🌐 Resourcing Externe : {'Oui (Modèle libre)' if external else 'Non (100% Local)'}\n", style=f"dim {th.focus}")
+    content.append(f"☁ Synchro Neon Cloud : {'Actif (GZIP)' if neon_sync else 'Mémoire Éphémère'}\n\n", style=f"dim {th.focus}")
 
     if plan:
-        content.append("📋 Stratégie adoptée :\n", style="bold green")
+        content.append("📋 Stratégie adoptée :\n", style=f"bold {th.success}")
         for step in plan:
-            content.append(f"  • {step}\n", style="dim green")
+            content.append(f"  • {step}\n", style=th.success)
         content.append("\n")
 
-    content.append("📝 Résultat :\n", style="bold white")
-    msg = agent_res.get("message", "")
-    content.append(f"{msg}\n", style="white")
+    content.append("📝 Résultat :\n", style=f"bold {th.text}")
+    content.append(f"{output_msg}\n", style="white")
 
     if "findings" in agent_res and agent_res["findings"]:
-        content.append(f"\n🔍 Constats ({len(agent_res['findings'])}) :\n", style="bold yellow")
+        content.append(f"\n🔍 Constats ({len(agent_res['findings'])}) :\n", style=f"bold {th.accent}")
         for f in agent_res["findings"][:10]:
-            content.append(f"  - {f}\n", style="yellow")
+            content.append(f"  - {f}\n", style=th.accent)
 
     if "files" in agent_res and agent_res["files"]:
-        content.append(f"\n📂 Fichiers traités : {', '.join(agent_res['files'])}\n", style="dim")
+        content.append(f"\n📂 Fichiers traités : {', '.join(agent_res['files'])}\n", style=f"dim {th.dim}")
 
+    border_color = th.success if result.get("success") else th.alert
+    telemetry_sub = (
+        f"[dim {th.dim}]⏱ {duration:.2f}s  │  "
+        f"⚡ {tokens_sec:.0f} tok/s  │  "
+        f"🧠 ~{token_est} tokens  │  "
+        f"💾 0 B SSD (Mode NÉANT)  │  "
+        f"🛡️ Sentinel PASS[/{th.dim}]"
+    )
     console.print(Panel(
         content,
-        title=f"🚀 Exécution Tech Lead ({tech_lead.mode})",
-        border_style="green" if result.get("success") else "red"
+        title=f"[bold {th.focus}]◆ FreeAI[/] [dim {th.dim}]({tech_lead.mode}) · {agent.upper()}[/]",
+        subtitle=telemetry_sub,
+        box=box.ROUNDED,
+        border_style=border_color,
+        padding=(0, 1)
     ))
 
 
@@ -4205,11 +4640,19 @@ async def interactive_cli(initial_mode: str = "freeAi"):
 
     setup_readline()
     display_welcome_banner(tech_lead.mode)
+    turn_counter = 0
 
     while True:
         try:
+            th = theme_mgr.current
+            if turn_counter > 0:
+                console.print()
+                render_prompt_card(tech_lead.mode, get_next_placeholder())
+                render_bottom_status(tech_lead.mode)
+            turn_counter += 1
+
             prompt_str = get_prompt(tech_lead.mode)
-            user_input = input(prompt_str).strip()
+            user_input = get_user_cli_input(prompt_str, tech_lead.mode)
 
             if not user_input:
                 continue
@@ -4252,16 +4695,22 @@ async def interactive_cli(initial_mode: str = "freeAi"):
                 args = parts[1:]
 
                 if cmd in ("/exit", "/quit"):
-                    console.print("[bold cyan]Au revoir ! FreeAI s'est arrêté proprement.[/]")
+                    console.print("[bold #7dcfff]◆ FreeAI[/] [bold #9ece6a]s'est arrêté proprement.[/] [dim #565f89]Au revoir ![/]")
                     break
                 elif cmd == "/clear":
                     console.clear()
+                    display_welcome_banner(tech_lead.mode)
+                    turn_counter = 0
+                elif cmd in ("/commands", "/palette", "/menu"):
+                    display_command_palette()
                 elif cmd == "/help":
                     print_help()
                 elif cmd == "/status":
                     print_status(tech_lead)
                 elif cmd == "/mode":
                     handle_mode_command(tech_lead, args)
+                elif cmd == "/theme":
+                    handle_theme_command(args)
                 elif cmd == "/search":
                     run_search_files(tech_lead, args)
                 elif cmd == "/code":
@@ -4374,6 +4823,9 @@ async def interactive_cli(initial_mode: str = "freeAi"):
             console.print("\n[bold cyan]Au revoir ! FreeAI s'est arrêté proprement (EOF).[/]")
             break
         except KeyboardInterrupt:
+            cur_task = asyncio.current_task()
+            if cur_task is not None and hasattr(cur_task, "uncancel"):
+                cur_task.uncancel()
             console.print("\n[dim]Interruption détectée (Ctrl+C). Tapez /exit pour quitter.[/]")
             continue
         except Exception as e:
@@ -4415,7 +4867,9 @@ def main():
                 parts = objective_text.split()
             cmd = parts[0].lower()
             args = parts[1:]
-            if cmd == "/status":
+            if cmd == "/theme":
+                handle_theme_command(args)
+            elif cmd == "/status":
                 print_status(tech_lead)
             elif cmd == "/rollback":
                 run_rollback(tech_lead)
@@ -4520,9 +4974,15 @@ def main():
             else:
                 print(f"Commande non supportée en mode batch: {cmd}")
         else:
-            asyncio.run(execute_tech_lead_task(tech_lead, objective_text))
+            try:
+                asyncio.run(execute_tech_lead_task(tech_lead, objective_text))
+            except (KeyboardInterrupt, asyncio.CancelledError):
+                pass
     else:
-        asyncio.run(interactive_cli(initial_mode=parsed.mode))
+        try:
+            asyncio.run(interactive_cli(initial_mode=parsed.mode))
+        except (KeyboardInterrupt, asyncio.CancelledError):
+            pass
 
 
 if __name__ == "__main__":

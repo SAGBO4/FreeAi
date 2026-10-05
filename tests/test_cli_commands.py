@@ -42,3 +42,26 @@ def test_mode_keyword_normalization():
     for v in lesaint_variants:
         norm = v.lstrip("/").lower()
         assert norm in ("lesaint#ai", "lesaintai", "lesaint-ai", "lesaint_ai", "lesaint")
+
+
+def test_interactive_cli_clean_exit_after_sigint():
+    """Verify that receiving KeyboardInterrupt followed by /exit does not raise CancelledError or KeyboardInterrupt."""
+    from unittest.mock import patch
+    import asyncio
+    import cli
+
+    inputs = [KeyboardInterrupt(), "/exit"]
+
+    def fake_input(_):
+        if not inputs:
+            return "/exit"
+        val = inputs.pop(0)
+        if isinstance(val, Exception):
+            raise val
+        return val
+
+    with patch("builtins.input", side_effect=fake_input):
+        with patch("cli.setup_readline"):
+            # Must exit cleanly without throwing CancelledError or KeyboardInterrupt
+            asyncio.run(cli.interactive_cli())
+

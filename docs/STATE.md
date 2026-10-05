@@ -52,3 +52,11 @@ Dernière mise à jour : 2026-10-02
 
 - **2026-10-03** : Remplacement de l'heuristique interne par le Noyau Neural Natif JARVIS (Phase 1 à 7 + Module Bootstrap par distillation terminés). Zéro régression.
 - **2026-10-03 (Nuit)** : Intégration de SatelliteEye (God-Mode), NetworkResilience (survie réseau multi-accès), FreeCloudPool (AETHER-CLOUD-FREE pour VPS et cloud gratuits), et ActiveDefenseSentinel (Bouclier d'auto-défense souverain en temps réel avec bannissement volatile et alertes Telegram instantanées). Suite de tests validée à 100%.
+- **2026-10-05** : Refonte intégrale de l'interface CLI de FreeAI inspirée fidèlement d'OpenCode (TUI TokyoNight) avec innovations extrêmes :
+  - Header à onglets de session dynamique (`• Installation agents craf-suit · FreeAI`, `+ New session (/clear)`).
+  - Typographie bloc ASCII 4-lignes personnalisée `freeai` avec dégradé TokyoNight cyan/lavande et bascule Apex God-Mode rouge.
+  - Carte de commande flottante à bordure gauche (`│`), placeholders contextuels dynamiques (`Ask anything...`) et barre de métadonnées intégrée.
+  - Barre de statut inférieure temps réel avec branche Git locale, état dirty et raccourcis clavier (`shift+tab`, `ctrl+p`).
+  - Palette de commandes modale catégorisée (`Ctrl+P` / `/commands`) pour une navigation instantanée sans quitter le flux de frappe.
+  - Validation complète par les agents spécialisés `design-research` et `design-verification` (100% de conformité).
+

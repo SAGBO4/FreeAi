@@ -276,6 +276,7 @@ class TestRemoteOnlineModels(unittest.TestCase):
         fed = self.tl.free_ai.federation
         fed.deepseek_api_key = "sk-test-deepseek-mock-key"
         fed.groq_api_key = None
+        fed.gemini_api_key = None
         fed.remote_gpu_url = None
         fed.set_online_target("deepseek", "deepseek-chat")
 
