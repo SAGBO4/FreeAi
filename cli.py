@@ -1188,6 +1188,16 @@ def run_diff_command(tech_lead: TechLeadOrchestrator, args: List[str]):
         return
 
     if not stat_out and not diff_out:
+        # Fallback to staged / HEAD if working tree is clean
+        try:
+            cmd_stat_head = ["git", "diff", "HEAD", "--stat"] + ([target] if target else [])
+            cmd_diff_head = ["git", "diff", "HEAD", "--color=never"] + ([target] if target else [])
+            stat_out = subprocess.check_output(cmd_stat_head, stderr=subprocess.DEVNULL).decode(errors="replace").strip()
+            diff_out = subprocess.check_output(cmd_diff_head, stderr=subprocess.DEVNULL).decode(errors="replace").strip()
+        except Exception:
+            pass
+
+    if not stat_out and not diff_out:
         console.print(f"[bold {th.success}]✓ Dépôt propre[/] [dim {th.dim}]Aucune modification détectée (arbre de travail synchronisé).[/]\n")
         return
 
@@ -1313,8 +1323,9 @@ async def execute_tech_lead_task(tech_lead: TechLeadOrchestrator, objective: str
     is_inquiry = (
         objective.strip().endswith("?") or
         any(objective.strip().lower().startswith(kw) for kw in (
-            "pourquoi", "pourqw", "comment", "qu'est-ce", "est-ce", "qui", "quand", "quel", "quelle",
-            "why", "how", "what", "is there", "can you explain"
+            "pourquoi", "pourqw", "comment", "qu'est-ce", "est-ce", "qui", "quand", "quel", "quelle", "quoi",
+            "explique", "expliquer", "analyse", "analyser", "montre", "peux-tu", "dis-moi",
+            "why", "how", "what", "is there", "can you explain", "show", "describe", "list"
         ))
     )
     autonomous_flag = not is_inquiry
@@ -1337,9 +1348,17 @@ async def execute_tech_lead_task(tech_lead: TechLeadOrchestrator, objective: str
                     if len(lines) > 500:
                         formatted_content += f"\n... [Tronqué : {len(lines)} lignes au total]"
                     context_blocks.append(f"<context file=\"{ref}\">\n{formatted_content}\n</context>")
-                    console.print(f"  [bold {th.focus}]→[/] [dim {th.dim}]Context Injecté[/] [white]@{ref}[/] [dim {th.dim}]({len(lines)} lignes)[/]")
+                    console.print(f"  [bold {th.accent}]→[/] [dim {th.dim}]Context Injecté[/] [white]@{ref}[/] [dim {th.dim}]({len(lines)} lignes)[/]")
                 except Exception as ex:
                     logger.debug("Failed to inject context file %s: %s", ref, ex)
+            elif candidate.is_dir():
+                try:
+                    entries = [p.relative_to(candidate).as_posix() for p in sorted(candidate.glob("**/*")) if not p.name.startswith(".")][:60]
+                    dir_content = "\n".join(entries)
+                    context_blocks.append(f"<context directory=\"{ref}\">\n{dir_content}\n</context>")
+                    console.print(f"  [bold {th.accent}]→[/] [dim {th.dim}]Dossier Injecté[/] [white]@{ref}/[/] [dim {th.dim}]({len(entries)} éléments)[/]")
+                except Exception as ex:
+                    logger.debug("Failed to inject context dir %s: %s", ref, ex)
 
     # 1. Clean OpenCode prompt marker
     console.print(f"[bold {th.focus}]›[/] [bold white]{escape(raw_objective)}[/]\n")
@@ -1353,7 +1372,26 @@ async def execute_tech_lead_task(tech_lead: TechLeadOrchestrator, objective: str
         result = await tech_lead.handle_objective(augmented_objective, autonomous=autonomous_flag)
 
     duration = time.perf_counter() - start_time
-    output_msg = result.get("result", {}).get("message", "")
+    
+    agent_res = result.get("result", {})
+    output_msg = ""
+    if isinstance(agent_res, dict):
+        output_msg = agent_res.get("message") or agent_res.get("output") or agent_res.get("response") or ""
+        if not output_msg:
+            parts = []
+            if agent_res.get("task"):
+                parts.append(f"**Tâche :** {agent_res['task']}")
+            if agent_res.get("methodology"):
+                parts.append(f"**Méthodologie :** {agent_res['methodology']}")
+            if agent_res.get("forge_cycle"):
+                stages = [f"- {s}" for s in agent_res["forge_cycle"]]
+                parts.append("**Cycle Forge :**\n" + "\n".join(stages))
+            if agent_res.get("tamper_check"):
+                parts.append(f"**Contrôle d'intégrité :** {agent_res['tamper_check']}")
+            output_msg = "\n\n".join(parts) if parts else str(agent_res)
+    elif isinstance(agent_res, str):
+        output_msg = agent_res
+
     token_est = max(1, int(len(output_msg.split()) * 1.3))
     tokens_sec = token_est / duration if duration > 0 else 0
 
@@ -1367,7 +1405,6 @@ async def execute_tech_lead_task(tech_lead: TechLeadOrchestrator, objective: str
 
     agent = result.get("assigned_agent", "Tech Lead")
     plan = result.get("plan", [])
-    agent_res = result.get("result", {})
     external = result.get("external_resourcing_used", False)
     neon_sync = result.get("neon_cloud_sync", False)
 
@@ -1378,17 +1415,27 @@ async def execute_tech_lead_task(tech_lead: TechLeadOrchestrator, objective: str
         for step in plan:
             console.print(f"  [dim {th.dim}]• {escape(str(step))}[/]")
 
-    # 4. Inline Tools (OpenCode style icons: $, ←, →, ✱, ◈, ⊙, ✓)
+    # 4. Inline Tools (OpenCode style icons: $, ←, →, ✱, ◈, ⊙, ✓, ✗)
+    if "command" in agent_res or "commands" in agent_res:
+        cmds = agent_res.get("commands", [agent_res.get("command")]) if "commands" in agent_res else [agent_res["command"]]
+        for c in cmds[:4]:
+            if c:
+                console.print(f"  [bold {th.focus}]$[/] [dim {th.dim}]Bash[/] [white]{escape(str(c))}[/]")
     if external:
-        console.print(f"  [bold {th.focus}]◈[/] [dim {th.dim}]WebSearch[/] [white]Consultation des modeles ouverts[/]")
+        console.print(f"  [bold {th.focus}]◈[/] [dim {th.dim}]WebSearch[/] [white]Consultation des modèles ouverts[/]")
     if neon_sync:
         console.print(f"  [bold {th.focus}]⊙[/] [dim {th.dim}]Neon Memory[/] [white]Synchronisation GZIP-9 active[/]")
+    if "files_written" in agent_res and agent_res["files_written"]:
+        for f in agent_res["files_written"][:6]:
+            console.print(f"  [bold {th.accent}]←[/] [dim {th.dim}]Write[/] [white]{escape(str(f))}[/]")
     if "files" in agent_res and agent_res["files"]:
         for f in agent_res["files"][:6]:
             console.print(f"  [bold {th.accent}]→[/] [dim {th.dim}]Read[/] [white]{escape(str(f))}[/]")
     if "findings" in agent_res and agent_res["findings"]:
         for find in agent_res["findings"][:6]:
             console.print(f"  [bold {th.accent}]✱[/] [dim {th.dim}]Grep[/] [white]{escape(str(find))}[/]")
+    if agent_res.get("error"):
+        console.print(f"  [bold {th.alert}]✗[/] [dim {th.dim}]Failed[/] [white]{escape(str(agent_res['error']))}[/]")
     console.print(f"  [bold {th.success}]✓[/] [dim {th.dim}]Sentinel[/] [white]SacredLife check PASS[/]")
     console.print()
 
@@ -1401,8 +1448,9 @@ async def execute_tech_lead_task(tech_lead: TechLeadOrchestrator, objective: str
         console.print(LeftBorder(txt, style=f"bold {th.focus}", char="┃", bottom_char="╹"))
 
     # 6. Streamlined Telemetry Footer Line (Exact OpenCode Epilogue)
+    model_name = result.get("model") or getattr(tech_lead, "active_model", None) or "groq/llama-3.3-70b-versatile"
     console.print(
-        f"\n[dim {th.dim}]▣ {agent} · groq/llama-3.3-70b-versatile · {duration:.2f}s "
+        f"\n[dim {th.dim}]▣ {agent} · {model_name} · {duration:.2f}s "
         f"({tokens_sec:.0f} tok/s, ~{token_est} tokens, 0 B SSD)[/]\n"
     )
 
@@ -3526,7 +3574,7 @@ def run_forge(tech_lead: TechLeadOrchestrator, args: List[str]):
             return
 
         console.print(f"[cyan]{pull_res.stdout.strip()}[/]")
-        console.print("[dim]⚙ Réinstallation et mise à jour des compétences Antigravity & Claude...[/]")
+        console.print("[dim][Tools] Réinstallation et mise à jour des compétences Antigravity & Claude...[/]")
         subprocess.run(["bash", str(forge_dir / "install.sh"), "--antigravity", "--force"], capture_output=True, text=True)
         subprocess.run(["bash", str(forge_dir / "install.sh"), "--claude", "--force"], capture_output=True, text=True)
         console.print(f"[bold green][OK] Capacités Forge synchronisées et rechargées avec succès ![/]")
