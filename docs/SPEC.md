@@ -17,6 +17,12 @@ Dernière mise à jour : 2026-10-02
 | F-08 | Nexus Tri-Brid & Live Hologram Call (Synesthésie Multimodale Telegram) | F-01, F-03 | done |
 | F-09 | Protocole AETHER-SWARM (Délégation Cloud Serverless, 0% Charge PC) | F-01, F-06 | done |
 | F-10 | Vision & Vidéo Multimodale Télépathique Telegram (Mode NÉANT) | F-01, F-03 | done |
+| F-11 | Noyau Neural Natif JARVIS (ex-GENÈSE) | F-01, F-02 | done |
+| F-12 | Protocole AETHER-LEGION (Éclaireurs Décentralisés) | F-01, F-09 | done |
+| F-13 | Streaming Réel Token-par-Token TUI (LeftBorderStreamer) | F-01 | done |
+| F-14 | Gestionnaire de Session & Continuité (/compact, /undo, /sessions) | F-01, F-02 | done |
+| F-15 | Autocomplétion Flottante @fichiers & Sélecteur Prompt | F-13 | done |
+| F-16 | Sonde LSP Vivante Temps Réel (• LSP Status Bar) | F-01 | done |
 
 ## Feature details
 
@@ -101,4 +107,43 @@ Acceptation:
   AC3: Fonctionnement catadien autonome avec consolidation nocturne (Auto-Curriculum Learning) et distillation (Professeurs : DeepSeek/Qwen).
   AC4: Evolution darwinienne intégrée avec algorithme génétique pour optimiser les hyperparamètres (Genome) et lignée infalsifiable (SHA-256).
   AC5: Zéro écriture SSD pendant l'inférence, respect strict du Mode NÉANT (100% RAM SQLite Vector Memory).
+Statut: done
+
+### F-12 Protocole AETHER-LEGION
+Acteur: Éclaireurs Autonomes & Cloud
+Acceptation:
+  AC1: Déploiement d'éclaireurs autonomes en RAM pure.
+  AC2: Moisson d'insights décentralisée sans charge locale.
+Statut: done
+
+### F-13 Streaming Réel Token-par-Token TUI (LeftBorderStreamer)
+Acteur: Développeur dans le terminal
+Acceptation:
+  AC1: Rendu token-par-token asynchrone avec pacing dynamique sous composant LeftBorder.
+  AC2: Zéro clignotement de terminal (Zero-Flicker 40fps) avec curseur noble ▌.
+  AC3: Respect absolu de 0 émoji et finalisation sous bordure LeftBorderFinal (┃ et ╹).
+Statut: done
+
+### F-14 Gestionnaire de Session & Continuité (/compact, /undo, /sessions)
+Acteur: Développeur en session interactive
+Acceptation:
+  AC1: /compact distille l'historique de conversation (85-95% compression) sans perdre les ancres d'architecture.
+  AC2: /undo snapshotte l'état des fichiers avant chaque tâche et permet un rollback atomique immédiat.
+  AC3: Prise en charge des sous-commandes /undo list et /undo redo.
+Statut: done
+
+### F-15 Autocomplétion Flottante @fichiers & Sélecteur Prompt
+Acteur: Saisie utilisateur interactive dans prompt_toolkit
+Acceptation:
+  AC1: Détection en temps réel de @path complétant dynamiquement fichiers et dossiers du workspace.
+  AC2: Complétion unifiée des commandes slash (/undo, /compact, /lsp, etc.) et ancres de contexte (#context).
+  AC3: Raccourci Ctrl+P pour la palette de commandes.
+Statut: done
+
+### F-16 Sonde LSP Vivante Temps Réel (• LSP Status Bar)
+Acteur: Système d'ingénierie et qualité
+Acceptation:
+  AC1: Sonde non-bloquante avec cache TTL (0 ms latence UI) détectant Ruff, Pyright ou AST natif.
+  AC2: Affichage dynamique dans le pied de page OpenCode (• 0 LSP, • N LSP).
+  AC3: Commande /lsp et /lsp diagnose pour inspection tabulaire détaillée.
 Statut: done

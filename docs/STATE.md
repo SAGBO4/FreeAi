@@ -84,5 +84,13 @@ Dernière mise à jour : 2026-10-02
   - **Injection Contextuelle Intelligente (`@file` et `@dir`)** : Détection et résolution automatique des chemins mentionnés avec `@` dans les prompts (ex: `@cli.py`, `@tests/test_cli_commands.py`), lecture sécurisée jusqu'à 500 lignes, affichage d'une pilule inline `→ Context Injecté @file (N lignes)` et injection transparente dans le contexte de l'orchestrateur.
   - **Épilogue Télémétrique OpenCode Standardisé** : Remplacement des compteurs dispersés par la ligne d'épilogue exacte d'OpenCode : `▣ <agent> · groq/llama-3.3-70b-versatile · <durée>s (<tok/s> tok/s, ~<tokens> tokens, 0 B SSD)`.
   - **Validation Complète & Régression Zéro** : 35/35 tests passés avec succès (`test_cli_and_modes.py`, `test_cli_commands.py`, `test_innovations_jarvis.py`, `test_opencode_realtime_ui.py`).
+- **2026-10-05 (17:00)** : **L'Arsenal Ultime de Complétude OpenCode TUI (F-13 à F-16)** :
+  - **F-13 : Streaming Token-par-Token Zero-Flicker (`LeftBorderStreamer`)** : Affichage fluide à 40fps avec défilement sans à-coups, curseur noble `▌`, respect strict de 0 émoji et finalisation sous cadre `LeftBorderFinal` (`┃` et `╹`).
+  - **F-14 : Continuité d'État & Annulation Atomique (`/compact` & `/undo`)** :
+    - Distillation sémantique neuronale `/compact` réduisant 85-95% des tokens de conversation en mémoire vive tout en préservant intactes les décisions d'architecture et les ancres de fichiers.
+    - Gestionnaire de snapshots pré-action `AtomicUndoManager` permettant le rollback instantané `/undo` des fichiers touchés.
+  - **F-15 : Autocomplétion Flottante `@fichiers` & Contexte (#tags)** : Compléteur dynamique `OpenCodePromptCompleter` pour `prompt_toolkit`, filtrage temps réel des chemins de fichiers/dossiers du workspace et autocomplétion des commandes slash.
+  - **F-16 : Sonde LSP Vivante (`• LSP Status Bar`)** : Sonde d'analyse statique et LSP non-bloquante avec cache TTL (Ruff / Pyright / AST), intégrée directement dans le pied de page du terminal (`• 0 LSP`), avec commande `/lsp diagnose`.
+  - **Intégrité & Tests** : 48/48 tests unitaires et d'intégration validés (100% PASS), `tamper_check: 0 finding`, `docs_check: 0 error, 0 warning`.
 
 
