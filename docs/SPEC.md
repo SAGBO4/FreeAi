@@ -1,7 +1,7 @@
 # Spécification FreeAI
 
 Source: Cahier des charges souverain FreeAI & Forge Pipeline
-Dernière mise à jour : 2026-10-02
+Dernière mise à jour : 2026-10-05
 
 ## Features
 
@@ -23,6 +23,7 @@ Dernière mise à jour : 2026-10-02
 | F-14 | Gestionnaire de Session & Continuité (/compact, /undo, /sessions) | F-01, F-02 | done |
 | F-15 | Autocomplétion Flottante @fichiers & Sélecteur Prompt | F-13 | done |
 | F-16 | Sonde LSP Vivante Temps Réel (• LSP Status Bar) | F-01 | done |
+| F-17 | Full-Screen TUI OpenCode Réplique Souveraine (Textual) | F-01, F-02, F-13, F-15, F-16 | proposed |
 
 ## Feature details
 
@@ -147,3 +148,20 @@ Acceptation:
   AC2: Affichage dynamique dans le pied de page OpenCode (• 0 LSP, • N LSP).
   AC3: Commande /lsp et /lsp diagnose pour inspection tabulaire détaillée.
 Statut: done
+
+### F-17 Full-Screen TUI OpenCode Réplique Souveraine (Textual)
+Acteur: Développeur en session terminal interactive
+Acceptation:
+  AC1: Bascule automatique et totale dans le tampon d'écran alternatif (alternate screen buffer, 100% de la surface terminale, 0 scrollback standard pollué) avec restauration immaculée du terminal hôte à la sortie (Ctrl+Q, Ctrl+C).
+  AC2: Layout persistant composite à 5 zones : Top Header avec onglets de sessions actives, Sidebar gauche pliable (sessions, arborescence fichiers projet, liste des agents), Panneau central de Chat à défilement captif, Barre de saisie ancrée en bas avec métadonnées contextuelles, et Barre de statut inférieure (compteur LSP vivant, branche Git active, raccourcis essentiels).
+  AC3: Rendu du chat captif intégrant le streaming asynchrone des tokens sous LeftBorder noble (┃ et terminaison ╹), accordéons pliables/dépliables "Thought" de couleur ambre pour les réflexions internes de l'agent, et épilogue télémétrique noble ▣ en fin de génération.
+  AC4: Sidebar gauche repliable dynamiquement par raccourci clavier (Ctrl+B) avec bascule fluide et redimensionnement automatique du panneau de chat sans scintillement.
+  AC5: Frugalité stricte Mode NÉANT : empreinte RAM résidente (RSS) strictement inférieure à 70 Mo au repos et garantie de zéro écriture sur disque SSD (100% en RAM / memfd).
+  AC6: Interdiction absolue de tout émoji dans l'ensemble des widgets, conteneurs, bordures, étiquettes et flux du TUI, avec substitution systématique par des glyphes typographiques nobles (┃, ╹, ▣, ❯, •, ─, ┌, └, etc.).
+  AC7: Tentative de saisie ou de soumission multiple pendant une génération en cours rejetée proprement sans crash ni désynchronisation d'état (protection double-submit).
+  AC8: En cas de dimension de terminal insuffisante (< 60 colonnes ou < 15 lignes), le TUI ne panique pas et adapte son layout ou affiche un avertissement de redimensionnement clair sans corrompre le terminal hôte.
+Scenarios: PS-01 double submit, PS-11 unicode/sans émoji, PS-12 absence git/lsp, PS-13 scalabilité mémoire tampon chat, PS-20 mode dégradé terminal
+Data: Sessions et état UI éphémères en mémoire volatile RAM uniquement (0 écriture SSD)
+Out of scope: Rendu web/GUI navigateur, persistance automatique sur disque physique, dépendances graphiques hors Textual
+Statut: proposed
+
