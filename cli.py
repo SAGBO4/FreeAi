@@ -27,6 +27,7 @@ from rich.markdown import Markdown
 from rich.live import Live
 from rich.spinner import Spinner
 from rich import box
+from rich.markup import escape
 
 # Ensure project root in sys.path
 PROJECT_ROOT = Path(__file__).resolve().parent
@@ -313,7 +314,7 @@ def handle_theme_command(args: List[str]):
             table.add_row(f"/theme {k}", th.name, swatch, active_marker)
             
         console.print(table)
-        console.print(f"[{theme_mgr.current.dim}]Usage : [bold {theme_mgr.current.text}]/theme catppuccin[/] · [bold {theme_mgr.current.text}]/theme cyberpunk[/] · [bold {theme_mgr.current.text}]/theme matrix[/] · [bold {theme_mgr.current.text}]/theme dracula[/] (0 octet sur SSD)[/{theme_mgr.current.dim}]")
+        console.print(f"[{theme_mgr.current.dim}]Usage : [bold {theme_mgr.current.text}]/theme catppuccin[/] · [bold {theme_mgr.current.text}]/theme cyberpunk[/] · [bold {theme_mgr.current.text}]/theme matrix[/] · [bold {theme_mgr.current.text}]/theme dracula[/] (0 octet sur SSD)[/]")
         return
 
     selected = args[0].lower().strip()
@@ -479,21 +480,40 @@ def render_bottom_status(mode: str):
     console.print(bottom_grid)
 
 
-def display_welcome_banner(mode: str, active_task: str = "Installation agents craf-suit"):
-    """Affiche un en-tête moderne, compact et épuré inspiré fidèlement d'OpenCode."""
+def get_dynamic_session_title(active_task: Optional[str] = None) -> str:
+    """Génère un titre d'onglet contextuel et intelligent relié à la matrice Forge en temps réel."""
+    if active_task and active_task not in ("Session active", "Nouvelle session"):
+        return active_task
+
+    forge_cfg = Path(".forge/config.json")
+    if forge_cfg.exists():
+        try:
+            with open(forge_cfg, "r", encoding="utf-8") as f:
+                cfg = json.load(f)
+            db_phase = cfg.get("db_phase", "pre-production")
+            return f"Forge Pipeline · {db_phase}"
+        except Exception:
+            return "Forge Pipeline · Actif"
+    return "Session active"
+
+
+def display_welcome_banner(mode: str, active_task: Optional[str] = None):
+    """Affiche un en-tête moderne, compact et épuré inspiré fidèlement d'OpenCode avec Live Pulse."""
     th = theme_mgr.current
     is_super = mode == "lesaintAi"
     accent = th.alert if is_super else th.focus
     dim_color = th.dim
     text_color = th.text
 
-    # 1. Top Session Tab Bar (Exact OpenCode Header)
+    task_title = get_dynamic_session_title(active_task)
+
+    # 1. Top Session Tab Bar (Exact OpenCode Header avec Pulse Dynamique)
     top_bar = Table.grid(expand=True)
     top_bar.add_column(justify="left")
     top_bar.add_column(justify="right")
 
     mode_tag = "lesaintAi ⚡" if is_super else "freeAi"
-    session_title = f"[bold {accent}]•[/] [bold {text_color}]{active_task}[/] [dim {dim_color}]· FreeAI ({mode_tag})[/]"
+    session_title = f"[bold {accent}]•[/] [bold {text_color}]{task_title}[/] [dim {dim_color}]· FreeAI ({mode_tag})[/]"
     new_session = f"[dim {dim_color}]+ New session (/clear)[/]"
     top_bar.add_row(session_title, new_session)
     console.print(top_bar)
@@ -580,7 +600,7 @@ def display_command_palette():
     console.print(f"[dim {th.dim}]Astuce : Tapez directement le nom de la commande avec TAB pour l'auto-complétion rapide.[/]\n")
 
 
-def get_user_cli_input(prompt_str: str, mode: str) -> str:
+async def get_user_cli_input(prompt_str: str, mode: str) -> str:
     """Récupère la saisie utilisateur avec prompt_toolkit interactif ou repli sur builtins.input."""
     is_mock_or_pipe = (
         not sys.stdin.isatty() or
@@ -608,7 +628,7 @@ def get_user_cli_input(prompt_str: str, mode: str) -> str:
             key_bindings=kb,
             complete_while_typing=False
         )
-        res = session.prompt(f"╰─ {prompt_str}")
+        res = await session.prompt_async(f"╰─ {prompt_str}")
         return res.strip()
     except Exception:
         return input(f"╰─ {prompt_str}").strip()
@@ -1163,8 +1183,19 @@ async def execute_tech_lead_task(tech_lead: TechLeadOrchestrator, objective: str
     th = theme_mgr.current
     start_time = time.perf_counter()
 
-    with console.status(f"[bold {th.focus}]◆[/] [bold {th.text}]FreeAI ({tech_lead.mode}) réfléchit et orchestre...[/]", spinner="dots"):
-        result = await tech_lead.handle_objective(objective, autonomous=True)
+    # Extreme Innovation: Cognitive Intent Detection (Question vs Autonomous Build)
+    is_inquiry = (
+        objective.strip().endswith("?") or
+        any(objective.strip().lower().startswith(kw) for kw in (
+            "pourquoi", "pourqw", "comment", "qu'est-ce", "est-ce", "qui", "quand", "quel", "quelle",
+            "why", "how", "what", "is there", "can you explain"
+        ))
+    )
+    autonomous_flag = not is_inquiry
+    status_label = "FreeAI analyse et répond..." if is_inquiry else "FreeAI réfléchit et orchestre..."
+
+    with console.status(f"[bold {th.focus}]◆[/] [bold {th.text}]{status_label}[/]", spinner="dots"):
+        result = await tech_lead.handle_objective(objective, autonomous=autonomous_flag)
 
     duration = time.perf_counter() - start_time
     output_msg = result.get("result", {}).get("message", "")
@@ -1214,7 +1245,7 @@ async def execute_tech_lead_task(tech_lead: TechLeadOrchestrator, objective: str
         f"⚡ {tokens_sec:.0f} tok/s  │  "
         f"🧠 ~{token_est} tokens  │  "
         f"💾 0 B SSD (Mode NÉANT)  │  "
-        f"🛡️ Sentinel PASS[/{th.dim}]"
+        f"🛡️ Sentinel PASS[/]"
     )
     console.print(Panel(
         content,
@@ -4652,7 +4683,7 @@ async def interactive_cli(initial_mode: str = "freeAi"):
             turn_counter += 1
 
             prompt_str = get_prompt(tech_lead.mode)
-            user_input = get_user_cli_input(prompt_str, tech_lead.mode)
+            user_input = await get_user_cli_input(prompt_str, tech_lead.mode)
 
             if not user_input:
                 continue
@@ -4829,7 +4860,7 @@ async def interactive_cli(initial_mode: str = "freeAi"):
             console.print("\n[dim]Interruption détectée (Ctrl+C). Tapez /exit pour quitter.[/]")
             continue
         except Exception as e:
-            console.print(f"[bold red]Erreur inattendue :[/] {e}")
+            console.print(f"[bold red]Erreur inattendue :[/] {escape(str(e))}")
 
 
 def main():

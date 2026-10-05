@@ -65,3 +65,43 @@ def test_interactive_cli_clean_exit_after_sigint():
             # Must exit cleanly without throwing CancelledError or KeyboardInterrupt
             asyncio.run(cli.interactive_cli())
 
+
+def test_get_dynamic_session_title():
+    """Verify that get_dynamic_session_title connects to Forge when available or falls back cleanly."""
+    from cli import get_dynamic_session_title
+
+    # Custom task preserves value
+    assert get_dynamic_session_title("Refonte Header") == "Refonte Header"
+
+    # Default / None reflects Forge Pipeline
+    title = get_dynamic_session_title(None)
+    assert "Forge Pipeline" in title or title == "Session active"
+
+
+def test_execute_tech_lead_task_inquiry_detection():
+    """Verify that inquiry questions are detected and dispatched with autonomous=False."""
+    import asyncio
+    from unittest.mock import AsyncMock, MagicMock
+    from cli import execute_tech_lead_task
+
+    mock_lead = MagicMock()
+    mock_lead.mode = "freeAi"
+    mock_lead.handle_objective = AsyncMock(return_value={
+        "success": True,
+        "assigned_agent": "conversation",
+        "plan": ["Répondre directement à la question de l'utilisateur"],
+        "result": {"message": "Forge gère l'orchestration des agents."}
+    })
+
+    async def _run():
+        # Question prompt ending with ? or starting with 'pourquoi'
+        await execute_tech_lead_task(mock_lead, "pourquoi j'ai ça ?")
+        mock_lead.handle_objective.assert_called_with("pourquoi j'ai ça ?", autonomous=False)
+
+        # Imperative coding prompt
+        await execute_tech_lead_task(mock_lead, "Fix broken tests in test_cli.py")
+        mock_lead.handle_objective.assert_called_with("Fix broken tests in test_cli.py", autonomous=True)
+
+    asyncio.run(_run())
+
+
