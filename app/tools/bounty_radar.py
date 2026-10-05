@@ -161,6 +161,36 @@ class WarChestLedger:
             data["ready_to_claim_usd"] = sum(s["reward_usd"] for s in data["solutions"] if s.get("status") == "ready_to_claim")
             self._save_data(data)
 
+    async def check_and_update_submitted_prs(self) -> List[Dict[str, Any]]:
+        """Polls GitHub API for status updates on submitted PRs and records newly merged claims."""
+        data = self._read_data()
+        updated = []
+        headers = {"User-Agent": "FreeAI-Sentinel"}
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            for s in data.get("solutions", []):
+                pr_url = s.get("pr_url")
+                if not pr_url or s.get("status") == "claimed":
+                    continue
+                api_url = pr_url.replace("https://github.com/", "https://api.github.com/repos/").replace("/pull/", "/pulls/")
+                try:
+                    res = await client.get(api_url, headers=headers)
+                    if res.status_code == 200:
+                        pr_data = res.json()
+                        if pr_data.get("merged"):
+                            s["status"] = "claimed"
+                            s["merged_at"] = pr_data.get("merged_at")
+                            updated.append(s)
+                        elif pr_data.get("state") == "closed" and not pr_data.get("merged"):
+                            s["status"] = "closed_unmerged"
+                except Exception as e:
+                    logger.debug(f"[WAR CHEST] Failed checking PR {pr_url}: {e}")
+
+        if updated:
+            data["claimed_usd"] = sum(s["reward_usd"] for s in data["solutions"] if s.get("status") == "claimed")
+            data["ready_to_claim_usd"] = sum(s["reward_usd"] for s in data["solutions"] if s.get("status") == "submitted")
+            self._save_data(data)
+        return updated
+
     def get_balance(self) -> Dict[str, Any]:
         data = self._read_data()
         ready = float(data.get("ready_to_claim_usd", 0.0))
