@@ -2958,6 +2958,9 @@ async def dispatch_telegram_order(tech_lead: TechLeadOrchestrator, order: str, u
         tokens = order_clean.split()
         sub = tokens[1].lower() if len(tokens) > 1 else "list"
         if sub in ("list", "status"):
+            if not hasattr(tech_lead, "free_cloud_pool") or not tech_lead.free_cloud_pool:
+                from app.cluster.free_cloud_pool import FreeCloudPool
+                tech_lead.free_cloud_pool = FreeCloudPool(mode=tech_lead.mode)
             st = tech_lead.free_cloud_pool.get_status()
             c_lines = [
                 "[Cloud] <b>[POOL CLOUD GRATUIT DE SECOURS]</b>\n",
