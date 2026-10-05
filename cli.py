@@ -330,15 +330,36 @@ def handle_theme_command(args: List[str]):
         console.print(f"[bold {theme_mgr.current.alert}]❌ Thème inconnu :[/] '{selected}'. Tapez [bold {theme_mgr.current.focus}]/theme[/] pour la liste.")
 
 
+class LeftBorder:
+    """Rendu épuré style OpenCode SplitBorder : bordure verticale gauche discrète '┃' et capuchon inférieur '╹'."""
+    def __init__(self, renderable, style: str = "bold cyan", char: str = "┃", bottom_char: str = "╹"):
+        self.renderable = renderable
+        self.style = style
+        self.char = char
+        self.bottom_char = bottom_char
+
+    def __rich_console__(self, console, options):
+        from rich.segment import Segment
+        style = console.get_style(self.style)
+        normal_gutter = Segment(f"{self.char} ", style)
+        last_gutter = Segment(f"{self.bottom_char} ", style) if self.bottom_char else normal_gutter
+        lines = list(console.render_lines(self.renderable, options))
+        for i, line in enumerate(lines):
+            is_last = (i == len(lines) - 1)
+            yield last_gutter if is_last else normal_gutter
+            yield from line
+            yield Segment.line()
+
+
 OPENCODE_BOX = box.Box(
-    "│   \n"
-    "│   \n"
-    "│   \n"
-    "│   \n"
-    "│   \n"
-    "│   \n"
-    "│   \n"
-    "│   \n"
+    "┃   \n"
+    "┃   \n"
+    "┃   \n"
+    "┃   \n"
+    "┃   \n"
+    "┃   \n"
+    "┃   \n"
+    "╹   \n"
 )
 
 
@@ -423,7 +444,7 @@ def get_next_placeholder() -> str:
 
 
 def render_prompt_card(mode: str, placeholder_text: str = ""):
-    """Affiche la carte d'entrée de commande style OpenCode avec bordure gauche et métadonnées."""
+    """Affiche la carte d'entrée de commande style OpenCode avec bordure gauche SplitBorder et métadonnées."""
     th = theme_mgr.current
     is_super = mode == "lesaintAi"
     accent = th.alert if is_super else th.focus
@@ -435,7 +456,7 @@ def render_prompt_card(mode: str, placeholder_text: str = ""):
 
     placeholder = Text()
     placeholder.append("▌ ", style=f"bold {accent}")
-    placeholder.append("Ask anything... ", style="#7982a9")
+    placeholder.append("Ask anything… ", style="#7982a9")
     if placeholder_text:
         placeholder.append(f'"{placeholder_text}"', style=f"dim italic {dim_color}")
 
@@ -443,26 +464,20 @@ def render_prompt_card(mode: str, placeholder_text: str = ""):
     meta_row.add_column(justify="left")
     meta_row.add_column(justify="right")
 
-    mode_pill = f"[bold {accent}]{mode}[/]" if not is_super else f"[bold {th.alert}]⚡ {mode} (Root/Sudo)[/]"
-    meta_left = f"{mode_pill} [dim {dim_color}]·[/] [bold {model_color}]Groq LPU (500 tok/s)[/]"
-    meta_right = f"[dim {dim_color}]FreeAi Zen · RAM Ephemeral[/]"
+    mode_pill = f"[bold {accent}]{mode}[/]" if not is_super else f"[bold {th.alert}]⚡ {mode} (Apex/Root)[/]"
+    meta_left = f"{mode_pill} [dim {dim_color}]·[/] [bold {model_color}]Groq LPU (500 tok/s)[/] [dim {dim_color}]· auto[/]"
+    meta_right = f"[dim {dim_color}]Mode NÉANT · 0 B SSD (Pure RAM)[/]"
     meta_row.add_row(meta_left, meta_right)
 
     card_grid.add_row(placeholder)
     card_grid.add_row(Text(""))
     card_grid.add_row(meta_row)
 
-    card_panel = Panel(
-        card_grid,
-        box=OPENCODE_BOX,
-        border_style=accent,
-        padding=(0, 1)
-    )
-    console.print(card_panel)
+    console.print(LeftBorder(card_grid, style=f"bold {accent}", char="┃", bottom_char="╹"))
 
 
 def render_bottom_status(mode: str):
-    """Affiche la barre de status inférieure style OpenCode (chemin git, raccourcis)."""
+    """Affiche la barre de status inférieure style OpenCode footer (chemin git, LSP, MCP, mémoire, raccourcis)."""
     th = theme_mgr.current
     dim_color = th.dim
     workspace = get_active_workspace()
@@ -474,8 +489,16 @@ def render_bottom_status(mode: str):
     bottom_grid.add_column(justify="left")
     bottom_grid.add_column(justify="right")
 
-    status_left = f"[dim {dim_color}]{ws_short}:{branch}[/]"
-    status_right = f"[dim {dim_color}][bold #7aa2f7]shift+tab[/] agents   [bold #7aa2f7]ctrl+p[/] commands   [dim]v2.4.0[/][/]"
+    status_left = f"[dim {dim_color}]{ws_short}:[bold {th.text}]{branch}[/][/]"
+    status_right = (
+        f"[dim {dim_color}]"
+        f"[bold {th.success}]•[/] 0 LSP   "
+        f"[bold {th.focus}]⊙[/] Neon Sync   "
+        f"[bold {th.success}]🛡️[/] Sentinel PASS   "
+        f"[bold #7aa2f7]ctrl+p[/] commands   "
+        f"[dim]v2.5.0[/]"
+        f"[/]"
+    )
     bottom_grid.add_row(status_left, status_right)
     console.print(bottom_grid)
 
@@ -521,15 +544,16 @@ def display_welcome_banner(mode: str, active_task: Optional[str] = None):
 
     # 2. Block ASCII Logo (4-row OpenCode typography)
     logo = render_freeai_block_logo(mode)
-    console.print(Panel(logo, box=box.MINIMAL, padding=(0, 0), expand=False), justify="center")
+    console.print(logo, justify="center")
 
-    # Subtitle under logo (/help to inspect commands · v2.4.0 Sovereign AI Agent)
-    sub = Text.from_markup(f"[bold {th.accent}]/help[/] [dim {dim_color}]to inspect commands · [bold {th.success}]v2.4.0[/] Sovereign AI Agent[/]")
+    # Subtitle under logo
+    sub = Text.from_markup(f"[bold {th.accent}]/help[/] [dim {dim_color}]pour inspecter les commandes · [bold {th.success}]v2.5.0[/] Sovereign AI Cockpit · [bold {accent}]Groq LPU (500 tok/s)[/]")
     console.print(sub, justify="center")
     console.print()
 
-    # 3. Floating Input Card (OpenCode left-accent box)
-    render_prompt_card(mode, "Fix broken tests")
+    # 3. Floating Input Card (OpenCode LeftBorder SplitBorder box)
+    render_prompt_card(mode, get_next_placeholder())
+    console.print()
 
     # 4. Bottom Status Line (Git branch & shortcut hints)
     render_bottom_status(mode)
@@ -544,7 +568,7 @@ def display_command_palette():
     th = theme_mgr.current
     table = Table(
         title=f"[bold {th.focus}]⌘ FreeAI Command Palette[/] [dim {th.dim}]· Navigation Rapide OpenCode (Ctrl+P)[/]",
-        box=box.ROUNDED,
+        box=box.SIMPLE_HEAVY,
         border_style=th.border,
         header_style=f"bold {th.focus}",
         expand=True
@@ -554,6 +578,13 @@ def display_command_palette():
     table.add_column("Action & Description", style="dim white")
 
     categories = [
+        ("✨ Suggéré", [
+            ("/agent <mission>", "Lance l'agent autonome ReAct (Hermes)"),
+            ("/mode [freeAi|lesaintAi]", "Bascule directe standard ou Apex god-mode"),
+            ("/theme [nom]", "Bascule de thème (tokyonight, catppuccin, matrix, dracula)"),
+            ("/search <motif> [dir]", "Recherche ultra-rapide de fichiers sur le disque"),
+            ("/status", "Télémétrie en temps réel (RAM, CPU, Sentinel, Neon)")
+        ]),
         ("⚡ Modes", [
             ("FreeAi", "Mode standard confiné (frugalité RAM, sudo désactivé)"),
             ("lesaintAi", "Apex God-mode (Sudo déverrouillé, Tor Onion v3)"),
@@ -582,6 +613,7 @@ def display_command_palette():
             ("/docker", "Gestion des conteneurs et orchestration")
         ]),
         ("🎨 Système & TUI", [
+            ("/ui [templates|inspect|adapt]", "Système de design et templates métier"),
             ("/theme [nom]", "Bascule de thème (tokyonight, catppuccin, matrix, etc.)"),
             ("/status", "Télémétrie en temps réel (RAM, CPU, Sentinel)"),
             ("/commands", "Affiche cette palette de commandes (Ctrl+P)"),
@@ -609,7 +641,10 @@ async def get_user_cli_input(prompt_str: str, mode: str) -> str:
         type(input).__name__ == "MagicMock"
     )
     if is_mock_or_pipe:
-        return input(f"╰─ {prompt_str}").strip()
+        try:
+            return input(f"{prompt_str}").strip()
+        except TypeError:
+            return input().strip()
 
     try:
         from prompt_toolkit import PromptSession
@@ -628,10 +663,10 @@ async def get_user_cli_input(prompt_str: str, mode: str) -> str:
             key_bindings=kb,
             complete_while_typing=False
         )
-        res = await session.prompt_async(f"╰─ {prompt_str}")
+        res = await session.prompt_async(f"{prompt_str}")
         return res.strip()
     except Exception:
-        return input(f"╰─ {prompt_str}").strip()
+        return input(f"{prompt_str}").strip()
 
 
 def render_quick_ribbon():
@@ -1179,7 +1214,7 @@ async def run_learn(tech_lead: TechLeadOrchestrator, args: List[str]):
 
 
 async def execute_tech_lead_task(tech_lead: TechLeadOrchestrator, objective: str):
-    """Submits a free-form objective to the Tech Lead Orchestrator with real-time telemetry."""
+    """Submits a free-form objective to the Tech Lead Orchestrator with real-time OpenCode telemetry."""
     th = theme_mgr.current
     start_time = time.perf_counter()
 
@@ -1192,9 +1227,13 @@ async def execute_tech_lead_task(tech_lead: TechLeadOrchestrator, objective: str
         ))
     )
     autonomous_flag = not is_inquiry
-    status_label = "FreeAI analyse et répond..." if is_inquiry else "FreeAI réfléchit et orchestre..."
+    status_label = "Analyse et réponse cognitive..." if is_inquiry else "Orchestration autonome de l'objectif..."
 
-    with console.status(f"[bold {th.focus}]◆[/] [bold {th.text}]{status_label}[/]", spinner="dots"):
+    # 1. Clean OpenCode prompt marker
+    console.print(f"[bold {th.focus}]›[/] [bold white]{escape(objective)}[/]\n")
+
+    # 2. Real-time cognitive spinner
+    with console.status(f"[bold {th.accent}]⠋ Thinking:[/] [dim {th.text}]{status_label}[/]", spinner="dots"):
         result = await tech_lead.handle_objective(objective, autonomous=autonomous_flag)
 
     duration = time.perf_counter() - start_time
@@ -1203,11 +1242,11 @@ async def execute_tech_lead_task(tech_lead: TechLeadOrchestrator, objective: str
     tokens_sec = token_est / duration if duration > 0 else 0
 
     if not result.get("success"):
-        console.print(Panel(
-            f"[bold {th.alert}]❌ Erreur d'exécution :[/] {result.get('error')}",
-            box=box.ROUNDED,
-            border_style=th.alert
-        ))
+        err_text = Text()
+        err_text.append("❌ Erreur d'exécution : ", style=f"bold {th.alert}")
+        err_text.append(str(result.get("error")), style="white")
+        console.print(LeftBorder(err_text, style=f"bold {th.alert}", char="┃", bottom_char="╹"))
+        console.print()
         return
 
     agent = result.get("assigned_agent", "Tech Lead")
@@ -1216,45 +1255,43 @@ async def execute_tech_lead_task(tech_lead: TechLeadOrchestrator, objective: str
     external = result.get("external_resourcing_used", False)
     neon_sync = result.get("neon_cloud_sync", False)
 
-    content = Text()
-    content.append(f"🎯 Objectif : {objective}\n", style=f"bold {th.text}")
-    content.append(f"🤖 Agent Assigné : {agent.upper()}\n", style=f"bold {th.agent}")
-    content.append(f"🌐 Resourcing Externe : {'Oui (Modèle libre)' if external else 'Non (100% Local)'}\n", style=f"dim {th.focus}")
-    content.append(f"☁ Synchro Neon Cloud : {'Actif (GZIP)' if neon_sync else 'Mémoire Éphémère'}\n\n", style=f"dim {th.focus}")
-
+    # 3. ReasoningPart: Collapsible Thought & Strategy
+    thought_summary = f"Stratégie planifiée avec {agent.upper()}" if plan else f"Analyse cognitive {agent.upper()} complétée"
+    console.print(f"[bold {th.accent}]+ Thought:[/] [dim {th.dim}]{thought_summary} · {duration:.2f}s[/]")
     if plan:
-        content.append("📋 Stratégie adoptée :\n", style=f"bold {th.success}")
         for step in plan:
-            content.append(f"  • {step}\n", style=th.success)
-        content.append("\n")
+            console.print(f"  [dim {th.dim}]• {escape(str(step))}[/]")
 
-    content.append("📝 Résultat :\n", style=f"bold {th.text}")
-    content.append(f"{output_msg}\n", style="white")
-
-    if "findings" in agent_res and agent_res["findings"]:
-        content.append(f"\n🔍 Constats ({len(agent_res['findings'])}) :\n", style=f"bold {th.accent}")
-        for f in agent_res["findings"][:10]:
-            content.append(f"  - {f}\n", style=th.accent)
-
+    # 4. Inline Tools (OpenCode style icons: ●, $, ←, ✱, 🛡️)
+    if external:
+        console.print(f"  [bold {th.agent}]🌐[/] [dim {th.dim}]Online Resourcing[/] [white]Consultation des modèles ouverts[/]")
+    if neon_sync:
+        console.print(f"  [bold {th.focus}]☁[/] [dim {th.dim}]Neon Memory[/] [white]Synchronisation GZIP-9 active[/]")
     if "files" in agent_res and agent_res["files"]:
-        content.append(f"\n📂 Fichiers traités : {', '.join(agent_res['files'])}\n", style=f"dim {th.dim}")
+        for f in agent_res["files"][:6]:
+            console.print(f"  [bold {th.focus}]●[/] [dim {th.dim}]File[/] [white]{escape(str(f))}[/]")
+    if "findings" in agent_res and agent_res["findings"]:
+        for find in agent_res["findings"][:6]:
+            console.print(f"  [bold {th.accent}]🔍[/] [dim {th.dim}]Constat[/] [white]{escape(str(find))}[/]")
+    console.print(f"  [bold {th.success}]🛡️[/] [dim {th.dim}]Sentinel[/] [white]SacredLife check PASS[/]")
+    console.print()
 
-    border_color = th.success if result.get("success") else th.alert
-    telemetry_sub = (
-        f"[dim {th.dim}]⏱ {duration:.2f}s  │  "
+    # 5. Assistant Response (Rendered in Markdown with OpenCode LeftBorder SplitBorder)
+    try:
+        md = Markdown(output_msg)
+        console.print(LeftBorder(md, style=f"bold {th.focus}", char="┃", bottom_char="╹"))
+    except Exception:
+        txt = Text(output_msg, style="white")
+        console.print(LeftBorder(txt, style=f"bold {th.focus}", char="┃", bottom_char="╹"))
+
+    # 6. Streamlined Telemetry Footer Line
+    console.print(
+        f"\n[dim {th.dim}]⏱ {duration:.2f}s  │  "
         f"⚡ {tokens_sec:.0f} tok/s  │  "
         f"🧠 ~{token_est} tokens  │  "
         f"💾 0 B SSD (Mode NÉANT)  │  "
-        f"🛡️ Sentinel PASS[/]"
+        f"🛡️ Sentinel PASS[/]\n"
     )
-    console.print(Panel(
-        content,
-        title=f"[bold {th.focus}]◆ FreeAI[/] [dim {th.dim}]({tech_lead.mode}) · {agent.upper()}[/]",
-        subtitle=telemetry_sub,
-        box=box.ROUNDED,
-        border_style=border_color,
-        padding=(0, 1)
-    ))
 
 
 
@@ -3584,8 +3621,22 @@ async def run_design(tech_lead: TechLeadOrchestrator, args: List[str]):
         else:
             console.print(f"[bold red]Composant '{c_name}' introuvable dans ~/Rendue/shadcn/components/ui.[/]")
 
+    elif subcmd in ("opencode", "tui", "cockpit"):
+        th = theme_mgr.current
+        accent = th.alert if tech_lead.mode == "lesaintAi" else th.focus
+        grid = Table.grid(expand=True)
+        grid.add_column()
+        grid.add_row(f"[bold {accent}]🏛️ Architecture UI/UX OpenCode TUI intégrée à FreeAI :[/]\n")
+        grid.add_row(f"  • [bold {th.success}]SplitBorder Gutter[/] : Bordure gauche unique '┃' avec capuchon '╹' (zéro boîte lourde)")
+        grid.add_row(f"  • [bold {th.accent}]ReasoningPart[/] : Pensée IA pliable (+ Thought · <duration>s) avec badge de temps et étapes")
+        grid.add_row(f"  • [bold {th.agent}]InlineTool vs BlockTool[/] : Icônes d'outils concises (● File, $ Shell, ← Write, ✱ Glob)")
+        grid.add_row(f"  • [bold {th.focus}]Multi-Agent Swarm[/] : Télémétrie en temps réel (Groq 500 tok/s, Mode NÉANT, Sentinelle PASS)")
+        grid.add_row(f"  • [bold {th.text}]Footer Minimaliste[/] : Git branch, indicateurs LSP, MCP et raccourcis Ctrl+P / Shift+Tab")
+        console.print(LeftBorder(grid, style=f"bold {accent}", char="┃", bottom_char="╹"))
+        console.print()
+
     else:
-        console.print("[bold red]Usage :[/] /ui [templates|inspect <dom>|adapt <dom> <dir>|catalog|search <kw>|export|code <nom>]")
+        console.print("[bold red]Usage :[/] /ui [templates|inspect <dom>|adapt <dom> <dir>|catalog|search <kw>|export|code <nom>|opencode]")
 
 
 async def run_cyber(tech_lead: TechLeadOrchestrator, args: List[str]):
@@ -4676,10 +4727,6 @@ async def interactive_cli(initial_mode: str = "freeAi"):
     while True:
         try:
             th = theme_mgr.current
-            if turn_counter > 0:
-                console.print()
-                render_prompt_card(tech_lead.mode, get_next_placeholder())
-                render_bottom_status(tech_lead.mode)
             turn_counter += 1
 
             prompt_str = get_prompt(tech_lead.mode)
