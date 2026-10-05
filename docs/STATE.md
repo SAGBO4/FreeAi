@@ -52,6 +52,13 @@ Dernière mise à jour : 2026-10-02
 
 - **2026-10-03** : Remplacement de l'heuristique interne par le Noyau Neural Natif JARVIS (Phase 1 à 7 + Module Bootstrap par distillation terminés). Zéro régression.
 - **2026-10-03 (Nuit)** : Intégration de SatelliteEye (God-Mode), NetworkResilience (survie réseau multi-accès), FreeCloudPool (AETHER-CLOUD-FREE pour VPS et cloud gratuits), et ActiveDefenseSentinel (Bouclier d'auto-défense souverain en temps réel avec bannissement volatile et alertes Telegram instantanées). Suite de tests validée à 100%.
+- **2026-10-05 (14:35)** : **FreeAI Studio · OpenCode Parité Intégrale & Streaming SSE** :
+  - **Interface Web Complète OpenCode (`app/web/`)** : Déploiement du studio web natif reproduisant fidèlement l'interface et le comportement d'OpenCode v2 (thème sombre profond `#080808` / `#161616`, bordures fines 0.5px, sidebar rétractable, timeline de chat réactive, accordéons de pensée avec effet shimmer `Thinking...`, cartes d'outils interactives `basic-tool-v2` avec badges de statut/durée/diff, panneau latéral de review Git, et tiroir de terminal rétractable).
+  - **Prompt Composer Flottant (`prompt-input-v2`)** : Textarea auto-extensible, raccourcis `Shift+Enter` (nouvelle ligne) et `Enter` (soumission), sélecteurs de modèles et d'agents, autocomplétion des commandes slash (`/clear`, `/new`, `/status`, `/diff`, `/undo`), et injection de contexte `@`.
+  - **Bus Événementiel SSE Temps Réel (`AsyncSessionEventHub`)** : Diffusion en continu à 60fps sans à-coups des événements agentiques (`server.connected`, `server.heartbeat`, `session.status`, `reasoning`, `tool.called`, `tool.success`, `text.delta`, `step.ended`) sur `/api/v1/sessions/{id}/stream`.
+  - **FastAPI Endpoints** : Routes de sessions, modèles, agents, fichiers workspace, diffs git et exécution terminal, servi directement sur `http://127.0.0.1:8000/ui` et `/`.
+  - **Thème CLI OpenCode** : Ajout du thème `opencode` en standard dans `cli.py` (`THEMES["opencode"]`).
+  - **Validation Qualité** : 100% des tests passés avec succès (`tests/test_opencode_realtime_ui.py` 6/6, `tests/test_cli_and_modes.py` 17/17).
 - **2026-10-05** : Refonte intégrale de l'interface CLI de FreeAI inspirée fidèlement d'OpenCode (TUI TokyoNight) avec innovations extrêmes :
   - Header à onglets de session dynamique avec **Forge Synapse Live Pulse** (synchronisation temps réel avec `.forge/config.json`, suppression définitive des textes mock résiduels).
   - Typographie bloc ASCII 4-lignes personnalisée `freeai` avec dégradé TokyoNight cyan/lavande et bascule Apex God-Mode rouge.
@@ -63,5 +70,19 @@ Dernière mise à jour : 2026-10-02
     - Saisie asynchrone non-bloquante avec `prompt_toolkit.prompt_async()`, éliminant les avertissements de coroutines non-attendues.
     - Bouclier Rich Markup Sentinel : échappement systématique des exceptions et balises fermantes normalisées `[/]`, immunité totale aux erreurs de balisage.
   - Validation complète et indépendante par les agents spécialisés `final-verifier` et `design-verification` (100% de conformité, 22/22 tests passés).
+- **2026-10-05 (15:10)** : **OpenCode CLI/TUI Parité Rigoureuse & Éradication Totale des Émojis** :
+  - **Zéro Émoji & Zéro Sticker** : Remplacement systématique des 400+ occurrences d'émojis et de stickers décoratifs par la typographie sobre et professionnelle d'OpenCode et ses glyphes de terminal épurés (`•`, `›`, `│`, `┃`, `╹`, `~`, `*`, `✓`, `✗`, `◈`, `⊙`, `△`, `⚙`, `▣`).
+  - **Icônes d'Outils OpenCode Authentiques** : `$ <cmd>` (bash), `← Edit <file>` (édition), `← Write <file>` (écriture), `→ <file>` (lecture), `✱ <pattern>` (grep/glob), `% <url>` (webfetch), `◈ <query>` (websearch), `✓ <task>` (succès), `✗ <task>` (échec).
+  - **Structure Visuelle Parfaite** :
+    - En-tête à onglet de session (`• Session · FreeAI (mode)` et `+ New session (/clear)`).
+    - Carte de prompt flottante `LeftBorder` (`┃` et `╹`) avec barre de métadonnées inférieure (`mode · Groq LPU (500 tok/s) · auto` et raccourcis `Tab: agent · Ctrl+P: commands`).
+    - Ligne de statut inférieure OpenCode : `<workspace>:<branch>` à gauche, `△ 0 Permissions · • 0 LSP · ⊙ Neon Sync · Sentinel PASS · ctrl+p commands` à droite.
+    - Épilogue télémétrique épuré : `▣ <agent> · groq/llama-3.3-70b-versatile · <durée>s (<tok/s> tok/s, ~<tokens> tokens, 0 B SSD)`.
+  - **Validation & Intégrité** : 24/24 tests passés (`test_cli_and_modes.py`, `test_cli_commands.py`), `tamper_check: 0 finding`, `docs_check: 0 error`.
+- **2026-10-05 (16:05)** : **Innovations Extrêmes OpenCode TUI · Git Diff Viewer & Injection Contextuelle @file** :
+  - **Visionneuse de Diffs Git Intégrée (`/diff [fichier]`)** : Implémentation du composant SplitBorder OpenCode dans `cli.py` (`run_diff_command`). Tableau récapitulatif des fichiers modifiés avec coloration vert/rouge des ajouts (`+N`) et suppressions (`-N`), en-tête de hunks `@@` et coloration syntaxique des lignes modifiées sous gouttière `┃` et capuchon `╹`.
+  - **Injection Contextuelle Intelligente (`@file` et `@dir`)** : Détection et résolution automatique des chemins mentionnés avec `@` dans les prompts (ex: `@cli.py`, `@tests/test_cli_commands.py`), lecture sécurisée jusqu'à 500 lignes, affichage d'une pilule inline `→ Context Injecté @file (N lignes)` et injection transparente dans le contexte de l'orchestrateur.
+  - **Épilogue Télémétrique OpenCode Standardisé** : Remplacement des compteurs dispersés par la ligne d'épilogue exacte d'OpenCode : `▣ <agent> · groq/llama-3.3-70b-versatile · <durée>s (<tok/s> tok/s, ~<tokens> tokens, 0 B SSD)`.
+  - **Validation Complète & Régression Zéro** : 35/35 tests passés avec succès (`test_cli_and_modes.py`, `test_cli_commands.py`, `test_innovations_jarvis.py`, `test_opencode_realtime_ui.py`).
 
 

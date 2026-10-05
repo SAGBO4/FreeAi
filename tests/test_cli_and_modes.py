@@ -158,7 +158,7 @@ class TestCLIFunctionality(unittest.TestCase):
         self.assertEqual(prompt_standard, "[FreeAI:freeAi] > ")
 
         prompt_super = cli.get_prompt("lesaintAi")
-        self.assertEqual(prompt_super, "[FreeAI:lesaintAi ⚡] > ")
+        self.assertEqual(prompt_super, "[FreeAI:lesaintAi] > ")
 
     def test_orchestrator_get_status_structure(self):
         rm = ResourceManager()

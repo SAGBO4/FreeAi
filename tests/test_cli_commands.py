@@ -9,7 +9,7 @@ from cli import get_prompt, handle_mode_command
 def test_get_prompt_modes():
     """Verify dynamic prompt formatting based on active mode."""
     assert "[FreeAI:freeAi] > " in get_prompt("freeAi")
-    assert "[FreeAI:lesaintAi ⚡] > " in get_prompt("lesaintAi")
+    assert "[FreeAI:lesaintAi] > " in get_prompt("lesaintAi")
 
 
 def test_handle_mode_command_freeai():

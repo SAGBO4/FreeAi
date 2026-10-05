@@ -4,12 +4,15 @@ import os
 import sys
 import logging
 from pathlib import Path
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
 from pydantic import BaseModel
 from config.settings import settings
 from app.resource_manager.watchdog import ResourceManager
 from app.tools.gateway import ToolGateway
 from app.orchestrator.orchestrator import TechLeadOrchestrator
+from app.api.session_routes import router as session_router
 
 # Setup logging (zero disk writing if LOG_TO_FILE is False)
 handlers = [logging.StreamHandler(sys.stdout)]
@@ -56,20 +59,39 @@ app = FastAPI(
     description="Offline-first autonomous multi-agent AI assistant for HP EliteBook / Kali Linux"
 )
 
+# Attach singletons to app.state
+app.state.tech_lead = tech_lead
+app.state.tool_gateway = tool_gateway
+app.state.resource_manager = resource_manager
+
+# Include OpenCode Real-Time Session & Streaming Router
+app.include_router(session_router)
+
+# Mount OpenCode static files
+WEB_DIR = Path(__file__).resolve().parent / "web"
+if WEB_DIR.exists():
+    app.mount("/static", StaticFiles(directory=str(WEB_DIR)), name="static")
+
 
 class ObjectiveRequest(BaseModel):
     objective: str
     autonomous: bool = False
 
 
+@app.get("/ui", response_class=HTMLResponse)
 @app.get("/")
-def get_status():
-    return {
+def get_status(request: Request):
+    accept = request.headers.get("accept", "")
+    if "text/html" in accept or request.url.path == "/ui":
+        index_file = WEB_DIR / "index.html"
+        if index_file.exists():
+            return FileResponse(index_file)
+    return JSONResponse(content={
         "status": "online",
         "mode": settings.APP_MODE,
         "workspace": str(tool_gateway.workspace_root),
         "resources": resource_manager.get_system_stats()
-    }
+    })
 
 
 @app.get("/resources")
