@@ -1786,6 +1786,64 @@ async def run_web_investigation(tech_lead: TechLeadOrchestrator, args: List[str]
         console.print(f"[bold red][FAIL] Échec de l'investigation web :[/] {res.get('error')}")
 
 
+def run_sovereign_search(tech_lead: TechLeadOrchestrator, args: List[str]) -> None:
+    """Executes a zero-API sovereign DuckDuckGo search returning clean titles, URLs and snippets."""
+    if not args:
+        console.print("[bold red]Usage :[/] /websearch <requête>")
+        console.print("[dim]Exemple : /websearch python 3.13 changelog[/]")
+        return
+    query = " ".join(args)
+    from app.tools.sovereign_web import sovereign_web
+    console.print(f"[dim][WebSearch] Recherche autonome zéro-API pour '[bold cyan]{query}[/]'...[/]")
+    results = sovereign_web.search(query, max_results=6)
+    if not results:
+        console.print("[yellow]Aucun résultat trouvé ou requête bloquée par le moteur.[/]")
+        return
+    for r in results:
+        console.print(f"[bold cyan]{r['rank']}. {r['title']}[/]")
+        console.print(f"   [dim underline]{r['url']}[/]")
+        if r['snippet']:
+            console.print(f"   {r['snippet']}")
+        console.print()
+
+
+def run_sovereign_read(tech_lead: TechLeadOrchestrator, args: List[str]) -> None:
+    """Extracts and displays clean text from an URL with zero external dependencies."""
+    if not args:
+        console.print("[bold red]Usage :[/] /webread <url> [max_chars]")
+        console.print("[dim]Exemple : /webread https://docs.python.org/3/ 4000[/]")
+        return
+    url = args[0]
+    max_chars = int(args[1]) if len(args) > 1 and args[1].isdigit() else 6000
+    from app.tools.sovereign_web import sovereign_web
+    console.print(f"[dim][WebRead] Extraction épurée du contenu de [bold cyan]{url}[/]...[/]")
+    res = sovereign_web.read(url, max_chars=max_chars)
+    if res.get("success"):
+        console.print(Panel(
+            res["content"],
+            title=f"[Net] Extraction Web Épurée ({res['length']} caractères{', tronqué' if res.get('truncated') else ''})",
+            border_style="cyan"
+        ))
+    else:
+        console.print(f"[bold red]Erreur de lecture :[/] {res.get('content')}")
+
+
+def run_code_integrity(tech_lead: TechLeadOrchestrator, args: List[str]) -> None:
+    """Runs autonomous code integrity audit checking for truncation shortcuts and style compliance."""
+    from app.security.code_integrity_guardian import code_integrity_guardian
+    console.print("[dim][Guardian] Audit d'intégrité du code (anti-truncation, propreté, zéro résidu)...[/]")
+    findings = code_integrity_guardian.audit_directory()
+    if not findings:
+        console.print("[bold green]✓ Intégrité parfaite :[/] Aucun raccourci de truncation ni anomalie détectée.")
+    else:
+        console.print(f"[bold yellow]! {len(findings)} anomalie(s) d'intégrité détectée(s) :[/]")
+        for f in findings[:15]:
+            console.print(f"  [bold red]• [{f.defect_type}][/] [cyan]{f.file_path}:{f.line_number}[/] - {f.description}")
+            if f.snippet:
+                console.print(f"    [dim]{f.snippet}[/]")
+
+
+
 async def run_ask_log(tech_lead: TechLeadOrchestrator, args: List[str]):
     """Submits a log file along with a prompt to the remote online AI (DeepSeek, Grok, Qwen)."""
     if not args:
@@ -5410,6 +5468,12 @@ def main():
                 asyncio.run(run_ask_online(tech_lead, args))
             elif cmd == "/web":
                 asyncio.run(run_web_investigation(tech_lead, args))
+            elif cmd in ("/websearch", "/duck"):
+                run_sovereign_search(tech_lead, args)
+            elif cmd == "/webread":
+                run_sovereign_read(tech_lead, args)
+            elif cmd in ("/integrity", "/audit-code", "/code-check"):
+                run_code_integrity(tech_lead, args)
             elif cmd == "/asklog":
                 asyncio.run(run_ask_log(tech_lead, args))
             elif cmd == "/clash":

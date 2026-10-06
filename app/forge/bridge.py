@@ -85,7 +85,7 @@ class ForgeBridge:
                 skills.append(Path(root).name)
         return sorted(list(set(skills)))
 
-    def run_tamper_check(self, base_commit: str = "HEAD~1") -> Dict[str, Any]:
+    def run_tamper_check(self, base_commit: str = "HEAD") -> Dict[str, Any]:
         """Executes Forge's tamper_check.py to verify no tests or assertions were weakened."""
         script_path = self.forge_home / "scripts" / "tamper_check.py"
         if not script_path.exists():
