@@ -3523,7 +3523,7 @@ def run_causal(tech_lead: TechLeadOrchestrator, args: List[str]):
     console.print(hologram)
 
 
-def run_mesh(tech_lead: TechLeadOrchestrator, args: List[str]):
+def run_satellite_mesh(tech_lead: TechLeadOrchestrator, args: List[str]):
     """Gère le Satellite Mesh, la passerelle P2P M2M et l'apprentissage 24/7 (F-27)."""
     from app.network.satellite_mesh import SovereignSatelliteMesh
     from app.cognition.continuous_cognition import PerpetualLearner24x7
@@ -3553,9 +3553,19 @@ def run_mesh(tech_lead: TechLeadOrchestrator, args: List[str]):
         probe_res = mesh.probe_peer_machine(peer, port)
         reach_txt = "[bold green]CONNECTÉ[/]" if probe_res["reachable"] else "[dim]STANDBY (Hors portée immédiate)[/]"
         console.print(f"• Passerelle P2P vers {peer}:{port} : {reach_txt}")
+    elif subcmd in ("telepathy", "pulse", "thought"):
+        console.print("[dim]Activation de la matrice de télépathie neuronale P2P (Mode NÉANT)...[/]")
+        pulse_res = mesh.trigger_telepathic_mesh_pulse()
+        console.print(mesh.telepathy.format_noble_display())
+        console.print(f"• Faisceaux synaptiques propagés : [bold cyan]{len(pulse_res['beams_propagated'])}[/] | Latence synaptique : [bold green]{pulse_res['latency_ms']} ms[/]")
     else:  # status
         summary = learner.generate_growth_summary()
         console.print(summary)
+
+
+def run_telepathy(tech_lead: TechLeadOrchestrator, args: List[str]):
+    """Lance la télépathie neuronale et la synchronisation cryptographique des pensées."""
+    run_satellite_mesh(tech_lead, ["telepathy"] + args)
 
 
 async def run_airgap(tech_lead: TechLeadOrchestrator, args: List[str]):
@@ -5404,7 +5414,10 @@ async def interactive_cli(initial_mode: str = "freeAi"):
                 elif cmd == "/arena":
                     await run_arena(tech_lead, args)
                 elif cmd == "/mesh":
-                    await run_mesh(tech_lead, args)
+                    if args and args[0].lower() in ("scan", "discover"):
+                        await run_mesh(tech_lead, args)
+                    else:
+                        run_satellite_mesh(tech_lead, args)
                 elif cmd == "/speculate":
                     await run_speculate(tech_lead, args)
                 elif cmd == "/ring":
@@ -5431,8 +5444,10 @@ async def interactive_cli(initial_mode: str = "freeAi"):
                     run_reflex(tech_lead, args)
                 elif cmd in ("/causal", "/hypermesh"):
                     run_causal(tech_lead, args)
-                elif cmd in ("/mesh", "/satellite"):
-                    run_mesh(tech_lead, args)
+                elif cmd == "/satellite":
+                    run_satellite_mesh(tech_lead, args)
+                elif cmd in ("/telepathy", "/thoughtsync"):
+                    run_telepathy(tech_lead, args)
                 elif cmd == "/airgap":
                     await run_airgap(tech_lead, args)
                 elif cmd == "/phantom":
@@ -5601,7 +5616,10 @@ def main():
             elif cmd == "/arena":
                 asyncio.run(run_arena(tech_lead, args))
             elif cmd == "/mesh":
-                asyncio.run(run_mesh(tech_lead, args))
+                if args and args[0].lower() in ("scan", "discover"):
+                    asyncio.run(run_mesh(tech_lead, args))
+                else:
+                    run_satellite_mesh(tech_lead, args)
             elif cmd == "/speculate":
                 asyncio.run(run_speculate(tech_lead, args))
             elif cmd == "/ring":
@@ -5624,8 +5642,10 @@ def main():
                 run_reflex(tech_lead, args)
             elif cmd in ("/causal", "/hypermesh"):
                 run_causal(tech_lead, args)
-            elif cmd in ("/mesh", "/satellite"):
-                run_mesh(tech_lead, args)
+            elif cmd == "/satellite":
+                run_satellite_mesh(tech_lead, args)
+            elif cmd in ("/telepathy", "/thoughtsync"):
+                run_telepathy(tech_lead, args)
             elif cmd == "/airgap":
                 asyncio.run(run_airgap(tech_lead, args))
             elif cmd == "/phantom":
