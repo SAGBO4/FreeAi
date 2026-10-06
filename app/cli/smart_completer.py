@@ -33,6 +33,8 @@ COMMAND_DEFINITIONS: List[Tuple[str, str]] = [
     ("/clear", "Nettoie l'écran et réaffiche l'en-tête"),
     ("/reflex", "Radar d'anticipation synaptique & matrice d'hologramme de pensée"),
     ("/synapse", "Radar d'anticipation synaptique & matrice d'hologramme de pensée"),
+    ("/causal", "HyperMesh Causal Singularity & Diagnostic Quadri-Vectoriel"),
+    ("/hypermesh", "HyperMesh Causal Singularity & Diagnostic Quadri-Vectoriel"),
     ("/help", "Manuel et guide d'utilisation"),
     ("/exit", "Arrêt propre de la session FreeAI"),
 ]
