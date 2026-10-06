@@ -95,6 +95,9 @@ class PerpetualLearner24x7:
             "insights_acquired": len(swarm_insights)
         }
 
+        # 4. Trigger Instantaneous Telepathic Thought Sync across Satellites (< 2ms, Mode NÉANT)
+        telepathy_pulse = self.mesh.trigger_telepathic_mesh_pulse()
+
         # Keep last 50 cycles in memory ledger
         history = self._ledger.get("growth_insights", [])
         history.append(cycle_entry)
@@ -107,6 +110,7 @@ class PerpetualLearner24x7:
             "status": "COMPLETED",
             "cycle": cycle_entry,
             "mesh_status": mesh_status,
+            "telepathy_pulse": telepathy_pulse,
             "swarm_insights": swarm_insights[:2]
         }
 
@@ -134,9 +138,10 @@ class PerpetualLearner24x7:
 
         lines.extend([
             "├────────────────────────────────────────────────────────────────────────┤",
-            "│ PASSERELLE MACHINE-À-MACHINE :                                         │",
+            "│ PASSERELLE MACHINE-À-MACHINE & TÉLÉPATHIE NEURONALE :                  │",
             "│ ├─ Protocole P2P Souverain : Handshake Authentifié Actif              │",
             "│ ├─ Audit AST Automatisé    : Sandbox Anti-RCE Credo Sentinel           │",
+            "│ ├─ Faisceau de Pensées RAM : Vector Thought Beam (< 2ms, 0 B SSD)      │",
             "│ └─ Touche Résultante       : Assimilation Transmutée (0 Émoji Brut)    │",
             "└────────────────────────────────────────────────────────────────────────┘"
         ])
