@@ -28,6 +28,7 @@ COMMAND_DEFINITIONS: List[Tuple[str, str]] = [
     ("/think", "Raisonnement profond arborescent"),
     ("/swarm", "Supervision de l'essaim d'agents"),
     ("/sync", "Synchronisation GZIP Neon Cloud"),
+    ("/tui", "Interface plein écran OpenCode Textual"),
     ("/commands", "Palette de navigation rapide (Ctrl+P)"),
     ("/clear", "Nettoie l'écran et réaffiche l'en-tête"),
     ("/help", "Manuel et guide d'utilisation"),

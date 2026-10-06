@@ -61,6 +61,18 @@ class LeftBorderFinal:
             yield from line
             yield Segment.line()
 
+    def __str__(self) -> str:
+        if hasattr(self.renderable, "markup"):
+            return str(self.renderable.markup)
+        if hasattr(self.renderable, "plain"):
+            return str(self.renderable.plain)
+        if hasattr(self.renderable, "text"):
+            return str(self.renderable.text)
+        return str(self.renderable)
+
+    def __contains__(self, item) -> bool:
+        return str(item) in str(self)
+
 
 class LeftBorderStreamer:
     """High-speed token accumulator and frame pacesetter.
