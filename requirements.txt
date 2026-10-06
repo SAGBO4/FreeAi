@@ -18,5 +18,9 @@ prompt_toolkit>=3.0.43
 textual>=0.80.0
 pytest>=8.0.0
 
+# Speech Synthesis & Remote DB Adapters
+edge-tts>=6.1.12
+psycopg2-binary>=2.9.9
+
 # Optional/Local LLM bindings (uncomment when compiled/installed)
 # llama-cpp-python>=0.2.75
