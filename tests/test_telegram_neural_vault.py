@@ -232,6 +232,9 @@ class TestOrchestratorAndCLITelegramIntegration(unittest.TestCase):
         self.rm = ResourceManager()
         self.gw = ToolGateway(workspace_root=tempfile.gettempdir(), mode="freeAi")
         self.tl = TechLeadOrchestrator(tool_gateway=self.gw, resource_manager=self.rm)
+        if not self.tl.telegram_vault.is_configured:
+            self.tl.telegram_vault.token = "1234567890:mock_token_for_testing"
+            self.tl.telegram_vault.chat_id = "123456789"
 
     def test_orchestrator_telegram_status(self):
         st = self.tl.get_telegram_status()

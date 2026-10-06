@@ -130,6 +130,18 @@ class ToolGateway:
         target = self._resolve_target_path(target_path)
         if not self._is_safe_write_path(target):
             return {"success": False, "error": f"Path outside workspace: {target_path}"}
+        
+        # Enforce Anti-Truncation Code Sentinel (inspiré de my_jarvis)
+        from app.tools.code_integrity_guardian import CodeIntegrityGuardian
+        report = CodeIntegrityGuardian.check_text(content, filename=target.name)
+        if report.has_truncation:
+            trunc_summary = ", ".join(report.truncation_matches[:3])
+            logger.warning(f"[TOOL:WRITE REJECTED] Truncation detected: {trunc_summary}")
+            return {
+                "success": False,
+                "error": f"Code truncation rejected: file contains lazy placeholders ({trunc_summary}). Please provide the complete code."
+            }
+
         try:
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text(content, encoding="utf-8")
@@ -359,3 +371,15 @@ class ToolGateway:
                     "error": f"Aucun dépôt Git trouvé dans le workspace ({self.workspace_root}) pour effectuer le rollback."
                 }
         return self.execute_command("git reset --hard HEAD", cwd=str(target_cwd))
+
+    # --- Sovereign Zero-API Web Tools (Inspiré de my_jarvis/bin/web) ---
+    async def web_search(self, query: str, max_results: int = 8) -> Dict[str, Any]:
+        """Performs zero-API sovereign web search via DuckDuckGo."""
+        from app.tools.sovereign_web import sovereign_web
+        results = await sovereign_web.search(query, max_results=max_results)
+        return {"success": True, "query": query, "results": results, "count": len(results)}
+
+    async def web_read(self, url: str, max_chars: int = 6000) -> Dict[str, Any]:
+        """Reads clean text content from a web page without API keys."""
+        from app.tools.sovereign_web import sovereign_web
+        return await sovereign_web.read_url(url, max_chars=max_chars)

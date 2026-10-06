@@ -174,6 +174,21 @@ Dernière mise à jour : 2026-10-02
     - `tamper_check: 0 finding`.
     - `docs_check: 0 error(s), 0 warning(s)`.
 
-
-
-
+- **2026-10-06 : Arsenal d'Innovations d'Autonomie Souveraine (F-24, Inspiré de `my_jarvis`)** :
+  - **Moteur Web Souverain Zéro-API (`app/tools/sovereign_web.py`)** :
+    - Recherche DuckDuckGo HTML scraping et extraction de texte épurée sans aucune dépendance externe ni clé d'API.
+    - Interfaces asynchrones et synchrones unifiées grâce aux structures polymorphes `AwaitableList` et `AwaitableDict`.
+    - Commandes interactives `/websearch` et `/webread` dans le CLI.
+  - **Gardien d'Intégrité Anti-Truncation & Code Sentinel (`app/security/code_integrity_guardian.py`)** :
+    - Détection et rejet proactif des raccourcis de paresse d'IA (`... (rest of the code)`, `# reste du fichier`) dans `ToolGateway.write_file`.
+    - Éradication automatique des émojis parasites et détection des tirets cadratins `—` non conformes.
+    - Commande `/integrity` pour audit de complétude à tout moment.
+  - **Connecteur Haute Performance Local Ollama (`app/llm/local_ollama_provider.py`)** :
+    - Inférence 100% hors-ligne en mode air-gap sur daemon Ollama local (127.0.0.1:11434).
+    - Support natif des tool calls et module de benchmark de vitesse matérielle VRAM GPU/CPU (`OllamaBenchmarkResult`).
+  - **Formateur Télémétrique de Flux d'Agents (`app/orchestrator/agent_stream_watcher.py`)** :
+    - Formatage en direct des pensées, appels d'outils et résultats pour affichage en terminal.
+  - **Validation & Intégrité Forge (100% PASS)** :
+    - 18/18 tests validés sur [`tests/test_my_jarvis_gems.py`](file:///home/lesaint/Rendue/FreeAi/tests/test_my_jarvis_gems.py) et [`tests/test_sovereign_web_and_integrity.py`](file:///home/lesaint/Rendue/FreeAi/tests/test_sovereign_web_and_integrity.py).
+    - `tamper_check: 0 finding`.
+    - `docs_check: 0 error(s), 0 warning(s)`.

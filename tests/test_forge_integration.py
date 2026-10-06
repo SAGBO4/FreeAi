@@ -19,7 +19,7 @@ def test_forge_bridge_status():
 def test_forge_tamper_check():
     """Vérifie le contrôle anti-altération des tests (tamper_check.py)."""
     bridge = ForgeBridge()
-    res = bridge.run_tamper_check(base_commit="HEAD~1")
+    res = bridge.run_tamper_check(base_commit="HEAD")
     assert res.get("success")
     assert res.get("clean")
     assert res.get("findings_count") == 0

@@ -117,7 +117,7 @@ class SatelliteChronos:
         }
 
         context = (
-            f"HORLOGE SATELLITAIRE & CONSCIENCE TEMPORELLE :\n"
+            f"HORLOGE SATELLITAIRE & CONSCIENCE TEMPORELLE (Contexte temporel) :\n"
             f"- Date actuelle : {date_str} | Heure exacte : {hour_str}\n"
             f"- Phase du jour : {phase.value.upper()} ({phase_descriptions[phase]})\n"
             f"- SALUTATION REQUISE : '{salutation}' (RÈGLE STRICTE : Ne dis JAMAIS 'Bonjour' si phase=SOIREE ou NUIT, utilise EXCLUSIVEMENT '{salutation}').\n"

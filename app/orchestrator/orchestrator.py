@@ -37,6 +37,7 @@ from app.cluster.ghost_bridge import GhostBridge
 from app.security.sacred_life import SacredLifeSentinel
 from app.voice.zero_ram_voice import AcousticZeroRAMFacade
 from app.cognition.stream_of_consciousness import StreamOfConsciousnessEngine
+from app.cognition.synaptic_reflex import SynapticReflexEngine
 from app.memory.telegram_vault import TelegramNeuralVault
 from app.memory.binary_hologram import BinaryHologramEngine
 from app.cluster.ultrasonic_airgap import UltrasonicAirGapTransceiver
@@ -130,6 +131,9 @@ class TechLeadOrchestrator:
 
         # Binary Holographic Vector Engine (1-bit Quantized RAM index < 8 MB, Mode NÉANT)
         self.binary_hologram = BinaryHologramEngine()
+
+        # Synaptic Reflex Radar & Thought Hologram Matrix (F-25, Mode NÉANT, < 5ms)
+        self.synaptic_reflex = SynapticReflexEngine()
 
         # Ultrasonic Air-Gap Transceiver (Ghost Acoustic Link 19.4 - 20.4 kHz, Zero-RF)
         self.ultrasonic_airgap = UltrasonicAirGapTransceiver()
