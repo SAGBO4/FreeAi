@@ -107,14 +107,16 @@ def test_execute_tech_lead_task_inquiry_detection():
 
 def test_run_mesh_cli_command():
     """Verify that /mesh command executes cleanly without emojis and outputs valid growth summary."""
+    import asyncio
     from unittest.mock import MagicMock
     from cli import run_mesh
 
     mock_lead = MagicMock()
-    # Execute status
-    run_mesh(mock_lead, ["status"])
-    # Execute probe
-    run_mesh(mock_lead, ["probe", "127.0.0.1", "8000"])
+    async def _run():
+        await run_mesh(mock_lead, ["status"])
+        await run_mesh(mock_lead, ["probe", "127.0.0.1", "8000"])
+
+    asyncio.run(_run())
 
 
 
