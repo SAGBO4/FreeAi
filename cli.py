@@ -250,6 +250,8 @@ SLASH_COMMANDS = [
     "/telegram",
     "/vortex",
     "/hologram",
+    "/reflex",
+    "/synapse",
     "/airgap",
     "/phantom",
     "/shadow",
@@ -907,6 +909,11 @@ def print_help():
         "/hologram [status|add <txt>|search <req>]",
         "Hologramme Vectoriel Binaire : Indexation 1-bit en RAM pure, recherche Hamming en microsecondes (AVX-512).",
         "/hologram status ou /hologram search 'kernel'"
+    )
+    table.add_row(
+        "/reflex <prompt> (ou /synapse)",
+        "Radar d'Anticipation Synaptique & Hologramme de Pensée F-25 : Décomposition spectrale en RAM pure (< 5ms, 0 B SSD).",
+        "/reflex 'Développer un module de consensus Raft distribué'"
     )
     table.add_row(
         "/airgap [status|tx <message>]",
@@ -3450,6 +3457,33 @@ def run_hologram(tech_lead: TechLeadOrchestrator, args: List[str]):
         console.print("[bold red]Usage :[/] /hologram [status|add <texte>|search <requête>]")
 
 
+def run_reflex(tech_lead: TechLeadOrchestrator, args: List[str]):
+    """Gère le radar d'anticipation synaptique et la matrice d'hologramme de pensée (F-25)."""
+    engine = getattr(tech_lead, "synaptic_reflex", None)
+    if not engine:
+        from app.cognition.synaptic_reflex import SynapticReflexEngine
+        engine = SynapticReflexEngine()
+        tech_lead.synaptic_reflex = engine
+
+    if not args:
+        telemetry = engine.get_telemetry()
+        console.print(Panel(
+            f"• Analyses Spectrales Totales : [bold green]{telemetry['total_analyses']}[/]\n"
+            f"• Latence Moyenne en RAM : [bold cyan]{telemetry['average_latency_ms']:.2f} ms[/] (< 5.0 ms)\n"
+            f"• Empreinte Volatile : [bold green]{telemetry['ram_overhead_kb']} Ko[/] (Budget < 64 Ko)\n"
+            f"• Disque SSD : [bold green]0 B (Mode NÉANT Actif)[/]\n"
+            f"• Syntaxe : [italic white]/reflex <votre prompt ou objectif>[/]",
+            title="◈ Radar d'Anticipation Synaptique & Télémétrie F-25",
+            border_style="magenta"
+        ))
+        return
+
+    prompt = " ".join(args)
+    intent_data = engine.analyze_synaptic_intent(prompt)
+    hologram = engine.render_thought_hologram(intent_data)
+    console.print(hologram)
+
+
 async def run_airgap(tech_lead: TechLeadOrchestrator, args: List[str]):
     """Gère le lien acoustique ultrasonique Air-Gap sans RF."""
     subcmd = args[0].lower() if args else "status"
@@ -5319,6 +5353,8 @@ async def interactive_cli(initial_mode: str = "freeAi"):
                     await run_vortex(tech_lead, args)
                 elif cmd == "/hologram":
                     run_hologram(tech_lead, args)
+                elif cmd in ("/reflex", "/synapse"):
+                    run_reflex(tech_lead, args)
                 elif cmd == "/airgap":
                     await run_airgap(tech_lead, args)
                 elif cmd == "/phantom":
@@ -5506,6 +5542,8 @@ def main():
                 asyncio.run(run_vortex(tech_lead, args))
             elif cmd == "/hologram":
                 run_hologram(tech_lead, args)
+            elif cmd in ("/reflex", "/synapse"):
+                run_reflex(tech_lead, args)
             elif cmd == "/airgap":
                 asyncio.run(run_airgap(tech_lead, args))
             elif cmd == "/phantom":

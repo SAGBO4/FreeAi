@@ -2082,6 +2082,7 @@ class FreeAITUIApp(App):
                 "- `/mode <freeAi|lesaintAi>` : Basculer entre privilèges FreeAI et Apex\n"
                 "- `/agent <Tech Lead|Code|Security|Git|Conversation>` : Changer d'agent actif\n"
                 "- `/sync` : Synchronisation distante GZIP Neon PostgreSQL\n"
+                "- `/reflex <prompt>` : Radar d'anticipation synaptique & hologramme de pensée (F-25)\n"
                 "- `/edit <path>` : Éditeur de code intégré In-TUI & inspecteur souverain\n"
                 "- `Ctrl+B` : Basculer la barre latérale\n"
                 "- `Ctrl+P` : Ouvrir la palette de commandes rapides\n"
@@ -2158,6 +2159,19 @@ class FreeAITUIApp(App):
             card = AssistantMessageCard()
             await chat_scroll.mount(card)
             card.finalize_text(f"◈ Commande git `{cmd}` traitée avec succès.")
+        elif cmd in ("/reflex", "/synapse"):
+            prompt_input = " ".join(args)
+            from app.cognition.synaptic_reflex import SynapticReflexEngine
+            engine = getattr(self.tech_lead, "synaptic_reflex", None)
+            if not engine:
+                engine = SynapticReflexEngine()
+                if self.tech_lead:
+                    self.tech_lead.synaptic_reflex = engine
+            intent_data = engine.analyze_synaptic_intent(prompt_input)
+            hologram_text = engine.render_thought_hologram(intent_data)
+            card = AssistantMessageCard()
+            await chat_scroll.mount(card)
+            card.finalize_text(f"```text\n{hologram_text}\n```")
         elif cmd == "/edit":
             if not args:
                 card = AssistantMessageCard()
