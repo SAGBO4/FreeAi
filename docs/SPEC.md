@@ -244,3 +244,25 @@ Acceptation:
 Scenarios: PS-45 recherche web zéro-API, PS-46 blocage code tronqué, PS-47 benchmark Ollama local
 Data: Structures éphémères en mémoire vive (Mode NÉANT, 0 résidu SSD)
 Statut: done
+
+### F-25 Radar Synaptique & Hologramme de Pensée (Synaptic Reflex Engine)
+Acteur: Développeur en session CLI/TUI & Orchestrateur
+Acceptation:
+  AC1: Moteur d'anticipation synaptique (app/cognition/synaptic_reflex.py) avec décomposition spectrale d'intention (< 0.5 ms en RAM, 0 B SSD).
+  AC2: Matrice holographique en typographie noble OpenCode (◈, ⊙, ▣, zéro émoji brut).
+  AC3: Commandes CLI /reflex et /synapse intégrées.
+Scenarios: PS-48 analyse intention sub-milliseconde, PS-49 pureté typographique noble
+Data: Éphémère en RAM pure
+Statut: done
+
+### F-26 HyperMesh Causal Singularity & Retrocausal Swarm Matrix
+Acteur: Développeur en session interactive, Orchestrateur & Sentinelles Cloud
+Acceptation:
+  AC1: Dissection quadri-vectorielle des causes profondes selon les Principes Premiers : strictement 2 causes directes (alpha interface, beta ressource) et 2 causes indirectes (gamma topologie/SPOF, delta asymétrie d'environnement).
+  AC2: Mobilisation active des membres distribués sur Internet : Web Souverain Zéro-API, Satellite Peer Sync (repo Laurince), Fédération Neurale (Groq LPU, OpenRouter free, Gemini), et Veille Nocturne (HuggingFace/arXiv).
+  AC3: Simulation prospective in-memory Ghost Fork : test spéculatif des 4 futurs d'effondrement en RAM volatile (< 2 ms) avant exécution réelle.
+  AC4: Télémétrie holographique noble OpenCode sans émoji brut (◈, ⊙, ▣) et commandes CLI /causal et /hypermesh.
+  AC5: Invariant éternel gravé en RAM (Mode NÉANT, 0 B SSD) empêchant toute récidive.
+Scenarios: PS-50 dissection quadri-vectorielle, PS-51 mobilisation membres internet, PS-52 ghost fork simulation
+Data: Registre d'immunité éphémère en RAM volatile (0 B SSD)
+Statut: done

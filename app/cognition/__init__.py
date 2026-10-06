@@ -6,6 +6,10 @@ from app.cognition.synaptic_reflex import (
     QuantumCognitiveState,
     IntentCategory,
 )
+from app.cognition.hypermesh_causal_singularity import (
+    HyperMeshCausalSingularity,
+    CausalDiagnosis,
+)
 
 __all__ = [
     "StreamOfConsciousnessEngine",
@@ -14,5 +18,7 @@ __all__ = [
     "CriticalityLevel",
     "QuantumCognitiveState",
     "IntentCategory",
+    "HyperMeshCausalSingularity",
+    "CausalDiagnosis",
 ]
 
