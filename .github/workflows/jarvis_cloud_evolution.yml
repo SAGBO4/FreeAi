@@ -1,4 +1,4 @@
-name: Jarvis Cloud Evolution (PC éteint)
+name: Jarvis Cloud Evolution (Sovereign Neural Swarm)
 on:
   schedule:
     - cron: '0 */2 * * *'  # toutes les 2h
@@ -14,10 +14,12 @@ jobs:
           python-version: '3.11'
       - name: Install deps
         run: pip install httpx python-dotenv
-      - name: Run Jarvis Cloud Bootstrap
+      - name: Run Jarvis Sovereign Neural Swarm
         env:
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python scripts/jarvis_cloud_bootstrap.py --n 5 --notify-telegram
