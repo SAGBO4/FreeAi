@@ -1001,6 +1001,8 @@ class OpenCodeCommandProvider(Provider):
             ("/sidebar", "Afficher / masquer la sidebar (Ctrl+B)", app.action_toggle_sidebar),
             ("/clear", "Effacer les messages du chat actif", app.action_clear_chat),
             ("/sync", "Synchronisation GZIP Neon Cloud", lambda: app.run_slash_command("/sync")),
+            ("/mesh", "Satellite Mesh & Passerelle Machine-à-Machine (Forge & Laurince)", lambda: app.run_slash_command("/mesh status")),
+            ("/satellite", "Synchroniser et inspecter les satellites (Forge & Laurince)", lambda: app.run_slash_command("/mesh sync")),
             ("/edit", "Ouvrir l'éditeur de code intégré In-TUI (Ctrl+O)", app.action_open_file_prompt),
             ("/help", "Manuel et guide complet OpenCode", lambda: app.run_slash_command("/help")),
             ("/exit", "Quitter FreeAI TUI", app.action_quit_app),
@@ -2185,6 +2187,20 @@ class FreeAITUIApp(App):
             card = AssistantMessageCard()
             await chat_scroll.mount(card)
             card.finalize_text(f"```text\n{hologram_text}\n```")
+        elif cmd in ("/mesh", "/satellite"):
+            from app.network.satellite_mesh import SovereignSatelliteMesh
+            from app.cognition.continuous_cognition import PerpetualLearner24x7
+            mesh = SovereignSatelliteMesh()
+            learner = PerpetualLearner24x7(mesh=mesh)
+            subcmd = args[0].lower() if args else "status"
+            if subcmd == "sync":
+                mesh.sync_all_satellites()
+            elif subcmd == "learn":
+                learner.run_learning_cycle()
+            summary_text = learner.generate_growth_summary()
+            card = AssistantMessageCard()
+            await chat_scroll.mount(card)
+            card.finalize_text(f"```text\n{summary_text}\n```")
         elif cmd == "/edit":
             if not args:
                 card = AssistantMessageCard()

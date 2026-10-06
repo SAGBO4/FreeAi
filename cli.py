@@ -254,6 +254,8 @@ SLASH_COMMANDS = [
     "/synapse",
     "/causal",
     "/hypermesh",
+    "/mesh",
+    "/satellite",
     "/airgap",
     "/phantom",
     "/shadow",
@@ -921,6 +923,11 @@ def print_help():
         "/causal <erreur> (ou /hypermesh)",
         "HyperMesh Causal Singularity F-26 : Isolation des 2 causes directes + 2 causes indirectes avec les membres Internet (< 2ms, 0 B SSD).",
         "/causal 'Client error 400 Bad Request model decommissioned'"
+    )
+    table.add_row(
+        "/mesh [status|sync|learn|probe] (ou /satellite)",
+        "Sovereign Satellite Mesh & Passerelle M2M F-27 : Veille perpétuelle sur Forge & Laurince (my_jarvis), assimilation 24/7.",
+        "/mesh status ou /mesh sync"
     )
     table.add_row(
         "/airgap [status|tx <message>]",
@@ -3516,6 +3523,41 @@ def run_causal(tech_lead: TechLeadOrchestrator, args: List[str]):
     console.print(hologram)
 
 
+def run_mesh(tech_lead: TechLeadOrchestrator, args: List[str]):
+    """Gère le Satellite Mesh, la passerelle P2P M2M et l'apprentissage 24/7 (F-27)."""
+    from app.network.satellite_mesh import SovereignSatelliteMesh
+    from app.cognition.continuous_cognition import PerpetualLearner24x7
+
+    mesh = SovereignSatelliteMesh()
+    learner = PerpetualLearner24x7(mesh=mesh)
+
+    subcmd = args[0].lower() if args else "status"
+
+    if subcmd == "sync":
+        console.print("[dim]Synchronisation des satellites (Forge & Laurince my_jarvis)...[/]")
+        res = mesh.sync_all_satellites()
+        for k, v in res.get("results", {}).items():
+            status_txt = "[green]✓ Synchronisé[/]" if v.get("success") else f"[red]✗ Erreur ({v.get('error')})[/]"
+            console.print(f"• Satellite {k} : {status_txt}")
+        summary = learner.generate_growth_summary()
+        console.print(summary)
+    elif subcmd == "learn":
+        console.print("[dim]Déclenchement du cycle d'apprentissage perpétuel 24/7...[/]")
+        cycle_res = learner.run_learning_cycle()
+        console.print(f"• Cycle : [bold cyan]{cycle_res['cycle']['cycle_id']}[/] | Stream : [bold yellow]{cycle_res['cycle']['active_stream']}[/]")
+        summary = learner.generate_growth_summary()
+        console.print(summary)
+    elif subcmd == "probe":
+        peer = args[1] if len(args) > 1 else "127.0.0.1"
+        port = int(args[2]) if len(args) > 2 else 8000
+        probe_res = mesh.probe_peer_machine(peer, port)
+        reach_txt = "[bold green]CONNECTÉ[/]" if probe_res["reachable"] else "[dim]STANDBY (Hors portée immédiate)[/]"
+        console.print(f"• Passerelle P2P vers {peer}:{port} : {reach_txt}")
+    else:  # status
+        summary = learner.generate_growth_summary()
+        console.print(summary)
+
+
 async def run_airgap(tech_lead: TechLeadOrchestrator, args: List[str]):
     """Gère le lien acoustique ultrasonique Air-Gap sans RF."""
     subcmd = args[0].lower() if args else "status"
@@ -5389,6 +5431,8 @@ async def interactive_cli(initial_mode: str = "freeAi"):
                     run_reflex(tech_lead, args)
                 elif cmd in ("/causal", "/hypermesh"):
                     run_causal(tech_lead, args)
+                elif cmd in ("/mesh", "/satellite"):
+                    run_mesh(tech_lead, args)
                 elif cmd == "/airgap":
                     await run_airgap(tech_lead, args)
                 elif cmd == "/phantom":
@@ -5580,6 +5624,8 @@ def main():
                 run_reflex(tech_lead, args)
             elif cmd in ("/causal", "/hypermesh"):
                 run_causal(tech_lead, args)
+            elif cmd in ("/mesh", "/satellite"):
+                run_mesh(tech_lead, args)
             elif cmd == "/airgap":
                 asyncio.run(run_airgap(tech_lead, args))
             elif cmd == "/phantom":
