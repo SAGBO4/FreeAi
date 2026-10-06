@@ -2172,6 +2172,19 @@ class FreeAITUIApp(App):
             card = AssistantMessageCard()
             await chat_scroll.mount(card)
             card.finalize_text(f"```text\n{hologram_text}\n```")
+        elif cmd in ("/causal", "/hypermesh"):
+            prompt_input = " ".join(args) or "Diagnostique anomalie système"
+            from app.cognition.hypermesh_causal_singularity import HyperMeshCausalSingularity
+            engine = getattr(self.tech_lead, "hypermesh_causal", None)
+            if not engine:
+                engine = HyperMeshCausalSingularity.get_instance()
+                if self.tech_lead:
+                    self.tech_lead.hypermesh_causal = engine
+            diagnosis = engine.diagnose_and_heal(prompt_input)
+            hologram_text = engine.render_telemetry_hologram(diagnosis)
+            card = AssistantMessageCard()
+            await chat_scroll.mount(card)
+            card.finalize_text(f"```text\n{hologram_text}\n```")
         elif cmd == "/edit":
             if not args:
                 card = AssistantMessageCard()

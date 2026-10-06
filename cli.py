@@ -252,6 +252,8 @@ SLASH_COMMANDS = [
     "/hologram",
     "/reflex",
     "/synapse",
+    "/causal",
+    "/hypermesh",
     "/airgap",
     "/phantom",
     "/shadow",
@@ -914,6 +916,11 @@ def print_help():
         "/reflex <prompt> (ou /synapse)",
         "Radar d'Anticipation Synaptique & Hologramme de Pensée F-25 : Décomposition spectrale en RAM pure (< 5ms, 0 B SSD).",
         "/reflex 'Développer un module de consensus Raft distribué'"
+    )
+    table.add_row(
+        "/causal <erreur> (ou /hypermesh)",
+        "HyperMesh Causal Singularity F-26 : Isolation des 2 causes directes + 2 causes indirectes avec les membres Internet (< 2ms, 0 B SSD).",
+        "/causal 'Client error 400 Bad Request model decommissioned'"
     )
     table.add_row(
         "/airgap [status|tx <message>]",
@@ -3484,6 +3491,31 @@ def run_reflex(tech_lead: TechLeadOrchestrator, args: List[str]):
     console.print(hologram)
 
 
+def run_causal(tech_lead: TechLeadOrchestrator, args: List[str]):
+    """Gère la matrice causale quadri-vectorielle et l'omni-swarm des membres Internet (F-26)."""
+    from app.cognition.hypermesh_causal_singularity import HyperMeshCausalSingularity
+    engine = getattr(tech_lead, "hypermesh_causal", None)
+    if not engine:
+        engine = HyperMeshCausalSingularity.get_instance()
+        tech_lead.hypermesh_causal = engine
+
+    if not args:
+        console.print(Panel(
+            "• Syntaxe : [italic white]/causal <erreur_ou_contexte>[/]\n"
+            "• Mobilise : Web Souverain, Satellite Peer Sync, Fédération Neurale & Veille Globale\n"
+            "• Isole : Exactement 2 Causes Directes + 2 Causes Indirectes + Invariant Éternel\n"
+            "• Simulation : Ghost Fork spéculatif en RAM (< 1 ms, 0 B SSD Mode NÉANT)",
+            title="◈ HyperMesh Causal Singularity & Omni-Swarm Root Matrix (F-26)",
+            border_style="cyan"
+        ))
+        return
+
+    error_context = " ".join(args)
+    diagnosis = engine.diagnose_and_heal(error_context)
+    hologram = engine.render_telemetry_hologram(diagnosis)
+    console.print(hologram)
+
+
 async def run_airgap(tech_lead: TechLeadOrchestrator, args: List[str]):
     """Gère le lien acoustique ultrasonique Air-Gap sans RF."""
     subcmd = args[0].lower() if args else "status"
@@ -5355,6 +5387,8 @@ async def interactive_cli(initial_mode: str = "freeAi"):
                     run_hologram(tech_lead, args)
                 elif cmd in ("/reflex", "/synapse"):
                     run_reflex(tech_lead, args)
+                elif cmd in ("/causal", "/hypermesh"):
+                    run_causal(tech_lead, args)
                 elif cmd == "/airgap":
                     await run_airgap(tech_lead, args)
                 elif cmd == "/phantom":
@@ -5544,6 +5578,8 @@ def main():
                 run_hologram(tech_lead, args)
             elif cmd in ("/reflex", "/synapse"):
                 run_reflex(tech_lead, args)
+            elif cmd in ("/causal", "/hypermesh"):
+                run_causal(tech_lead, args)
             elif cmd == "/airgap":
                 asyncio.run(run_airgap(tech_lead, args))
             elif cmd == "/phantom":
