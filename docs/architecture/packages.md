@@ -2,6 +2,7 @@
 
 | Package | Chemin | Responsabilité | Depend de |
 |---|---|---|---|
+| api | app/api | Endpoints REST et SSE OpenCode, sessions, streaming | orchestrator |
 | agents | app/agents | Agents spécialisés de génération de code, git et sécurité | tools, llm, forge |
 | cluster | app/cluster | Consensus distribué Raft éphémère, maillage P2P et pont ultrasonique | security |
 | cognition | app/cognition | Flux de conscience synthétique réflexif et moteur ReAct Hermes | resource_manager, voice |
@@ -15,7 +16,9 @@
 | security | app/security | Sentinelle Sanctuaire de la Vie et sandbox d'exécution | - |
 | satellite | app/satellite | Surveillance satellite globale et données spatiales temps réel | security |
 | tools | app/tools | Passerelle d'exécution d'outils contraints, sandbox et pont d'audit peer-sync | security |
+| cli | app/cli | Composants TUI, streaming de tokens et autocomplétion intelligente | - |
 | voice | app/voice | Synthèse vocale native Linux TTS et reconnaissance Groq Whisper STT | - |
+| web | app/web | Studio UI fidèle OpenCode v2, design system et interactions | api |
 
 ```mermaid
 flowchart TD
@@ -23,6 +26,7 @@ flowchart TD
     orchestrator --> memory
     orchestrator --> cognition
     orchestrator --> security
+    cli --> tools
     agents --> tools
     agents --> llm
     agents --> forge

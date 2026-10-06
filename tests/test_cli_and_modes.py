@@ -158,7 +158,7 @@ class TestCLIFunctionality(unittest.TestCase):
         self.assertEqual(prompt_standard, "[FreeAI:freeAi] > ")
 
         prompt_super = cli.get_prompt("lesaintAi")
-        self.assertEqual(prompt_super, "[FreeAI:lesaintAi ⚡] > ")
+        self.assertEqual(prompt_super, "[FreeAI:lesaintAi] > ")
 
     def test_orchestrator_get_status_structure(self):
         rm = ResourceManager()
@@ -276,6 +276,7 @@ class TestRemoteOnlineModels(unittest.TestCase):
         fed = self.tl.free_ai.federation
         fed.deepseek_api_key = "sk-test-deepseek-mock-key"
         fed.groq_api_key = None
+        fed.gemini_api_key = None
         fed.remote_gpu_url = None
         fed.set_online_target("deepseek", "deepseek-chat")
 

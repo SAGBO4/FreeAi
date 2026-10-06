@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="fr" data-theme="oc-2" data-color-scheme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>FreeAI Studio · OpenCode Interface</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <!-- Marked parser for streaming markdown -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+
+  <!-- Top Titlebar -->
+  <header class="titlebar">
+    <div class="titlebar-left">
+      <div class="brand-badge">
+        <div class="brand-logo">FA</div>
+        <span>FreeAI</span>
+      </div>
+      <div class="project-pill" id="project-workspace-pill">
+        <span>📁</span>
+        <span id="active-workspace-name">FreeAi</span>
+      </div>
+      <button class="action-btn" id="sidebar-toggle-btn" title="Toggle Sidebar">
+        <span>◫</span>
+      </button>
+    </div>
+
+    <div class="titlebar-center">
+      <div class="session-title-header" id="current-session-title" title="Cliquer pour renommer">
+        Nouvelle Session
+      </div>
+    </div>
+
+    <div class="titlebar-right">
+      <div class="status-pill" id="global-status-pill">
+        <span class="status-dot"></span>
+        <span id="global-status-text">Connecté</span>
+      </div>
+      <button class="action-btn" id="toggle-diff-btn" title="Panneau de Review / Diffs">
+        <span>Δ</span>
+        <span>Diffs</span>
+      </button>
+      <button class="action-btn" id="toggle-terminal-btn" title="Drawer Terminal">
+        <span>❯_</span>
+        <span>Terminal</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Workspace -->
+  <div class="main-wrapper">
+
+    <!-- Left Sidebar -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <span class="sidebar-title">Sessions</span>
+        <button class="new-session-btn" id="new-session-btn">
+          <span>+</span>
+          <span>Nouveau</span>
+        </button>
+      </div>
+      <div class="sidebar-search">
+        <input type="text" id="session-search-input" placeholder="Rechercher une session..." />
+      </div>
+      <div class="sessions-list" id="sessions-container">
+        <!-- Sessions injected dynamically -->
+      </div>
+
+      <div class="sidebar-section-title">Agents Spécialisés</div>
+      <div class="agents-quick-list" id="agents-sidebar-list">
+        <!-- Agents list -->
+      </div>
+
+      <div class="sidebar-footer">
+        <span id="footer-ram-info">RAM: ...</span>
+        <span>v2.0 · OpenCode Engine</span>
+      </div>
+    </aside>
+
+    <!-- Center Chat Workspace -->
+    <main class="chat-workspace">
+      
+      <!-- Timeline Messages -->
+      <div class="timeline-scroll" id="timeline-container">
+        <!-- Empty State Hero -->
+        <div class="empty-hero" id="empty-hero">
+          <div class="hero-icon">⚡</div>
+          <h2>FreeAI Autonomous Assistant</h2>
+          <p>Interface unifiée basée sur OpenCode. Sélectionnez un modèle, lancez un objectif complexe ou pilotez vos agents spécialisés sans quitter votre flux de travail.</p>
+          <div class="quick-starters">
+            <div class="starter-card" data-prompt="Analyse l'architecture du projet et propose des optimisations modulaires.">
+              <b>⚡ Architecture & Refactoring</b>
+              <span>Analyser la structure et concevoir un plan</span>
+            </div>
+            <div class="starter-card" data-prompt="Exécute un audit de sécurité complet et recherche d'éventuelles vulnérabilités.">
+              <b>🛡️ Audit de Sécurité</b>
+              <span>Détecter les failles OWASP et vérifier la défense active</span>
+            </div>
+            <div class="starter-card" data-prompt="Conçois une interface moderne et fluide avec les tokens OpenCode et animations.">
+              <b>✨ UI/UX & Innovation</b>
+              <span>Composants, micro-interactions et transitions fluides</span>
+            </div>
+            <div class="starter-card" data-prompt="Lance pytest et analyse les résultats de la suite de tests.">
+              <b>💻 Exécuter les Tests</b>
+              <span>Vérifier l'intégrité du code et la couverture</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Docked Prompt Composer -->
+      <div class="composer-dock">
+        <div class="composer-box">
+          
+          <!-- Popover Menus -->
+          <div class="popover-menu" id="slash-popover">
+            <div class="popover-item" data-cmd="/clear"><span class="cmd">/clear</span><span class="desc">Nettoyer l'historique</span></div>
+            <div class="popover-item" data-cmd="/new"><span class="cmd">/new</span><span class="desc">Nouvelle session</span></div>
+            <div class="popover-item" data-cmd="/status"><span class="cmd">/status</span><span class="desc">Ressources & état</span></div>
+            <div class="popover-item" data-cmd="/undo"><span class="cmd">/undo</span><span class="desc">Annuler dernière action</span></div>
+            <div class="popover-item" data-cmd="/diff"><span class="cmd">/diff</span><span class="desc">Voir les modifications Git</span></div>
+            <div class="popover-item" data-cmd="/help"><span class="cmd">/help</span><span class="desc">Aide commandes slash</span></div>
+          </div>
+
+          <div class="popover-menu" id="model-popover">
+            <!-- Dynamically populated models -->
+          </div>
+
+          <div class="popover-menu" id="agent-popover">
+            <!-- Dynamically populated agents -->
+          </div>
+
+          <!-- Top Toolbar Pills -->
+          <div class="composer-top-bar">
+            <button class="composer-pill-btn" id="model-selector-btn">
+              <span>🧠</span>
+              <span id="selected-model-label">FreeAI Local</span>
+              <span>▾</span>
+            </button>
+            <button class="composer-pill-btn" id="agent-selector-btn">
+              <span>👑</span>
+              <span id="selected-agent-label">Tech Lead</span>
+              <span>▾</span>
+            </button>
+          </div>
+
+          <!-- Expanding Textarea -->
+          <textarea
+            class="composer-textarea"
+            id="prompt-textarea"
+            rows="1"
+            placeholder="Demandez à FreeAI (/ pour commandes, @ pour contexte, Shift+Enter pour nouvelle ligne)..."
+          ></textarea>
+
+          <!-- Bottom Actions -->
+          <div class="composer-bottom-bar">
+            <div class="composer-shortcuts">
+              <span><kbd>Enter</kbd> Envoyer</span>
+              <span><kbd>Shift+Enter</kbd> Ligne</span>
+              <span><kbd>/</kbd> Commandes</span>
+              <span><kbd>@</kbd> Fichiers</span>
+            </div>
+            <button class="submit-btn" id="submit-prompt-btn" title="Envoyer (Enter)">
+              <span>➤</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Right Review & Diff Slide-Over Panel -->
+    <aside class="diff-panel" id="diff-panel">
+      <div class="diff-panel-header">
+        <span class="sidebar-title">Modifications Git</span>
+        <button class="action-btn" id="close-diff-btn">✕</button>
+      </div>
+      <div class="diff-content" id="diff-content-view">
+        <div style="color: var(--v2-grey-500); padding: 10px;">Aucune modification non validée.</div>
+      </div>
+    </aside>
+
+  </div>
+
+  <!-- Bottom Terminal Drawer -->
+  <section class="terminal-drawer" id="terminal-drawer">
+    <div class="drawer-header">
+      <div class="drawer-tabs">
+        <div class="drawer-tab active" data-target="terminal">Terminal Bash</div>
+        <div class="drawer-tab" data-target="logs">Journaux FreeAI</div>
+      </div>
+      <button class="action-btn" id="close-drawer-btn">✕</button>
+    </div>
+    <div class="terminal-body" id="terminal-output">FreeAI Sovereign Terminal v2.0
+Tapez une commande bash ci-dessous...</div>
+    <div class="terminal-input-row">
+      <span>❯</span>
+      <input type="text" id="terminal-cmd-input" placeholder="ls -la, git status, pytest..." autocomplete="off" />
+    </div>
+  </section>
+
+  <!-- Load JavaScript Application -->
+  <script src="/static/app.js"></script>
+</body>
+</html>

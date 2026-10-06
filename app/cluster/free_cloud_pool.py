@@ -159,6 +159,17 @@ class FreeCloudPool:
         """Returns all registered free cloud nodes as dictionaries."""
         return [node.to_dict() for node in self.nodes.values()]
 
+    def get_status(self) -> Dict[str, Any]:
+        """Returns aggregate status of free cloud pool."""
+        nodes = self.list_nodes()
+        active = sum(1 for n in nodes if n.get("status") == "active")
+        return {
+            "total_nodes": len(nodes),
+            "active_nodes": active,
+            "free_tiers_catalog": len(self.DEFAULT_FREE_CATALOG),
+            "nodes": nodes
+        }
+
     def get_node(self, node_id: str) -> Optional[FreeTierNode]:
         """Gets a node by its ID."""
         return self.nodes.get(node_id)

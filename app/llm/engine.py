@@ -28,7 +28,7 @@ try:
     TORCH_AVAILABLE = True
 except ImportError:
     TORCH_AVAILABLE = False
-    logger.warning("PyTorch n'est pas installé. Le noyau Jarvis sera inactif.")
+    logger.info("PyTorch n'est pas installé. Le noyau Jarvis local est inactif (Mode Fédération Cloud & Inférence Frugale actif).")
 
 class JarvisCoreRuntime:
     """Noyau Neural Natif JARVIS (Stade 0).
