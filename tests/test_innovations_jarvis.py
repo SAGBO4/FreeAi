@@ -79,6 +79,7 @@ async def _test_innovation_3_and_5_smart_telegram_send():
     assert "<pre><code>" in sent_text or "<code>" in sent_text
 
 def test_innovation_4_prewarm():
+    import shutil
     os.makedirs("jarvis_memory", exist_ok=True)
     with open("jarvis_memory/test1.json", "w") as f:
         json.dump([{"prompt": "A", "response": "B"}], f)
@@ -89,8 +90,7 @@ def test_innovation_4_prewarm():
         TechLeadOrchestrator._prewarm_from_cloud_bootstrap(orchestrator)
         assert orchestrator.vector_memory.add_memory.called
         
-    os.remove("jarvis_memory/test1.json")
-    os.rmdir("jarvis_memory")
+    shutil.rmtree("jarvis_memory", ignore_errors=True)
 
 def test_innovation_5_emoji():
     assert classify_response_emoji("Voici le code Python") == "💻"
