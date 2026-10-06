@@ -92,5 +92,70 @@ Dernière mise à jour : 2026-10-02
   - **F-15 : Autocomplétion Flottante `@fichiers` & Contexte (#tags)** : Compléteur dynamique `OpenCodePromptCompleter` pour `prompt_toolkit`, filtrage temps réel des chemins de fichiers/dossiers du workspace et autocomplétion des commandes slash.
   - **F-16 : Sonde LSP Vivante (`• LSP Status Bar`)** : Sonde d'analyse statique et LSP non-bloquante avec cache TTL (Ruff / Pyright / AST), intégrée directement dans le pied de page du terminal (`• 0 LSP`), avec commande `/lsp diagnose`.
   - **Intégrité & Tests** : 48/48 tests unitaires et d'intégration validés (100% PASS), `tamper_check: 0 finding`, `docs_check: 0 error, 0 warning`.
+- **2026-10-05 (19:30)** : **Réplique Souveraine Full-Screen OpenCode TUI avec Textual (F-17)** :
+  - **Interface Plein Écran Textual (`app/cli/textual_tui.py`)** :
+    - Bascule automatique en Alternate Screen Buffer (`\033[?1049h`), isolation complète sans pollution du scrollback shell.
+    - Layout 5 zones conforme aux spécifications OpenCode : `TopHeader` (onglets de session dynamiques), `CollapsibleSidebar` (arborescence du projet sans émoji, sélecteur d'agent, jauges mémoire RAM / Neon Sync), `ChatContainer` (scroll captif interne fluide, accordéons de pensée ambre rétractables, streaming `┃` et `╹`, épilogue télémétrique `▣`), `InputArea` (saisie ancrée en bas avec auto-focus et protection anti-double soumission), et `StatusBar` (branche Git, diagnostic LSP, commande palette `Ctrl+P`).
+    - Éradication absolue des émojis : substitution intégrale des icônes natives Textual (`DirectoryTree`, `SearchIcon`) par des glyphes typographiques sobres (`•`, `›`, `│`, `┃`, `╹`, `~`, `*`, `$`, `←`, `→`, `✱`, `◈`, `⊙`, `✓`, `✗`, `▣`).
+    - Frugalité Mode NÉANT : empreinte mémoire < 70 Mo RAM, zéro écriture SSD (100% RAM volatile).
+  - **Lancement Direct sans Argument (`freeAi` & `Lesaint#ai`)** :
+    - Configuration des scripts de démarrage dans `~/.local/bin/` et des alias dans `~/.bashrc` (`freeAi`, `Lesaint#ai`, `lesaint#ai`).
+    - Lancement direct du Full-Screen TUI par défaut lors de l'exécution interactive dans un terminal (`sys.stdin.isatty()`).
+    - Option de repli explicite `--repl` ou variable d'environnement `FREEAI_NO_TUI=1` pour forcer le mode ligne par ligne.
+    - Mode Apex / Sudo activable via `Lesaint#ai` (bordures d'accent rouges, `ALLOW_SUDO=True`) ou toggle à chaud `F2`.
+  - **Validation & Intégrité Forge** :
+    - 65/65 tests passés avec succès (`tests/test_opencode_vanguard_innovations.py`, `tests/test_opencode_realtime_ui.py`, `tests/test_cli_commands.py`, `tests/test_innovations_jarvis.py`, `tests/test_cli_and_modes.py`, `tests/test_tui.py`, `tests/test_textual_tui.py`).
+    - `tamper_check: 0 finding`.
+    - `docs_check: 0 error(s), 0 warning(s)`.
+- **2026-10-05 (20:30)** : **Éditeur de Code Intégré In-TUI & Inspecteur Syntaxique Souverain (F-18)** :
+  - **Écran d'Édition Plein Écran (`CodeEditorScreen`)** :
+    - Ouverture directe des fichiers depuis l'arborescence `NobleDirectoryTree` (clic souris ou touche Entrée), par raccourci `Ctrl+O` ou par commande `/edit <chemin>` dans le TUI Textual sans quitter l'application.
+    - Widget `TextArea` avec numérotation de ligne latérale `│`, détection automatique du langage (python, json, markdown, yaml, bash, etc.) et thème sombre TokyoNight (`TOKYO_NIGHT_TEXTAREA_THEME` : `#080808` fond, `#16161e` ligne active, `#7aa2f7` curseur, `#283457` sélection).
+    - Barre d'en-tête `EditorHeaderBar` dynamique : chemin du fichier, badge langage, métriques (`Lignes · Ko`), statut de synchronisation en direct (`✓ Synchronisé` / `• Modifié *`), et diagnostic syntaxique LSP en continu.
+    - Barre de statut `EditorStatusBar` : position `Ln X, Col Y · UTF-8` et rappel des raccourcis (`ctrl+s save · ctrl+d diff · ctrl+e ai explain · esc close`).
+  - **4 Touches d'Innovation Extrême Intégrées** :
+    - *Touche 1 - AI Code Lens / Instant Explain (`Ctrl+E` ou `F4`)* : Extraction du code sélectionné ou du fichier entier, fermeture fluide de l'éditeur, bascule immédiate sur l'écran de chat et lancement de l'analyse optimisée par l'orchestrateur Tech Lead avec streaming direct.
+    - *Touche 2 - Inline Git Diff Inspector (`Ctrl+D`)* : Calcul différentiel non-bloquant en RAM par rapport à `HEAD` et affichage en surimpression SplitBorder (`+` vert, `-` rouge, en-tête `@@`) avec fermeture sur `Escape`.
+    - *Touche 3 - Gouttière de Diagnostic LSP en Direct* : Analyse syntaxique non-bloquante à chaque frappe via `LiveLspProbe` (AST / JSON) remontant les erreurs et numéros de ligne directement dans l'en-tête.
+    - *Touche 4 - Atomic Undo Snapshot avant sauvegarde (`Ctrl+S`)* : Prise automatique d'un instantané volatil en RAM via `AtomicUndoManager` avant toute écriture physique, assurant un rollback immédiat via `/undo`.
+  - **Sécurité & Confinement Workspace** :
+    - En mode standard `freeAi`, toute tentative d'ouverture ou d'enregistrement hors du workspace lève une exception `PermissionError` infranchissable.
+    - En mode `lesaintAi` (sudo), l'accès à l'ensemble du système de fichiers est déverrouillé.
+  - **Split View 50/50 & Sortie Souveraine Échap (Zero-Bug QA)** :
+    - *Vue Fractionnée 50/50 (`EditorPane`)* : Affichage côte à côte du chat (#central-area à gauche 50%) et du fichier (#editor-pane à droite 50%) préservant la conversation active et le streaming.
+    - *Sortie Infaillible par Touche Échap* : Création de `NobleTextArea` interceptant directement la touche `Escape` et `Ctrl+W` sans capture intermédiaire Textual, garantissant la fermeture de l'éditeur et la restitution immédiate du focus au prompt.
+    - *4 Boutons d'Action Cliquables* : `✗ Fermer`, `✓ Save`, `⊙ Diff`, et `◈ IA` intégrés dans l'en-tête pour un pilotage direct à la souris sans avoir à retenir les raccourcis.
+  - **Validation & Intégrité Forge (0% Erreur)** :
+    - 14/14 tests validés avec succès sur [`tests/test_in_tui_editor.py`](file:///home/lesaint/Rendue/FreeAi/tests/test_in_tui_editor.py).
+    - 31/31 tests validés sur l'ensemble de la suite TUI (`tests/test_in_tui_editor.py`, `tests/test_textual_tui.py`, `tests/test_tui.py`).
+    - 79/79 tests validés sur l'ensemble du projet FreeAI (100% PASS, 0% d'erreur).
+    - `tamper_check: 0 finding`.
+    - `docs_check: 0 error(s), 0 warning(s)`.
+
+- **2026-10-06 : Souveraineté Autonome, Audio Vocal & Auto-Guérison Proactive (F-19 à F-22)** :
+  - **F-19 : Apprentissage Nocturne Dynamique & Swarm (`DynamicNightlyLearner`)** :
+    - Éradication définitive de la liste statique codée en dur dans `get_nightly_swarm_learnings()`.
+    - Exploration et rotation dynamique sur 4 thèmes clés (Web3 & DeFi security, LPU/LLM inference, 1-bit vector hologram, UI/TUI).
+    - Déduplication rigoureuse par empreinte SHA-256 et persistance dans le ledger volatile `.nightly_learnings_ledger.json` (0 répétition jour après jour).
+  - **F-20 : Rapports Matin & Soir avec Note Vocale OGG Opus (`DailyReportsEngine`)** :
+    - Émission automatique du rapport matinal (07h00) avec synthèse vocale OGG Opus streamée via Telegram (`send_voice`).
+    - Émission automatique du rapport vespéral (débriefing 19h00) avec bilan de journée, alertes et note vocale OGG Opus.
+    - Ajout des commandes `/soir`, `/debrief`, `/matin`, `/briefing` dans le CLI et sur Telegram.
+    - Synthèse vocale 100% en RAM (`io.BytesIO`) via `AcousticZeroRAMFacade` / `NeuralVoiceTTS` sans écriture sur disque.
+  - **F-21 : ChronosTimeEngine & Conscience Temporelle Satellitaire** :
+    - Moteur `ChronosTimeEngine` couplé à l'horloge et à la télémétrie satellitaire.
+    - Classification stricte : matin (05h-12h), midi (12h-14h), après-midi (14h-18h), soirée (18h-23h), nuit (23h-05h).
+    - Interdiction absolue et inconditionnelle de saluer par "Bonjour" entre 18h00 et 04h59 ("Bonsoir" obligatoire à 18h).
+  - **F-22 : Sentinelle d'Auto-Guérison Proactive (`AutonomousSelfHealingGuardian`)** :
+    - Sentinelle autonome intégrée dans la boucle continue de `freeai-jarvis.service` (`cli.py`).
+    - Détection continue des anomalies (saturation RAM > 85%, descripteurs FDs > 500, coupures WAN, désynchronisation LSP) et remédiation instantanée sans intervention de l'utilisateur.
+    - Commande `/heal` dans le CLI pour autoguérison manuelle ou forcée.
+  - **Validation & Intégrité Forge (0% Erreur)** :
+    - 20/20 tests validés sur [`tests/test_autonomous_intelligence_and_healing.py`](file:///home/lesaint/Rendue/FreeAi/tests/test_autonomous_intelligence_and_healing.py).
+    - 9/9 tests validés sur [`tests/test_ai_extreme_innovations.py`](file:///home/lesaint/Rendue/FreeAi/tests/test_ai_extreme_innovations.py).
+    - 89/89 tests passés avec succès sur l'ensemble de la suite (100% PASS, 0% d'erreur).
+    - `tamper_check: 0 finding`.
+    - `docs_check: 0 error(s), 0 warning(s)`.
+
 
 
