@@ -34,7 +34,7 @@ class TestTelegramNeuralVault(unittest.TestCase):
 
     def setUp(self):
         self.vault = TelegramNeuralVault(
-            token="8716120626:AAHqEDB4r0sn9nmEuguy9PyMEFCQOaSDY84",
+            token="1234567890:mock_token_for_testing_purposes_only",
             chat_id="123456789"
         )
 
