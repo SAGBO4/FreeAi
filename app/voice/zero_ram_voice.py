@@ -275,3 +275,7 @@ class AcousticZeroRAMFacade:
             "ram_overhead_mb": 0.0,
             "disk_footprint_bytes": 0
         }
+
+
+# Canonical alias for Neural Voice Text-To-Speech engine
+NeuralVoiceTTS = AcousticZeroRAMFacade

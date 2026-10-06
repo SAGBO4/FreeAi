@@ -32,12 +32,24 @@ class UndoSnapshot:
 
 class AtomicUndoManager:
     """Manages an in-memory stack of atomic file rollback snapshots."""
+    _WORKSPACE_UNDO_STACKS: Dict[str, List[UndoSnapshot]] = {}
+    _WORKSPACE_REDO_STACKS: Dict[str, List[UndoSnapshot]] = {}
 
     def __init__(self, workspace_root: str):
         self.workspace_root = Path(workspace_root).resolve()
-        self.undo_stack: List[UndoSnapshot] = []
-        self.redo_stack: List[UndoSnapshot] = []
+        ws_key = str(self.workspace_root)
+        if ws_key not in self._WORKSPACE_UNDO_STACKS:
+            self._WORKSPACE_UNDO_STACKS[ws_key] = []
+        if ws_key not in self._WORKSPACE_REDO_STACKS:
+            self._WORKSPACE_REDO_STACKS[ws_key] = []
+        self.undo_stack: List[UndoSnapshot] = self._WORKSPACE_UNDO_STACKS[ws_key]
+        self.redo_stack: List[UndoSnapshot] = self._WORKSPACE_REDO_STACKS[ws_key]
         self.max_stack_size = 50
+
+    def rollback_latest(self) -> Dict[str, Any]:
+        """Alias for undo() to guarantee compatibility with slash command /undo."""
+        return self.undo()
+
 
     def _get_git_head(self) -> Optional[str]:
         try:

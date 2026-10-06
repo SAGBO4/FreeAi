@@ -40,7 +40,7 @@ class NeonMemoryManager:
         clean_url = self.db_url
         if "channel_binding=" in clean_url:
             clean_url = clean_url.replace("&channel_binding=require", "").replace("channel_binding=require&", "").replace("channel_binding=require", "")
-        return psycopg2.connect(clean_url, connect_timeout=10)
+        return psycopg2.connect(clean_url, connect_timeout=3)
 
     @staticmethod
     def compress_text(text: str) -> str:
