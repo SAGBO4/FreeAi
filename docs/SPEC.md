@@ -222,4 +222,16 @@ Scenarios: PS-39 auto-réparation mémoire, PS-40 détection WAN dégradé, PS-4
 Data: Journal des remédiations en RAM volatile
 Statut: done
 
+### F-23 Verrou de Branche Souverain & Sentinelle Autonome du Credo (CredoSentinel)
+Acteur: Michael SAGBO (propriétaire exclusif) & Collaborateurs distants
+Acceptation:
+  AC1: Verrouillage GitHub de la branche main : interdiction absolue de push direct pour les collaborateurs, revue obligatoire avec Michael (@SAGBO4 via CODEOWNERS) et statut check requis 'credo-sentinel'.
+  AC2: Module d'audit souverain CredoSentinel (app/security/credo_sentinel.py) évaluant chaque PR et commit sur les 7 Piliers Sacrés (Sanctuaire Michael SAGBO, Mode NÉANT, 0 espion/télémétrie, 0 émoji CLI/TUI, Chronos politesse, anti-backdoor/reverse-shell, intégrité Forge).
+  AC3: Workflow GitHub Actions (.github/workflows/credo_sentinel.yml) exécutant l'audit autonome, publiant le verdict circonstancié sur la PR et expédiant une alerte Telegram instantanée à Michael.
+  AC4: Surveillance en tâche de fond dans le démon 24/7 Jarvis (cli.py /telegram loop) et commandes interactives /credo et /gatekeeper.
+Scenarios: PS-42 blocage push direct main, PS-43 détection payload hostile PR, PS-44 alerte Telegram collaborateur
+Data: Rapports d'audit volatils en mémoire RAM
+Statut: done
+
+
 

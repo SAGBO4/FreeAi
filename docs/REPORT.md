@@ -180,3 +180,18 @@ Le projet FreeAI a franchi tous les jalons de validation fonctionnelle, architec
   - Forge `tamper_check.py` : 0 finding.
   - Forge `docs_check.py` : 0 error(s), 0 warning(s).
 
+### [2026-10-06 14:00] - Verrou de Branche Souverain & Sentinelle Autonome du Credo (F-23)
+- **Verrouillage de Branche sur `main`** :
+  - Activation de la protection de branche GitHub (`PUT /repos/SAGBO4/FreeAi/branches/main/protection`) : blocage des pushes directs pour les collaborateurs, revues de PR obligatoires avec au moins 1 approbation, statut check requis `credo-sentinel`.
+  - Intégration de `.github/CODEOWNERS` attribuant la propriété exclusive et l'autorité de merge à `* @SAGBO4` (Michael SAGBO).
+- **Sentinelle Autonome du Credo (`CredoSentinel`)** :
+  - Création du module d'audit [`app/security/credo_sentinel.py`](file:///home/lesaint/Rendue/FreeAi/app/security/credo_sentinel.py) évaluant en continu les contributions distantes sur les 7 Piliers Sacrés du Credo (Sanctuaire Michael SAGBO, Mode NÉANT, 0 espion/télémétrie, 0 émoji CLI/TUI, Chronos politesse, anti-backdoor/reverse-shell, intégrité Forge).
+  - Workflow GitHub Actions [`.github/workflows/credo_sentinel.yml`](file:///home/lesaint/Rendue/FreeAi/.github/workflows/credo_sentinel.yml) : audit automatisé des Pull Requests, publication du rapport circonstancié en commentaire et envoi immédiat d'une alerte Telegram à Michael.
+  - Intégration dans le démon Jarvis 24/7 (`cli.py /telegram loop`) et commandes `/credo` et `/gatekeeper` dans le terminal et Telegram.
+- **Validation & Intégrité Forge (0% Erreur)** :
+  - 7/7 tests validés sur [`tests/test_credo_sentinel.py`](file:///home/lesaint/Rendue/FreeAi/tests/test_credo_sentinel.py).
+  - 96/96 tests passés avec succès sur l'ensemble du projet (100% PASS, 0% d'erreur).
+  - Forge `tamper_check.py` : 0 finding.
+  - Forge `docs_check.py` : 0 error(s), 0 warning(s).
+
+
