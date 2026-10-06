@@ -157,5 +157,23 @@ Dernière mise à jour : 2026-10-02
     - `tamper_check: 0 finding`.
     - `docs_check: 0 error(s), 0 warning(s)`.
 
+- **2026-10-06 : Verrou de Branche Souverain & Sentinelle Autonome du Credo (F-23)** :
+  - **Verrouillage GitHub de la branche `main`** :
+    - Règle de protection de branche activée via API GitHub (`PUT /repos/SAGBO4/FreeAi/branches/main/protection`).
+    - Interdiction formelle du push direct pour les collaborateurs (PR obligatoire avec au moins 1 revue d'approbation).
+    - Statut check obligatoire requis : `credo-sentinel`.
+    - Fichier `.github/CODEOWNERS` configuré avec attribution exclusive à `* @SAGBO4`. Seul Michael SAGBO peut approuver et fusionner.
+  - **Sentinelle Autonome du Credo (`CredoSentinel`)** :
+    - Module [`app/security/credo_sentinel.py`](file:///home/lesaint/Rendue/FreeAi/app/security/credo_sentinel.py) évaluant en continu les contributions distantes face aux 7 Piliers Sacrés.
+    - Détection proactive des violations : atteinte au Sanctuaire Michael SAGBO, télémétrie ou spyware caché, émojis bruts dans CLI/TUI, altération de l'horloge Chronos, backdoors, reverse shells, exfiltration de clés et affaiblissement de tests.
+    - Workflow CI autonome [`.github/workflows/credo_sentinel.yml`](file:///home/lesaint/Rendue/FreeAi/.github/workflows/credo_sentinel.yml) publiant le rapport d'audit Markdown sur les PRs et envoyant instantanément une alerte Telegram à Michael.
+    - Intégration dans le démon Jarvis 24/7 (`cli.py /telegram loop`) et ajout des commandes `/credo` et `/gatekeeper`.
+  - **Validation & Intégrité Forge** :
+    - 7/7 tests validés sur [`tests/test_credo_sentinel.py`](file:///home/lesaint/Rendue/FreeAi/tests/test_credo_sentinel.py).
+    - 96/96 tests passés avec succès sur l'ensemble de la suite (100% PASS, 0% d'erreur).
+    - `tamper_check: 0 finding`.
+    - `docs_check: 0 error(s), 0 warning(s)`.
+
+
 
 

@@ -2491,6 +2491,36 @@ async def dispatch_telegram_order(tech_lead: TechLeadOrchestrator, order: str, u
             console.print(f"[bold yellow]Actions de réparation appliquées : {heal_res['remediation']['actions']}[/]")
         return
 
+    # 0.3d Autonomous Credo & Gatekeeper PR Sentinel Command
+    if order_lower.startswith(("/credo", "/gatekeeper", "/sentinel", "/audit", "verifie le credo", "vérifie le credo")):
+        console.print("[dim]Exécution de la Sentinelle du Credo Souverain...[/]")
+        from app.security.credo_sentinel import CredoSentinel
+        sentinel = CredoSentinel()
+        tokens = order_clean.split()
+        pr_num = None
+        for tok in tokens:
+            if tok.isdigit():
+                pr_num = int(tok)
+                break
+        audit_res = sentinel.audit_git_diff(base_ref="origin/main", head_ref="HEAD")
+        passed = audit_res.get("passed", False)
+        status_color = "bold green" if passed else "bold red"
+        console.print(f"[{status_color}][CREDO SENTINEL] Verdict : {audit_res.get('verdict')}[/]")
+        await sentinel.notify_telegram_master(audit_res, pr_number=pr_num, pr_author="Collaborateur")
+        if passed:
+            await tech_lead.telegram_vault.send_message(
+                f"[OK] <b>Audit du Credo Terminé :</b>\nCode certifié conforme au Credo Souverain de Michael SAGBO (0 violation, 0 risque).",
+                message_thread_id=message_thread_id,
+                target_chat_id=target_chat_id
+            )
+        else:
+            await tech_lead.telegram_vault.send_message(
+                f"[!] <b>Alerte Credo Sentinelle :</b>\n{len(audit_res.get('findings', []))} anomalies ou risques détectés sur les contributions.",
+                message_thread_id=message_thread_id,
+                target_chat_id=target_chat_id
+            )
+        return
+
     # 0.4 Auto-Apply / Candidature 1-Click Command
     if order_lower.startswith(("/apply", "/postuler", "/candidature")) or "postule" in order_lower:
         console.print("[dim]Génération du dossier de candidature 1-Click Apply...[/]")
@@ -5362,6 +5392,12 @@ def main():
             elif cmd in ("/tui", "/opencode"):
                 from app.cli.textual_tui import run_tui
                 run_tui(tech_lead=tech_lead, mode=parsed.mode, workspace_root=workspace)
+            elif cmd in ("/credo", "/gatekeeper", "/sentinel"):
+                from app.security.credo_sentinel import CredoSentinel
+                sentinel = CredoSentinel()
+                base_ref = args[0] if args else "origin/main"
+                res = sentinel.audit_git_diff(base_ref=base_ref, head_ref="HEAD")
+                console.print(sentinel.generate_markdown_report(res))
             elif cmd == "/learn":
                 asyncio.run(run_learn(tech_lead, args))
             elif cmd == "/search":
