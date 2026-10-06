@@ -4,12 +4,19 @@ uvicorn>=0.30.0
 pydantic>=2.7.0
 pydantic-settings>=2.2.0
 python-dotenv>=1.0.1
+httpx>=0.27.0
+
+# Numerical & Memory Geometry
+numpy>=1.26.0
 
 # System & Resource Monitoring
 psutil>=5.9.8
 
-# CLI & UX Observability
+# CLI & TUI Observability
 rich>=13.7.1
+prompt_toolkit>=3.0.43
+textual>=0.80.0
+pytest>=8.0.0
 
 # Optional/Local LLM bindings (uncomment when compiled/installed)
 # llama-cpp-python>=0.2.75
