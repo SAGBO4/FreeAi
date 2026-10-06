@@ -44,7 +44,7 @@ class TestAcousticZeroRAMVoice(unittest.TestCase):
 
     def test_linux_native_tts_speak_mock(self):
         async def _test():
-            with patch("os.path.exists", return_value=True):
+            with patch("shutil.which", return_value="/usr/bin/spd-say"):
                 mock_proc = MagicMock()
                 mock_proc.wait = AsyncMock(return_value=0)
                 with patch("asyncio.create_subprocess_exec", AsyncMock(return_value=mock_proc)):

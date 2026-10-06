@@ -233,5 +233,14 @@ Scenarios: PS-42 blocage push direct main, PS-43 détection payload hostile PR, 
 Data: Rapports d'audit volatils en mémoire RAM
 Statut: done
 
-
-
+### F-24 Arsenal d'Innovations d'Autonomie Souveraine (Sovereign Web & Code Sentinel)
+Acteur: FreeAI Orchestrator, CLI/TUI & ToolGateway (Inspiré de my_jarvis)
+Acceptation:
+  AC1: Moteur Web Souverain Zéro-API (app/tools/sovereign_web.py) offrant la recherche DuckDuckGo et l'extraction épurée de contenu de pages Web avec la bibliothèque standard Python, 100% sans clé d'API et avec interfaces asynchrones et synchrones unifiées.
+  AC2: Gardien d'Intégrité Anti-Truncation & Code Sentinel (app/security/code_integrity_guardian.py et app/tools/code_integrity_guardian.py) couplé à ToolGateway.write_file pour rejeter tout code contenant des raccourcis de paresse d'IA ('... (rest of code)'), assainir les émojis parasites et valider l'AST.
+  AC3: Connecteur Haute Performance Local Ollama (app/llm/local_ollama_provider.py) pour inférence 100% hors-ligne, support des tool calls natifs et benchmark de vitesse matérielle VRAM GPU/CPU.
+  AC4: Formateur Télémétrique de Flux d'Agents (app/orchestrator/agent_stream_watcher.py) pour le suivi temps réel des réflexions, tool calls et résultats.
+  AC5: Commandes CLI /websearch, /webread et /integrity opérationnelles dans cli.py.
+Scenarios: PS-45 recherche web zéro-API, PS-46 blocage code tronqué, PS-47 benchmark Ollama local
+Data: Structures éphémères en mémoire vive (Mode NÉANT, 0 résidu SSD)
+Statut: done

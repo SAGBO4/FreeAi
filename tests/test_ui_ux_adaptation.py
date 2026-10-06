@@ -78,7 +78,7 @@ def test_ui_ux_agent_execution(tmp_path):
     import asyncio
 
     async def _run():
-        gateway = ToolGateway(workspace_root=Path("/home/lesaint/Rendue/FreeAi"))
+        gateway = ToolGateway(workspace_root=tmp_path / "workspace")
         agent = UiUxAgent(tool_gateway=gateway)
 
         target_dir = tmp_path / "trading_app"

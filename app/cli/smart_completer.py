@@ -31,6 +31,8 @@ COMMAND_DEFINITIONS: List[Tuple[str, str]] = [
     ("/tui", "Interface plein écran OpenCode Textual"),
     ("/commands", "Palette de navigation rapide (Ctrl+P)"),
     ("/clear", "Nettoie l'écran et réaffiche l'en-tête"),
+    ("/reflex", "Radar d'anticipation synaptique & matrice d'hologramme de pensée"),
+    ("/synapse", "Radar d'anticipation synaptique & matrice d'hologramme de pensée"),
     ("/help", "Manuel et guide d'utilisation"),
     ("/exit", "Arrêt propre de la session FreeAI"),
 ]

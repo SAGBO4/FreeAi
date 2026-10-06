@@ -11,8 +11,14 @@ import base64
 import time
 import logging
 from typing import Dict, Any, Optional, List
-import psycopg2
-from psycopg2.extras import RealDictCursor
+try:
+    import psycopg2
+    from psycopg2.extras import RealDictCursor
+    PSYCOPG2_AVAILABLE = True
+except (ImportError, ModuleNotFoundError):
+    psycopg2 = None
+    RealDictCursor = None
+    PSYCOPG2_AVAILABLE = False
 
 logger = logging.getLogger("neon_db")
 
@@ -28,14 +34,18 @@ class NeonMemoryManager:
                 except Exception:
                     pass
         self.db_url = db_url.strip() if db_url else None
-        self.enabled = bool(self.db_url)
+        self.enabled = bool(self.db_url) and PSYCOPG2_AVAILABLE
         if self.enabled:
             logger.info("[NEON] Neon PostgreSQL memory adapter enabled (off-device compressed storage).")
             self._init_tables()
+        elif not PSYCOPG2_AVAILABLE and self.db_url:
+            logger.info("[NEON] psycopg2 non installe. La memoire bascule en RAM locale ephemere (Mode NEANT).")
         else:
             logger.info("[NEON] Neon database URL not set. Memory remains ephemeral in local RAM.")
 
     def _get_connection(self):
+        if not PSYCOPG2_AVAILABLE or psycopg2 is None or not self.db_url:
+            raise RuntimeError("psycopg2 is not installed or Neon DB URL is not configured.")
         # Strips channel_binding if unsupported by standard psycopg2 connection parameters
         clean_url = self.db_url
         if "channel_binding=" in clean_url:
