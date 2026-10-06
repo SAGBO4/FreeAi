@@ -18,8 +18,8 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from app.memory.telegram_vault import TelegramNeuralVault
 
-GROUP_CHAT_ID = "-1003920092778"
-TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "8716120626:AAHqEDB4r0sn9nmEuguy9PyMEFCQOaSDY84")
+GROUP_CHAT_ID = os.environ.get("TELEGRAM_GROUP_CHAT_ID", "")
+TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 BASE_URL = f"https://api.telegram.org/bot{TOKEN}"
 
 
