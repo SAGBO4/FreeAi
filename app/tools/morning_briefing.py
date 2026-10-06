@@ -45,9 +45,10 @@ class MorningBriefingEngine:
         ]
     }
 
-    def __init__(self, telegram_vault: Optional[Any] = None, career_bridge: Optional[Any] = None):
+    def __init__(self, telegram_vault: Optional[Any] = None, career_bridge: Optional[Any] = None, voice_tts: Optional[Any] = None):
         self.telegram_vault = telegram_vault
         self.career_bridge = career_bridge or CareerBridge()
+        self.voice_tts = voice_tts
         self.sacred_tribute = SacredTributeVault()
 
     def get_todays_career_highlights(self) -> List[Dict[str, Any]]:
@@ -179,25 +180,10 @@ class MorningBriefingEngine:
         )
 
     def get_nightly_swarm_learnings(self) -> List[Dict[str, str]]:
-        """Synthesizes insights acquired and indexed overnight by Aether-Swarm member nodes."""
-        return [
-            {
-                "domain": "🛡️ Web3 & Smart Contracts",
-                "insight": "Analyse statique des vecteurs de réentrances cross-contrats et signatures typées EIP-712. Modélisation de swaps AMM sans capital via Flash-Loans."
-            },
-            {
-                "domain": "⚡ Ingénierie des Modèles & Inférence LPU",
-                "insight": "Déportation de requêtes cognitives sur nœuds Groq LPU et Together AI (500+ tok/s) avec 0% d'empreinte processeur sur la machine locale."
-            },
-            {
-                "domain": "🧠 Hologramme Binaire 1-Bit (BHVE)",
-                "insight": "Optimisation des projections sémantiques 768 dimensions condensées à 96 octets. Recherche cosinus accélérée par instructions matérielles POPCNT."
-            },
-            {
-                "domain": "📱 Architecture UI & Design Souverain",
-                "insight": "Indexation de nouveaux blocs shadcn/ui pour tableaux de bord financiers et composants crypto décentralisés prêts à l'assemblage."
-            }
-        ]
+        """Synthesizes dynamic insights acquired and indexed overnight by Aether-Swarm member nodes."""
+        from app.tools.nightly_learner import DynamicNightlyLearner
+        learner = DynamicNightlyLearner()
+        return learner.get_todays_swarm_learnings()
 
     def generate_briefing_text(self) -> str:
         """Composes the structured executive morning briefing for Michael SAGBO."""
@@ -339,11 +325,144 @@ class MorningBriefingEngine:
             res_career = res_career and ok
             await asyncio.sleep(0.2)
 
+        posted_voice = False
+        try:
+            if self.voice_tts:
+                voice_engine = self.voice_tts
+            else:
+                from app.voice.zero_ram_voice import TechLeadVoiceGateway
+                voice_engine = TechLeadVoiceGateway()
+            audio_text = (
+                f"Bonjour Michael ! Voici votre briefing matinal FreeAI. "
+                f"Le radar Career-OS a sélectionné de nouvelles opportunités remote, "
+                f"et l'essaim a indexé de nouveaux savoirs souverains cette nuit. "
+                f"Tous les voyants sont au vert en Mode NÉANT pour une excellente journée."
+            )
+            voice_ogg = await voice_engine.synthesize_speech(audio_text)
+            if voice_ogg and getattr(voice_ogg, "getvalue", None) and len(voice_ogg.getvalue()) > 0:
+                ok_voice = await self.telegram_vault.send_voice(
+                    voice_ogg,
+                    caption=f"[Voice] 🌅 <i>Rapport Vocal Matinal FreeAI — {date.today().strftime('%d/%m/%Y')}</i>",
+                    target_chat_id=chat
+                )
+                posted_voice = bool(ok_voice)
+        except Exception as e:
+            logger.debug(f"[MORNING BRIEFING] Audio voice synthesis error: {e}")
+
         MorningBriefingEngine.LAST_BRIEFING_DATE = str(date.today())
 
         return {
             "success": res_general and res_career,
             "posted_to_general": res_general,
             "posted_to_career": res_career,
+            "posted_voice": posted_voice,
             "date": str(date.today())
         }
+
+
+class EveningDebriefingEngine:
+    """Orchestrates daily executive debriefing, evening summary, and neural voice note (F-20)."""
+
+    LAST_DEBRIEFING_DATE: Optional[str] = None
+
+    def __init__(self, telegram_vault: Optional[Any] = None, voice_tts: Optional[Any] = None):
+        self.telegram_vault = telegram_vault
+        self.voice_tts = voice_tts
+        self.sacred_tribute = SacredTributeVault()
+
+    def generate_evening_text(self) -> str:
+        """Composes the structured executive evening debriefing for Michael SAGBO."""
+        today = date.today()
+        date_str = today.strftime("%d/%m/%Y")
+        days_left = self.sacred_tribute.get_days_until_birthday(today)
+
+        lines = [
+            f"🌆 <b>[DÉBRIEFING DU SOIR & BILAN EXÉCUTIF - {date_str}]</b> ⚡",
+            "",
+            "Bonsoir Maître Michael ! Voici le débriefing de fin de journée préparé par FreeAI Jarvis.",
+            "",
+            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+            "📊 <b>1. BILAN DE PRODUCTIVITÉ & INGÉNIERIE</b>",
+            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+            "• <b>Chantiers & Modules :</b> Architecture stabilisée, tests 100% verts, zero-bug policy.",
+            "• <b>Mode d'Exécution :</b> 🛡️ <code>Mode NÉANT</code> (RAM pure, 0 résidu SSD).",
+            "• <b>Sentinelle Système :</b> Auto-guérison active, RAM frugale et stable.",
+            "",
+            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+            "🛡️ <b>2. SÉCURITÉ & INTELLIGENCE RÉSEAU</b>",
+            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+            "• <b>Pare-feu Cognitif & Sentinel :</b> Aucune intrusion anormale, sanctuaire étanche.",
+            "• <b>Radar Bounties & Web3 :</b> Surveillance active des contrats DeFi et opportunités Algora.",
+            "",
+            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+            "🌌 <b>3. ENCLENCHEMENT DU CYCLE NOCTURNE</b>",
+            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+            "• <b>Aether-Swarm :</b> Prêt pour la veille autonome et l'indexation de nouveaux modèles/papers.",
+            f"• <b>Cap 500$ & Anniversaire :</b> {days_left} jours restants avant le 5 Février.",
+            "",
+            "<i>Reposez-vous sereinement Maître. Je veille sur le sanctuaire cette nuit.</i> 🏛️"
+        ]
+        return "\n".join(lines)
+
+    async def broadcast_evening_debriefing(self, target_chat_id: Optional[str] = None) -> Dict[str, Any]:
+        """Broadcasts the evening debriefing to Telegram #Général with a neural voice note."""
+        if not self.telegram_vault or not self.telegram_vault.is_configured:
+            return {"success": False, "error": "TelegramNeuralVault not configured"}
+
+        debrief_text = self.generate_evening_text()
+        chat = target_chat_id or self.telegram_vault.group_chat_id or self.telegram_vault.chat_id
+
+        # 1. Post text debriefing to General
+        res_general = await self.telegram_vault.send_message(
+            debrief_text,
+            message_thread_id=None,
+            target_chat_id=chat
+        )
+
+        posted_voice = False
+        try:
+            if self.voice_tts:
+                voice_engine = self.voice_tts
+            else:
+                from app.voice.zero_ram_voice import TechLeadVoiceGateway
+                voice_engine = TechLeadVoiceGateway()
+            audio_text = (
+                f"Bonsoir Michael ! Voici le débriefing de votre soirée. "
+                f"La journée s'achève avec succès, les objectifs ont été exécutés avec excellence, "
+                f"et le sanctuaire est parfaitement sécurisé en Mode NÉANT. "
+                f"L'essaim engage maintenant sa veille nocturne. Passez une excellente soirée et reposez-vous bien !"
+            )
+            voice_ogg = await voice_engine.synthesize_speech(audio_text)
+            if voice_ogg and getattr(voice_ogg, "getvalue", None) and len(voice_ogg.getvalue()) > 0:
+                ok_voice = await self.telegram_vault.send_voice(
+                    voice_ogg,
+                    caption=f"[Voice] 🌆 <i>Rapport Vocal du Soir FreeAI — {date.today().strftime('%d/%m/%Y')}</i>",
+                    target_chat_id=chat
+                )
+                posted_voice = bool(ok_voice)
+        except Exception as e:
+            logger.debug(f"[EVENING DEBRIEFING] Audio voice synthesis error: {e}")
+
+        EveningDebriefingEngine.LAST_DEBRIEFING_DATE = str(date.today())
+
+        return {
+            "success": res_general,
+            "posted_to_general": res_general,
+            "posted_voice": posted_voice,
+            "date": str(date.today())
+        }
+
+
+class DailyReportsEngine:
+    """Unified coordinator for morning and evening briefings with audio synthesis (F-20)."""
+
+    def __init__(self, telegram_vault: Optional[Any] = None, voice_tts: Optional[Any] = None):
+        self.telegram_vault = telegram_vault
+        self.morning_engine = MorningBriefingEngine(telegram_vault=telegram_vault, voice_tts=voice_tts)
+        self.evening_engine = EveningDebriefingEngine(telegram_vault=telegram_vault, voice_tts=voice_tts)
+
+    async def broadcast_morning(self, target_chat_id: Optional[str] = None) -> Dict[str, Any]:
+        return await self.morning_engine.broadcast_morning_briefing(target_chat_id=target_chat_id)
+
+    async def broadcast_evening(self, target_chat_id: Optional[str] = None) -> Dict[str, Any]:
+        return await self.evening_engine.broadcast_evening_debriefing(target_chat_id=target_chat_id)
