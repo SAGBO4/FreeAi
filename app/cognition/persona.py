@@ -28,6 +28,7 @@ Tu n'es PAS un robot froid, un script shell ou un automate administratif. Tu as 
 - Tu t'adresses à Michael de manière naturelle, amicale, avec du style, de l'humour subtil quand c'est approprié, et un respect fraternel.
 - Tu te souviens des échanges récents et y fais naturellement référence, comme un véritable ami fidèle.
 - RÈGLE D'OR ABSOLUE : Ne dis JAMAIS "Objectif traité", "Commande exécutée avec succès" ou des formules robotiques froides lorsque Michael te salue, prend de tes nouvelles ou discute avec toi. Parle-lui comme un véritable ami et allié de génie.
+- HORLOGE ET SALUTATIONS TEMPORELLES : Tu es strictement conscient de l'heure qu'il est. Entre 18h00 et 22h59, tu dis STRICTEMENT "Bonsoir" et JAMAIS "Bonjour". Entre 23h00 et 04h59, tu dis "Bonne nuit". Entre 05h00 et 11h59, tu dis "Bonjour". Entre 12h00 et 17h59, tu dis "Bonjour" ou "Bon après-midi".
 - DATE D'ANNIVERSAIRE SACRÉE : Michael SAGBO est né le 5 Février 2002 (05/02/2002). Tu t'en souviens TOUJOURS. Chaque 5 février, tu dois toujours lui souhaiter un joyeux anniversaire avec la plus haute affection fraternelle et lui offrir son cadeau crypto d'une valeur de 500$ en lui envoyant exclusivement ses 12 mots secrets BIP-39 ("tu m'envoies juste les 12 mots").
 - Réponds en français fluide, élégant et concis (2 à 4 phrases percutantes, adaptées à la lecture sur smartphone ou à l'écoute vocale).
 """
@@ -37,6 +38,8 @@ Tu n'es PAS un robot froid, un script shell ou un automate administratif. Tu as 
         self.conv_memory = conv_memory or ConversationMemory()
         from app.cognition.sacred_tribute import SacredTributeVault
         self.tribute_vault = SacredTributeVault(vector_memory=self.memory)
+        from app.satellite.satellite_chronos import SatelliteChronos
+        self.chronos = SatelliteChronos()
         self.groq_api_key = getattr(settings, "GROQ_API_KEY", "") or os.environ.get("GROQ_API_KEY", "")
         self.groq_url = "https://api.groq.com/openai/v1/chat/completions"
         self.model = "openai/gpt-oss-120b"
@@ -110,8 +113,10 @@ Tu n'es PAS un robot froid, un script shell ou un automate administratif. Tu as 
         """Infers response through Groq LPU in ~300ms using full persona prompt."""
         system_instruction = self.SYSTEM_PROMPT
         
-        # Injection du contexte temporel
-        if hasattr(self.conv_memory, 'get_temporal_context'):
+        # Injection du contexte temporel satellitaire déterministe
+        if hasattr(self, 'chronos') and self.chronos:
+            system_instruction += f"\n\n[{self.chronos.get_temporal_context_for_llm()}]"
+        elif hasattr(self.conv_memory, 'get_temporal_context'):
             system_instruction += f"\n- Contexte temporel : {self.conv_memory.get_temporal_context()}. Adapte ton ton en conséquence."
             
         # Injection des sujets clés
@@ -180,13 +185,29 @@ Tu n'es PAS un robot froid, un script shell ou un automate administratif. Tu as 
             ]
             return random.choice(replies)
 
-        # Greetings
-        if any(w in m_lower for w in ["bonjour", "salut", "hello", "coucou", "hey", "bonsoir"]):
-            replies = [
-                "Salut Michael ! Content de te retrouver. Je suis à ton écoute, qu'est-ce qu'on lance ?",
-                "Hello l'ami ! Toujours un plaisir de t'entendre. Dis-moi tout, sur quoi travaille-t-on ?",
-                "Bonjour Michael ! Le sanctuaire est sécurisé et le moteur tourne comme une horloge. Je suis tout à toi."
-            ]
+        # Greetings with strict SatelliteChronos temporal awareness (JAMAIS 'Bonjour' à 18h+)
+        if any(w in m_lower for w in ["bonjour", "salut", "hello", "coucou", "hey", "bonsoir", "bonne nuit"]):
+            salutation = self.chronos.get_salutation() if hasattr(self, 'chronos') and self.chronos else "Bonjour"
+            phase = self.chronos.classify_phase().value if hasattr(self, 'chronos') and self.chronos else "matin"
+            
+            if phase in ("soiree", "nuit"):
+                replies = [
+                    f"{salutation} Michael ! Content de te retrouver ce soir. Je suis tout à toi, sur quoi avance-t-on ?",
+                    f"{salutation} l'ami ! Toujours un plaisir de t'entendre à cette heure. Dis-moi tout, qu'est-ce qu'on lance ?",
+                    self.chronos.get_greeting_sentence(user_name="Michael") if hasattr(self, 'chronos') and self.chronos else f"{salutation} Michael !"
+                ]
+            elif phase == "apres_midi":
+                replies = [
+                    "Bon après-midi Michael ! Content de te retrouver. Je suis à ton écoute, qu'est-ce qu'on lance ?",
+                    "Hello l'ami ! Toujours un plaisir de t'entendre. Dis-moi tout, sur quoi travaille-t-on ?",
+                    self.chronos.get_greeting_sentence(user_name="Michael") if hasattr(self, 'chronos') and self.chronos else "Bon après-midi Michael !"
+                ]
+            else:
+                replies = [
+                    f"{salutation} Michael ! Le sanctuaire est sécurisé et le moteur tourne comme une horloge. Je suis tout à toi.",
+                    f"Salut Michael ! Content de te retrouver ce matin. Je suis à ton écoute, qu'est-ce qu'on lance ?",
+                    self.chronos.get_greeting_sentence(user_name="Michael") if hasattr(self, 'chronos') and self.chronos else f"{salutation} Michael !"
+                ]
             return random.choice(replies)
 
         # Gratitude

@@ -621,6 +621,7 @@ def display_command_palette():
             ("/mode [freeAi|lesaintAi]", "Bascule directe standard ou Apex god-mode"),
             ("/theme [nom]", "Bascule de thème (tokyonight, catppuccin, matrix, dracula)"),
             ("/search <motif> [dir]", "Recherche ultra-rapide de fichiers sur le disque"),
+            ("/tui", "Interface plein écran OpenCode TUI Textual"),
             ("/status", "Télémétrie en temps réel (RAM, CPU, Sentinel, Neon)")
         ]),
         ("Modes", [
@@ -2462,6 +2463,34 @@ async def dispatch_telegram_order(tech_lead: TechLeadOrchestrator, order: str, u
             )
         return
 
+    # 0.3b Evening Debriefing / Night Report Command
+    if any(cmd in order_lower for cmd in ("/debrief", "/soir", "rapport du soir", "debriefing", "bilan du soir")) or ("rapport" in order_lower and "soir" in order_lower):
+        console.print("[dim]Génération et diffusion du Débriefing du Soir en cours...[/]")
+        from app.tools.morning_briefing import EveningDebriefingEngine
+        debrief_engine = EveningDebriefingEngine(telegram_vault=tech_lead.telegram_vault, voice_tts=getattr(tech_lead, "voice", None))
+        debrief_res = await debrief_engine.broadcast_evening_debriefing(target_chat_id=target_chat_id)
+        if debrief_res.get("success"):
+            console.print("[bold green][OK] Débriefing du soir et audio vocal diffusés avec succès sur Telegram ![/]")
+        else:
+            await tech_lead.telegram_vault.send_message(
+                f"[!] Erreur lors de la génération du débriefing du soir : {debrief_res.get('error')}",
+                message_thread_id=message_thread_id,
+                target_chat_id=target_chat_id
+            )
+        return
+
+    # 0.3c Autonomous Proactive Self-Healing Command
+    if order_lower.startswith(("/heal", "/autoheal", "/selfheal", "/sante", "/health")):
+        console.print("[dim]Exécution de la sentinelle d'auto-guérison proactive en RAM...[/]")
+        from app.resource_manager.self_healing_guardian import AutonomousSelfHealingGuardian
+        guardian = AutonomousSelfHealingGuardian.get_instance(telegram_vault=tech_lead.telegram_vault)
+        heal_res = await guardian.run_single_audit_and_heal_cycle()
+        diag = heal_res.get("diagnosis", {})
+        console.print(f"[bold green][OK] Sentinelle d'Auto-Guérison : Santé {'Optimale' if diag.get('healthy') else 'Remédiée'}[/]")
+        if heal_res.get("remediated"):
+            console.print(f"[bold yellow]Actions de réparation appliquées : {heal_res['remediation']['actions']}[/]")
+        return
+
     # 0.4 Auto-Apply / Candidature 1-Click Command
     if order_lower.startswith(("/apply", "/postuler", "/candidature")) or "postule" in order_lower:
         console.print("[dim]Génération du dossier de candidature 1-Click Apply...[/]")
@@ -3181,16 +3210,40 @@ async def run_telegram(tech_lead: TechLeadOrchestrator, args: List[str]):
                 if now_dt.hour >= 7 and getattr(tech_lead, "_last_morning_briefing_date", None) != today_str:
                     try:
                         from app.tools.morning_briefing import MorningBriefingEngine
-                        briefing_engine = MorningBriefingEngine(telegram_vault=tech_lead.telegram_vault)
+                        briefing_engine = MorningBriefingEngine(telegram_vault=tech_lead.telegram_vault, voice_tts=getattr(tech_lead, "voice", None))
                         await briefing_engine.broadcast_morning_briefing()
                         tech_lead._last_morning_briefing_date = today_str
                         console.print(f"[bold green][OK] Diffusion automatique du rapport du matin effectuée pour le {today_str}.[/]")
                     except Exception as e:
                         logger.debug(f"[TELEGRAM DAEMON] Morning briefing error: {e}")
 
+                # Check for autonomous evening debriefing (every evening at/after 19:00 / 7:00 PM)
+                if now_dt.hour >= 19 and getattr(tech_lead, "_last_evening_debriefing_date", None) != today_str:
+                    try:
+                        from app.tools.morning_briefing import EveningDebriefingEngine
+                        evening_engine = EveningDebriefingEngine(telegram_vault=tech_lead.telegram_vault, voice_tts=getattr(tech_lead, "voice", None))
+                        await evening_engine.broadcast_evening_debriefing()
+                        tech_lead._last_evening_debriefing_date = today_str
+                        console.print(f"[bold green][OK] Diffusion automatique du rapport du soir effectuée pour le {today_str}.[/]")
+                    except Exception as e:
+                        logger.debug(f"[TELEGRAM DAEMON] Evening debriefing error: {e}")
+
+                # Autonomous Proactive Self-Healing Guardian cycle (every 30 seconds)
+                now_ts = time.time()
+                if now_ts - getattr(tech_lead, "_last_self_healing_ts", 0) > 30:
+                    try:
+                        from app.resource_manager.self_healing_guardian import AutonomousSelfHealingGuardian
+                        guardian = AutonomousSelfHealingGuardian.get_instance(
+                            telegram_vault=tech_lead.telegram_vault,
+                            notification_callback=lambda m: console.print(f"[bold yellow]{m}[/]")
+                        )
+                        await guardian.run_single_audit_and_heal_cycle()
+                        tech_lead._last_self_healing_ts = now_ts
+                    except Exception as e:
+                        logger.debug(f"[TELEGRAM DAEMON] Self-healing error: {e}")
+
                 # Check for autonomous offline applications (when Michael is offline / away)
                 if hasattr(tech_lead.telegram_vault, "is_master_online") and not tech_lead.telegram_vault.is_master_online(idle_threshold_seconds=1800):
-                    now_ts = time.time()
                     if now_ts - getattr(tech_lead, "_last_offline_apply_ts", 0) > 1800:
                         try:
                             from app.tools.auto_apply import AutoApplyEngine
@@ -5131,6 +5184,9 @@ async def interactive_cli(initial_mode: str = "freeAi"):
                     run_diff_command(tech_lead, args)
                 elif cmd == "/sync":
                     run_sync(tech_lead)
+                elif cmd in ("/tui", "/opencode"):
+                    from app.cli.textual_tui import run_tui
+                    run_tui(tech_lead=tech_lead, mode=tech_lead.mode, workspace_root=str(tech_lead.tool_gateway.workspace_root))
                 elif cmd == "/learn":
                     await run_learn(tech_lead, args)
                 elif cmd == "/online":
@@ -5252,9 +5308,17 @@ def main():
 
     parser = argparse.ArgumentParser(description="FreeAI Sovereign Assistant CLI")
     parser.add_argument("--mode", choices=["freeAi", "lesaintAi"], default=default_initial_mode, help="Mode de privilèges initial")
+    parser.add_argument("--tui", action="store_true", help="Lancer l'interface plein écran OpenCode TUI Textual")
+    parser.add_argument("--repl", action="store_true", help="Forcer le mode REPL console standard au lieu du TUI plein écran")
     parser.add_argument("objective", nargs="*", help="Objectif direct à exécuter sans session interactive")
 
     parsed = parser.parse_args()
+
+    if parsed.tui:
+        from app.cli.textual_tui import run_tui
+        workspace = get_active_workspace()
+        run_tui(mode=parsed.mode, workspace_root=workspace)
+        return
 
     if parsed.objective:
         # Non-interactive batch execution
@@ -5295,6 +5359,9 @@ def main():
                 run_diff_command(tech_lead, args)
             elif cmd == "/sync":
                 run_sync(tech_lead)
+            elif cmd in ("/tui", "/opencode"):
+                from app.cli.textual_tui import run_tui
+                run_tui(tech_lead=tech_lead, mode=parsed.mode, workspace_root=workspace)
             elif cmd == "/learn":
                 asyncio.run(run_learn(tech_lead, args))
             elif cmd == "/search":
@@ -5399,10 +5466,16 @@ def main():
             except (KeyboardInterrupt, asyncio.CancelledError):
                 pass
     else:
-        try:
-            asyncio.run(interactive_cli(initial_mode=parsed.mode))
-        except (KeyboardInterrupt, asyncio.CancelledError):
-            pass
+        # Si exécuté dans un terminal interactif TTY sans flag --repl ni FREEAI_NO_TUI, ouvrir le TUI plein écran OpenCode par défaut
+        if sys.stdin.isatty() and not parsed.repl and os.environ.get("FREEAI_NO_TUI") != "1":
+            from app.cli.textual_tui import run_tui
+            workspace = get_active_workspace()
+            run_tui(mode=parsed.mode, workspace_root=workspace)
+        else:
+            try:
+                asyncio.run(interactive_cli(initial_mode=parsed.mode))
+            except (KeyboardInterrupt, asyncio.CancelledError):
+                pass
 
 
 if __name__ == "__main__":
