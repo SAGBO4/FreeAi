@@ -7,6 +7,9 @@ on:
 jobs:
   evolve:
     runs-on: ubuntu-latest
+    env:
+      ACTIONS_RUNNER_FORCE_NODE24: "true"
+      NODE_OPTIONS: "--no-deprecation"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
