@@ -166,3 +166,31 @@ class TestCredoSentinel:
                 assert "Collaborateur1" in payload.get("text", "")
         import asyncio
         asyncio.run(_run())
+
+    def test_rule_8_ci_sovereignty_detects_outdated_actions(self, sentinel):
+        fake_diff = (
+            "diff --git a/.github/workflows/deploy.yml b/.github/workflows/deploy.yml\n"
+            "--- a/.github/workflows/deploy.yml\n"
+            "+++ b/.github/workflows/deploy.yml\n"
+            "@@ -10,3 +10,3 @@\n"
+            "+      - uses: actions/checkout@v4\n"
+            "+      - uses: actions/setup-python@v5\n"
+        )
+        fake_status = "M\t.github/workflows/deploy.yml\n"
+
+        with patch("subprocess.run") as mock_run:
+            def side_effect(cmd, **kwargs):
+                if "--name-status" in cmd:
+                    return MagicMock(returncode=0, stdout=fake_status)
+                if "-U3" in cmd:
+                    return MagicMock(returncode=0, stdout=fake_diff)
+                return MagicMock(returncode=0, stdout="")
+            mock_run.side_effect = side_effect
+
+            result = sentinel.audit_git_diff("base", "head")
+            assert not result["passed"]
+            rule_8_findings = [f for f in result["findings"] if f["rule_id"] == "RULE-8-CI-DEPRECATED-ACTION"]
+            assert len(rule_8_findings) == 2
+            assert any("checkout" in f["message"] for f in rule_8_findings)
+            assert any("setup-python" in f["message"] for f in rule_8_findings)
+

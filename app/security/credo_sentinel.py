@@ -60,6 +60,13 @@ TELEMETRY_PATTERNS = [
     (re.compile(r"https?://(?:www\.)?(?:google-analytics\.com|segment\.io|posthog\.com|api\.mixpanel\.com)", re.I), "Spy telemetry beacon URL"),
 ]
 
+# Outdated actions targeting EOL Node runtimes (violating Sovereign CI Frugality)
+OUTDATED_ACTION_PATTERNS = [
+    (re.compile(r"actions/checkout@(v[1-4])\b"), "Outdated actions/checkout targeting deprecated Node 20 runtime (v7 required)"),
+    (re.compile(r"actions/setup-python@(v[1-5])\b"), "Outdated actions/setup-python targeting deprecated Node 20 runtime (v7 required)"),
+    (re.compile(r"actions/github-script@(v[1-7])\b"), "Outdated actions/github-script targeting deprecated Node 20 runtime (v9 required)"),
+]
+
 
 class CredoAuditFinding:
     """Represents a single violation or warning found during audit."""
@@ -231,6 +238,19 @@ class CredoSentinel:
                                     sample=added_code
                                 ))
 
+                # Rule 8: Sovereign CI Workflow Runtime Integrity (No Deprecated Node Actions)
+                if current_file.startswith(".github/workflows/"):
+                    for pat, desc in OUTDATED_ACTION_PATTERNS:
+                        if pat.search(added_code):
+                            findings.append(CredoAuditFinding(
+                                rule_id="RULE-8-CI-DEPRECATED-ACTION",
+                                severity="HIGH",
+                                file_path=current_file,
+                                line_no=current_line,
+                                message=f"VIOLATION SOUVERAINETÉ CI : Action obsolète ({desc})",
+                                sample=added_code
+                            ))
+
             elif not line.startswith("-"):
                 current_line += 1
 
@@ -288,7 +308,7 @@ class CredoSentinel:
             f"({audit_result.get('touched_files_count', 0)} fichiers examinés)",
             "",
             "---",
-            "## 📋 Matrice des 7 Piliers Sacrés du Credo",
+            "## 📋 Matrice des 8 Piliers Sacrés du Credo",
             "",
             "| Pilier du Credo | Statut | Règle Souveraine |",
             "| :--- | :---: | :--- |",
@@ -299,6 +319,7 @@ class CredoSentinel:
             "| **5. Conscience Temporelle** | ✓ Conforme | Horloge satellitaire & salutation courtoise |",
             "| **6. Sécurité Anti-Malveillance** | " + ("✓ Conforme" if not any(f['rule_id'] == 'RULE-6-MALICIOUS-PAYLOAD' for f in audit_result.get('findings', [])) else "✗ VETO CRITIQUE") + " | Pas de backdoor, reverse shell ni fuite de token |",
             "| **7. Intégrité des Tests Forge** | " + ("✓ Conforme" if not any(f['rule_id'] == 'RULE-7-ANTI-TAMPERING' for f in audit_result.get('findings', [])) else "✗ ALTÉRATION") + " | 0 test affaibli ou supprimé |",
+            "| **8. Souveraineté CI & Runtimes** | " + ("✓ Conforme" if not any(f['rule_id'] == 'RULE-8-CI-DEPRECATED-ACTION' for f in audit_result.get('findings', [])) else "✗ OBSOLESCENCE") + " | 0 runtime EOL, actions natives Node 24 |",
             ""
         ]
 
