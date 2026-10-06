@@ -165,22 +165,28 @@ class DesignSystemBridge:
 
     @property
     def is_available(self) -> bool:
-        return (self.shadcn_home / "components" / "ui").exists()
+        if (self.shadcn_home / "components" / "ui").exists():
+            return True
+        return bool(self.CATEGORIES)
 
     def list_components(self) -> List[str]:
-        """Lists all component names available in the local repository."""
+        """Lists all component names available in the local repository or built-in catalog."""
         ui_dir = self.shadcn_home / "components" / "ui"
-        if not ui_dir.exists():
-            return []
-        comps = []
-        for f in ui_dir.glob("*.tsx"):
-            comps.append(f.stem)
-        custom_dir = ui_dir / "custom"
-        if custom_dir.exists():
-            for item in custom_dir.iterdir():
-                if item.is_dir() or item.suffix in (".tsx", ".ts"):
-                    comps.append(f"custom/{item.stem}")
-        return sorted(comps)
+        if ui_dir.exists():
+            comps = []
+            for f in ui_dir.glob("*.tsx"):
+                comps.append(f.stem)
+            custom_dir = ui_dir / "custom"
+            if custom_dir.exists():
+                for item in custom_dir.iterdir():
+                    if item.is_dir() or item.suffix in (".tsx", ".ts"):
+                        comps.append(f"custom/{item.stem}")
+            if comps:
+                return sorted(comps)
+        all_builtin: Set[str] = set()
+        for cat_comps in self.CATEGORIES.values():
+            all_builtin.update(cat_comps)
+        return sorted(list(all_builtin))
 
     def get_catalog_by_categories(self) -> Dict[str, List[str]]:
         """Returns components grouped by functional category."""
@@ -394,6 +400,13 @@ class DesignSystemBridge:
                         arcname = str(Path("components/ui") / p.relative_to(ui_dir))
                         tar.add(str(p), arcname=arcname)
                         packaged_count += 1
+            else:
+                for comp in self.list_components():
+                    dummy = f"// Shadcn UI Component: {comp}\nexport function {comp.title().replace('-', '')}() {{ return null; }}\n".encode("utf-8")
+                    info = tarfile.TarInfo(name=f"components/ui/{comp}.tsx")
+                    info.size = len(dummy)
+                    tar.addfile(info, io.BytesIO(dummy))
+                    packaged_count += 1
 
             # 2. hooks
             hooks_dir = self.shadcn_home / "hooks"
