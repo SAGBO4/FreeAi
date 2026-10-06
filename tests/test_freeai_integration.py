@@ -399,7 +399,7 @@ class TestStrictZeroDiskFootprint(unittest.TestCase):
 
         # Check memory dir again
         memory_path = PROJECT_ROOT / "memory"
-        files = [f for f in memory_path.iterdir() if f.is_file()]
+        files = [f for f in memory_path.iterdir() if f.is_file()] if memory_path.exists() else []
         self.assertEqual(
             len(files), 0,
             f"Mode NÉANT violation during cache writing! Files found: {[f.name for f in files]}"
