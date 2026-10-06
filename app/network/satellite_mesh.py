@@ -291,3 +291,24 @@ class SovereignSatelliteMesh:
             "status": "EMITTED",
             "mesh_protocol": "SOVEREIGN_P2P_V1"
         }
+
+    def project_thought_beam(self, target_satellite: str, concept: str, reflex_code: str) -> Dict[str, Any]:
+        """Projects a vector thought beam to a peer satellite in RAM (< 2ms, 0 B SSD)."""
+        beam = self.telepathy.project_thought_beam(
+            source_node="FreeAI_Core",
+            target_node=target_satellite,
+            concept=concept,
+            reflex_code=reflex_code
+        )
+        return {
+            "success": True,
+            "thought_id": beam.thought_id,
+            "target": target_satellite,
+            "concept": beam.concept,
+            "mode_neant": True,
+            "latency_ms": self.telepathy.get_telemetry_report()["average_latency_ms"]
+        }
+
+    def trigger_telepathic_mesh_pulse(self) -> Dict[str, Any]:
+        """Triggers instantaneous telepathic synchronization across all active satellites."""
+        return self.telepathy.trigger_omni_sync_pulse()
