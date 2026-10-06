@@ -35,6 +35,8 @@ COMMAND_DEFINITIONS: List[Tuple[str, str]] = [
     ("/synapse", "Radar d'anticipation synaptique & matrice d'hologramme de pensée"),
     ("/causal", "HyperMesh Causal Singularity & Diagnostic Quadri-Vectoriel"),
     ("/hypermesh", "HyperMesh Causal Singularity & Diagnostic Quadri-Vectoriel"),
+    ("/mesh", "Satellite Mesh & Passerelle Machine-à-Machine (Forge & Laurince)"),
+    ("/satellite", "Satellite Mesh & Passerelle Machine-à-Machine (Forge & Laurince)"),
     ("/help", "Manuel et guide d'utilisation"),
     ("/exit", "Arrêt propre de la session FreeAI"),
 ]
