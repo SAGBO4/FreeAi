@@ -1707,6 +1707,16 @@ def handle_mode_command(tech_lead: TechLeadOrchestrator, args: List[str]):
         return
 
     target = args[0]
+
+    # SECURITY INVARIANT: /mode lesaintAi must only be allowed inside a Docker container.
+    if target == "lesaintAi":
+        import os
+        in_docker = os.path.exists("/.dockerenv") or os.path.exists("/proc/1/cgroup") and "docker" in open("/proc/1/cgroup").read()
+        if not in_docker:
+            console.print("[bold red][SECURITY] REJETÉ : Le mode lesaintAi (sudo) ne peut être activé que dans un conteneur Docker sandboxé.[/]")
+            console.print("[dim]Utilisez : docker compose run freeai --mode lesaintAi[/]")
+            return
+
     res = tech_lead.set_mode(target)
     new_mode = res.get("mode")
 
@@ -2681,6 +2691,60 @@ async def dispatch_telegram_order(tech_lead: TechLeadOrchestrator, order: str, u
                 await tech_lead.telegram_vault.send_message(f"[!] Erreur de résolution : {sol_res.get('error')}", message_thread_id=message_thread_id, target_chat_id=target_chat_id)
         else:
             await tech_lead.telegram_vault.send_message("[!] Numéro de mission introuvable. Tapez /bounty pour voir la liste.", message_thread_id=message_thread_id, target_chat_id=target_chat_id)
+        return
+
+    # 0.7 Claim Bounty Command - Create real GitHub PR
+    if order_lower.startswith("/claim") or ("clame la mission" in order_lower or "claim la mission" in order_lower):
+        console.print("[dim]Création de la Pull Request réelle pour la mission sélectionnée...[/]")
+        from app.tools.bounty_radar import BountyRadarEngine
+        bounty_radar = BountyRadarEngine(telegram_vault=tech_lead.telegram_vault, federation=tech_lead.federation)
+        bounties = await bounty_radar.scan_bounties(limit=5)
+        if not bounties:
+            await tech_lead.telegram_vault.send_message("[!] Aucune mission de bounty disponible pour le moment.", message_thread_id=message_thread_id, target_chat_id=target_chat_id)
+            return
+        
+        # Parse optional bounty number from command
+        parts = order_clean.split()
+        b_idx = None
+        for p in parts:
+            if p.isdigit() and int(p) > 0:
+                b_idx = int(p)
+                break
+        
+        if b_idx is not None and 1 <= b_idx <= len(bounties):
+            # User specified a number, claim that bounty
+            target_b = bounties[b_idx - 1]
+            await tech_lead.telegram_vault.send_message(f"[⏳] Création de la PR pour : {target_b.title}...", message_thread_id=message_thread_id, target_chat_id=target_chat_id)
+            # Generate solution with create_pr=True
+            sol_res = await bounty_radar.solve_bounty(target_b, create_pr=True)
+            if sol_res.get("success"):
+                pkg = sol_res["package"]
+                # Check if PR was actually created
+                if pkg.get("_pr_creation_error"):
+                    error_msg = pkg["_pr_creation_error"]
+                    await tech_lead.telegram_vault.send_message(f"[!] Solution générée mais erreur PR : {error_msg}", message_thread_id=message_thread_id, target_chat_id=target_chat_id)
+                    console.print(f"[bold yellow][WARN] Solution générée, mais PR échoué ![/]")
+                else:
+                    pr_url = pkg.get("pr_url", "")
+                    reward = pkg.get("estimated_reward_usd", 75.0)
+                    bounty_id = pkg.get("bounty_id", "")
+                    msg = f"✅ <b>Pull Request créée avec succès !</b>\n"
+                    msg += f"🌐 <a href='{pr_url}'>Voir la PR sur GitHub</a>\n" if pr_url else ""
+                    msg += f"💰 <b>Récompense :</b> <code>${reward:.0f} USD</code>\n"
+                    msg += f"📋 <b>Bounty ID :</b> {bounty_id}\n"
+                    msg += f"🎯 <b>Mission :</b> {target_b.title}\n"
+                    await tech_lead.telegram_vault.send_message(msg, message_thread_id=message_thread_id, target_chat_id=target_chat_id)
+                    console.print(f"[bold green][OK] PR créée pour {bounty_id} ![/]")
+            else:
+                await tech_lead.telegram_vault.send_message(f"[!] Erreur lors de la résolution : {sol_res.get('error')}", message_thread_id=message_thread_id, target_chat_id=target_chat_id)
+        else:
+            # No number or invalid number, show the list
+            msg = "🎯 <b>Missions disponibles :</b>\n"
+            for idx, b in enumerate(bounties, 1):
+                msg += f"<code>#{idx}</code> {b.title} - <b>${b.reward_usd:.0f} USD</b> - {b.labels[0] if b.labels else 'général'}\n"
+            msg += "\nTapez `/claim <numéro>` pour créer la Pull Request réelle."
+            await tech_lead.telegram_vault.send_message(msg, message_thread_id=message_thread_id, target_chat_id=target_chat_id)
+            console.print(f"[bold green][OK] Bounties diffusés, affichage de la liste ![/]")
         return
 
     # 1. Native shortcut: /clone, /backup
@@ -5542,6 +5606,16 @@ def main():
         objective_text = " ".join(parsed.objective)
         workspace = get_active_workspace()
         rm = ResourceManager()
+
+        # SECURITY INVARIANT: lesaintAi can only run inside a Docker container
+        import os
+        in_docker = os.path.exists("/.dockerenv") or (
+            os.path.exists("/proc/1/cgroup") and "docker" in open("/proc/1/cgroup").read()
+        )
+        if parsed.mode == "lesaintAi" and not in_docker:
+            print("[SECURITY] Mode lesaintAi rejeté : hors conteneur Docker. Fallback vers freeAi.")
+            parsed.mode = "freeAi"
+
         gw = ToolGateway(
             workspace_root=workspace,
             allow_sudo=(parsed.mode == "lesaintAi"),
