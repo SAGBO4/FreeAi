@@ -29,3 +29,4 @@ video_presentations/
 .satellite_mesh_ledger.json
 .perpetual_growth_ledger.json
 jarvis_memory/
+cache/

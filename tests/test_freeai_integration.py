@@ -314,7 +314,16 @@ class TestNeonPostgresAdapter(unittest.TestCase):
 
     def setUp(self):
         self.neon = NeonMemoryManager()
-        if not self.neon.enabled:
+        is_live = False
+        if self.neon.enabled:
+            try:
+                conn = self.neon._get_connection()
+                conn.close()
+                is_live = True
+            except Exception:
+                is_live = False
+
+        if not is_live:
             self.neon.enabled = True
             self._mock_knowledge = {}
             self._mock_audit = []

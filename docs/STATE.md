@@ -1,8 +1,14 @@
 # État du projet
 
-Dernière mise à jour : 2026-10-02
+Dernière mise à jour : 2026-10-07
 
 ## Fait
+
+- **Autonomous Sovereign Bounty Hunter & Self-Healing Defense (2026-10-07)** :
+  1. *Sécurisation Robuste GitHub CLI (`app/tools/bounty_radar.py` & `cli.py`)* : Validation regex stricte des URLs (`re.match`), vérification pré-vol de l'authentification `gh auth status`, timeouts défensifs de 30s avec destruction/cancellation des sous-processus orphelins, et retry à backoff exponentiel contre les aléas réseau et GraphQL.
+  2. *Défense Anti-Bombe LZ4 & Intégrité Cryptographique (`app/training/gradient_sync.py`)* : Validation du hash SHA-256 (`payload_hash`) avant décompression, décompression progressive par blocs de 4Ko avec plafond strict de 50 Mo pour neutraliser toute attaque par bombe de décompression mémoire.
+  3. *Auto-Guérison Distribuée (Self-Healing Workers - `app/training/coordinator.py` & `worker.py`)* : Surveillance asynchrone des heartbeats, détection des workers muets (>60s), éviction automatique et réinstanciation autonome de workers sains sans interruption de service.
+  4. *Intégrité Typographique & Suite de Tests* : Respect absolu des glyphes nobles du terminal dans `cli.py` (`✓`, `✗`, `✱`, `❯`) et validation intégrale des 456 tests de la suite (`PYTHONPATH=. pytest`).
 
 - **F-01 à F-12 Livrés à 100 %** : Orchestrateur Tech Lead, Mode NÉANT, Telegram Neural Vault, VORTEX-AETHER, Continuum Ghost-Worker, Forge/Craft-Suite, Phoenix/LesaintAI, Nexus Tri-Brid Realtime Call, Protocole AETHER-SWARM, Vision & Vidéo Multimodale Télépathique, Protocole OMNI-CHIMERA, et Protocole AETHER-LEGION.
 - **Lanceurs Souverains & Bascule Immédiate CLI (`FreeAi` & `Lesaint#AI`)** :

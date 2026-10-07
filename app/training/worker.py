@@ -29,9 +29,34 @@ class FreeAIRemoteWorker:
     async def listen(self):
         """Polls coordinator for micro-batch assignments."""
         self.running = True
+        import httpx
+        
+        # Start heartbeat task
+        asyncio.create_task(self.send_heartbeat())
+        
         while self.running:
-            # Real HTTP contact would go here
+            try:
+                async with httpx.AsyncClient(timeout=10.0) as client:
+                    # Real HTTP contact would go here
+                    res = await client.get(f"{self.coordinator_url}/poll", params={"worker_id": self.worker_id})
+                    if res.status_code == 200:
+                        batch = res.read()
+                        if batch:
+                            await self.execute_batch(batch)
+            except Exception as e:
+                logger.debug(f"Worker listen timeout/error: {e}")
             await asyncio.sleep(1.0)
+
+    async def send_heartbeat(self):
+        """Sends periodic signed heartbeats to coordinator."""
+        import httpx
+        while self.running:
+            try:
+                async with httpx.AsyncClient(timeout=5.0) as client:
+                    await client.post(f"{self.coordinator_url}/heartbeat", json=self.heartbeat())
+            except Exception as e:
+                logger.debug(f"Worker heartbeat timeout/error: {e}")
+            await asyncio.sleep(10.0)
 
     async def execute_batch(self, batch: bytes) -> Dict[str, Any]:
         """Compute forward+backward on the worker's local GPU, return LZ4 gradient pulse."""

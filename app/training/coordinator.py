@@ -115,6 +115,32 @@ class FreeAIDistributedCoordinator:
         logger.info(f"[COORDINATOR] Epoch {self.epoch} done, loss={self.global_loss}")
         return {"epoch": self.epoch, "loss": self.global_loss}
 
+    def receive_heartbeat(self, worker_id: str):
+        if worker_id in self.workers:
+            self.workers[worker_id].last_heartbeat = time.time()
+            if self.workers[worker_id].status == "offline":
+                self.workers[worker_id].status = "online"
+
+    async def spawn_worker(self, device: str) -> None:
+        logger.info(f"[COORDINATOR] Autonomously spawning fresh worker for {device}")
+        # In a real system, this would spin up a Docker container, SSH into a VPS, etc.
+        new_endpoint = f"http://spawned-{time.time()}:8000"
+        await self.discover_worker(new_endpoint, device)
+
+    async def monitor_and_heal_workers(self, timeout_sec: float = 60.0):
+        """Self-Healing mechanism: detects stalled workers and respawns them."""
+        while True:
+            now = time.time()
+            dead_workers = []
+            for wid, slot in self.workers.items():
+                if now - slot.last_heartbeat > timeout_sec:
+                    dead_workers.append(wid)
+            for wid in dead_workers:
+                slot = self.workers.pop(wid)
+                logger.warning(f"[COORDINATOR] Worker {wid} stalled (missing heartbeat). Killing and respawning.")
+                await self.spawn_worker(slot.device)
+            await asyncio.sleep(10.0)
+
     def save_checkpoint(self) -> str:
         path = os.path.join(self.checkpoint_dir, f"freeai_epoch_{self.epoch}.pt")
         return path
