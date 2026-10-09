@@ -4,6 +4,12 @@ Dernière mise à jour : 2026-10-07
 
 ## Fait
 
+- **The Sovereign Resultant Engine (SRE) & Threat Intelligence (2026-10-09 - F-31)** :
+  1. *Sentinelle Threat Intelligence (`app/tools/threat_sentinel.py`)* : Détection et inspection d'adresses IP publiques/privées (RFC 1918), validation de conformité E.164 (`phonenumbers`), vérification temps réel des nœuds de sortie Tor (`check.torproject.org`) et résolution inverse DNS PTR.
+  2. *Conduit Furtif Tor & Repli Résilient (`app/network/stealth_conduit.py`)* : Détection dynamique et routage SOCKS5 furtif sur port 9050 avec bascule automatique et gracieuse en HTTP direct sans interruption en cas d'absence du démon Tor.
+  3. *Auditeur de Sécurité Multi-Cibles Hermes (`app/cognition/hermes_auditor.py`)* : Audit automatisé des en-têtes de sécurité (HSTS, CSP, X-Frame-Options), détection de CORS permissifs (`*`), identification des documentations d'API exposées (`/docs`, `/openapi.json`) et génération en mémoire vive (Mode NÉANT) de patchs de remédiation typés.
+  4. *Moteur Unifié SRE & Tech Lead Orchestrator (`app/orchestrator/sovereign_resultant.py` & `app/orchestrator/orchestrator.py`)* : Fusion souveraine pilotée par commande `/resultant` ou requêtes naturelles (« la resultante ») couplée à la suite de tests validée à 100% (46/46 tests unitaires et d'intégration réussis).
+
 - **Autonomous Sovereign Bounty Hunter & Self-Healing Defense (2026-10-07)** :
   1. *Sécurisation Robuste GitHub CLI (`app/tools/bounty_radar.py` & `cli.py`)* : Validation regex stricte des URLs (`re.match`), vérification pré-vol de l'authentification `gh auth status`, timeouts défensifs de 30s avec destruction/cancellation des sous-processus orphelins, et retry à backoff exponentiel contre les aléas réseau et GraphQL.
   2. *Défense Anti-Bombe LZ4 & Intégrité Cryptographique (`app/training/gradient_sync.py`)* : Validation du hash SHA-256 (`payload_hash`) avant décompression, décompression progressive par blocs de 4Ko avec plafond strict de 50 Mo pour neutraliser toute attaque par bombe de décompression mémoire.

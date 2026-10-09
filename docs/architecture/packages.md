@@ -16,6 +16,7 @@
 | security | app/security | Sentinelle Sanctuaire de la Vie et sandbox d'exécution | - |
 | satellite | app/satellite | Surveillance satellite globale et données spatiales temps réel | security |
 | tools | app/tools | Passerelle d'exécution d'outils contraints, sandbox et pont d'audit peer-sync | security |
+| training | app/training | Synchronisation de gradients, coordination et workers distribués | security |
 | cli | app/cli | Composants TUI, streaming de tokens et autocomplétion intelligente | - |
 | voice | app/voice | Synthèse vocale native Linux TTS et reconnaissance Groq Whisper STT | - |
 | web | app/web | Studio UI fidèle OpenCode v2, design system et interactions | api |

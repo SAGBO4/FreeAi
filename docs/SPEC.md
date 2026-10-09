@@ -39,3 +39,23 @@ The FreeAi project requires critical robustness and security remediations in its
 - **Scenario B:** The LZ4 payload is tampered with. The checksum validation fails, and the sync payload is dropped securely.
 - **Scenario C:** The network connection to GitHub drops during a bounty scan. The system pauses, applies exponential backoff, and resumes or fails gracefully.
 - **Scenario D:** A worker stalls during training sync. The coordinator detects the missing heartbeat, terminates the worker, and provisions a replacement.
+
+## 4. Feature F-31: The Sovereign Resultant Engine (SRE)
+
+### 4.1. Overview
+The Sovereign Resultant Engine unites Threat Intelligence, Tor Stealth Conduits, Multi-target Hermes Self-Healing Auditing (Local & Remote APIs), and Cloud Scout synthesis into a single autonomous pipeline.
+
+### 4.2. Requirements & Acceptance Criteria
+- **AC1: Threat Sentinel (IP/ASN & Tor Exit Inspection)**:
+  - `ThreatSentinel` evaluates public IP addresses, queries official Tor bulk exit node lists, resolves BGP/ASN metadata, and validates E.164 phone numbering schemas.
+- **AC2: Stealth Conduit (SOCKS5/Tor Dynamic Detection & Fallback)**:
+  - `StealthConduit` auto-detects active SOCKS5 proxy on `127.0.0.1:9050`. If Tor is offline, it falls back seamlessly to direct async egress without throwing unhandled exceptions.
+- **AC3: Hermes Multi-Target Security Auditor (Local, Staging & Remote APIs)**:
+  - `HermesAuditor` accepts any target URL (localhost, Docker containers, remote VPS, staging environments, bug bounty scopes).
+  - Performs non-destructive checks: HTTP security headers (HSTS, CSP, X-Frame-Options), permissive CORS (`*`), exposed documentation (`/docs`, `/openapi.json`), and information disclosure (stack traces).
+  - Generates typed remediation patches with specific header/config recommendations.
+- **AC4: Sovereign Resultant Synthesis**:
+  - `SovereignResultantEngine` coordinates ThreatSentinel, StealthConduit, HermesAuditor, and SovereignSearch.
+  - Returns a unified `ResultantReport` with actionable threat and audit telemetry in volatile RAM (Mode NÉANT, 0 unneeded disk writes).
+- **AC5: Zero-Simulation & Resilience Under Breakage**:
+  - Live socket checks, real HTTP request handling, and explicit failover when remote services return HTTP 5xx or connection errors.

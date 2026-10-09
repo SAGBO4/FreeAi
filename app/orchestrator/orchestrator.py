@@ -61,6 +61,7 @@ from app.tools.brag_engine import BragEngine
 from app.evolution.omni_chimera import OmniChimeraOrchestrator
 from app.cluster.aether_legion import AetherLegionOrchestrator
 from app.cluster.autonomous_members import AutonomousMemberSwarm, AutonomousMission
+from app.orchestrator.sovereign_resultant import SovereignResultantEngine
 
 logger = logging.getLogger("tech_lead_orchestrator")
 
@@ -195,6 +196,9 @@ class TechLeadOrchestrator:
             federation=self.free_ai.federation,
             tool_gateway=self.tool_gateway
         )
+
+        # Feature F-31: The Sovereign Resultant Engine (ThreatSentinel + StealthConduit + HermesAuditor)
+        self.sovereign_resultant = SovereignResultantEngine()
 
         # Specialized agents under Tech Lead supervision
         self.code_agent = CodeAgent(tool_gateway, forge_bridge=self.forge)
@@ -776,6 +780,21 @@ class TechLeadOrchestrator:
                 "stats": self.resource_manager.get_system_stats()
             }
 
+        # 1.1 Direct routing for Sovereign Resultant Engine (Feature F-31)
+        if any(k in objective.lower() for k in ("/resultant", "la resultante", "resultante")):
+            resultant_rep = await self.sovereign_resultant.execute_resultant_mission(
+                target_url=None,
+                target_ip=None,
+                recon_query=objective
+            )
+            return {
+                "success": resultant_rep.success,
+                "status": "completed",
+                "assigned_agent": "sovereign_resultant",
+                "resultant": resultant_rep.to_dict(),
+                "output": resultant_rep.summary
+            }
+
         # 2. Checkpoint workspace via Git before autonomous changes
         if autonomous:
             logger.info("[TECH LEAD] Creating safety checkpoint before autonomous execution...")
@@ -802,7 +821,20 @@ class TechLeadOrchestrator:
             "online_knowledge": online_knowledge
         }
 
-        if agent_type == "security":
+        if any(k in objective.lower() for k in ("/resultant", "la resultante", "resultante")):
+            resultant_rep = await self.sovereign_resultant.execute_resultant_mission(
+                target_url=context.get("target_url"),
+                target_ip=context.get("target_ip"),
+                recon_query=objective
+            )
+            result = {
+                "success": resultant_rep.success,
+                "status": "completed",
+                "assigned_agent": "sovereign_resultant",
+                "resultant": resultant_rep.to_dict(),
+                "output": resultant_rep.summary
+            }
+        elif agent_type == "security":
             result = await self.security_agent.execute_task(objective, context)
         elif agent_type == "git":
             result = await self.git_agent.execute_task(objective, context)

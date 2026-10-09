@@ -248,6 +248,33 @@ Ce document dresse l'état des lieux complet, rigoureux et transparent de chaque
   print(f"Moteur : {res.provider} | Succès : {res.success}")
   print(f"Synthèse : {res.answer}")
   for item in res.results:
+      print(f"- {item.title}: {item.url} (Score: {item.score})")
+  ```
+
+---
+
+### 12. La Résultante Souveraine (The Sovereign Resultant Engine - SRE)
+* **Fichiers :** `app/tools/threat_sentinel.py`, `app/network/stealth_conduit.py`, `app/cognition/hermes_auditor.py`, `app/orchestrator/sovereign_resultant.py`
+* **À quoi sert la fonctionnalité en détail :**
+  Apex-synthèse coordonnée par l'orchestrateur Tech Lead (`TechLeadOrchestrator`), unifiant 4 piliers d'intelligence défensive :
+  1. **Threat Sentinel (`ThreatSentinel`)** : Analyse de réputation IP, détection des nœuds de sortie officiels du réseau Tor via `check.torproject.org`, résolution PTR/DNS et validation syntaxique internationale E.164 (`phonenumbers`).
+  2. **Conduit de Furtivité (`StealthConduit`)** : Sonde en temps réel le port local SOCKS5 `127.0.0.1:9050`. Si Tor ou un proxy local est actif, achemine les requêtes de manière anonymisée ; si inactif, repli automatique et transparent vers une connexion directe sans interruption.
+  3. **Auditeur Multi-Cibles Hermes (`HermesAuditor`)** : Audite n'importe quelle URL cible (`localhost`, staging distant, VPS en cloud, portails d'APIs dans le scope d'un bug bounty). Analyse les en-têtes de sécurité (HSTS, CSP, X-Frame-Options), les CORS permissifs (`*`), l'exposition de documentation Swagger/OpenAPI (`/docs`, `/openapi.json`) et génère en mémoire vive des patchs de remédiation typés (`RemediationPatch`).
+  4. **Coordinateur Souverain (`SovereignResultantEngine`)** : Point d'entrée unique de la commande `/resultant`, assemblant l'ensemble des résultats dans un rapport d'exécution complet en mémoire volatile (Mode NÉANT, 0 octet écrit sur disque).
+* **Cas d'utilisation concret :**
+  ```python
+  from app.orchestrator.sovereign_resultant import SovereignResultantEngine
+
+  engine = SovereignResultantEngine()
+  report = await engine.execute_resultant_mission(
+      target_url="http://localhost:8000",
+      target_ip="185.220.101.5",
+      target_phone="+33612345678",
+      recon_query="dernières vulnérabilités kernel"
+  )
+  print(f"Mission : {report.mission_id} | Statut : {report.success}")
+  print(f"Synthèse : {report.summary}")
+  ```
       print(f" - [{item.score}] {item.title} ({item.url})")
   ```
 
