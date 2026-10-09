@@ -183,6 +183,65 @@ class TestSovereignSearchPipeline(unittest.TestCase):
 
             asyncio.run(_run())
 
+    def test_ac6_resilience_tavily_outage_fallback_to_local(self):
+        """AC6: Resilience under breakage: Tavily 500 error / timeout triggers seamless fallback to local tier."""
+        engine = SovereignSearchEngine(tavily_key="tvly-mock-broken-key")
+        local_mock_response = SearchEngineResponse(
+            query="failover test",
+            provider="local",
+            answer="Fallback local answer",
+            results=[SearchResultItem(title="Local Result", url="https://local.org", content="Content", score=0.8)],
+            success=True,
+            simulated=False
+        )
+
+        with patch.object(engine.tavily, "search", new_callable=AsyncMock) as mock_tavily_search, \
+             patch.object(engine.local, "search", new_callable=AsyncMock) as mock_local_search:
+            mock_tavily_search.return_value = SearchEngineResponse(
+                query="failover test",
+                provider="tavily",
+                answer="",
+                results=[],
+                success=False,
+                telemetry={"error": "500 Internal Server Error"}
+            )
+            mock_local_search.return_value = local_mock_response
+
+            async def _run():
+                res = await engine.search("failover test", tier="auto")
+                self.assertTrue(res.success)
+                self.assertEqual(res.provider, "local")
+                self.assertEqual(len(res.results), 1)
+                self.assertEqual(res.results[0].title, "Local Result")
+                mock_tavily_search.assert_called_once()
+                mock_local_search.assert_called_once()
+
+            asyncio.run(_run())
+
+    def test_ac7_resilience_missing_key_direct_local_execution(self):
+        """AC7: Zero API key scenario cleanly executes local search without crash or Tavily attempt."""
+        engine = SovereignSearchEngine(tavily_key="")
+        engine._tavily_key = ""
+
+        with patch.object(engine.tavily, "search", new_callable=AsyncMock) as mock_tavily_search, \
+             patch.object(engine.local, "search", new_callable=AsyncMock) as mock_local_search:
+            mock_local_search.return_value = SearchEngineResponse(
+                query="local query",
+                provider="local",
+                answer="DuckDuckGo HDC ranked",
+                results=[],
+                success=True
+            )
+
+            async def _run():
+                res = await engine.search("local query", tier="auto")
+                self.assertTrue(res.success)
+                self.assertEqual(res.provider, "local")
+                mock_tavily_search.assert_not_called()
+                mock_local_search.assert_called_once()
+
+            asyncio.run(_run())
+
 
 if __name__ == "__main__":
     unittest.main()
