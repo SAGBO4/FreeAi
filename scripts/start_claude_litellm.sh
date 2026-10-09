@@ -6,7 +6,8 @@
 
 set -e
 
-DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_PATH="$(readlink -f "${BASH_SOURCE[0]}")"
+DIR="$(dirname "$SCRIPT_PATH")"
 PROJECT_ROOT="$(cd "$DIR/.." && pwd)"
 ENV_FILE="$PROJECT_ROOT/.env"
 CONFIG_FILE="$PROJECT_ROOT/config/litellm_sovereign.yaml"
@@ -87,10 +88,20 @@ export ANTHROPIC_DEFAULT_SONNET_MODEL="logic"
 export ANTHROPIC_DEFAULT_HAIKU_MODEL="fast"
 export CLAUDE_CODE_DISABLE_AUTO_UPDATE=1
 export DISABLE_AUTO_UPDATE=true
+export CLAUDE_CODE_DISABLE_UNKNOWN_MODEL_WINDOW_ENFORCEMENT=1
+export CLAUDE_CODE_MAX_CONTEXT_TOKENS=128000
 
-# Si aucun argument n'est passé, on force --model logic par défaut
-if [ $# -eq 0 ]; then
-    exec claude --model logic
+# Si aucun modèle explicite n'est passé en argument, on applique --model logic par défaut
+HAS_MODEL=false
+for arg in "$@"; do
+    if [[ "$arg" == "--model" ]] || [[ "$arg" == --model=* ]]; then
+        HAS_MODEL=true
+        break
+    fi
+done
+
+if [ "$HAS_MODEL" = false ]; then
+    exec claude --model logic "$@"
 else
     exec claude "$@"
 fi

@@ -347,6 +347,20 @@ class TechLeadOrchestrator:
             max_turns=max_turns
         )
 
+    async def run_hermes_adaptive_loop(
+        self,
+        objective: str,
+        max_turns: int = 5,
+        goal_evaluator: Optional[Any] = None
+    ) -> Dict[str, Any]:
+        """Runs an autonomous self-healing ReAct loop: executes tools, listens to output, and self-corrects until convergence."""
+        return await self.hermes_cognition.execute_adaptive_react_loop(
+            objective=objective,
+            executor=self,
+            max_turns=max_turns,
+            goal_evaluator=goal_evaluator
+        )
+
     async def start_onion_portal(self) -> Dict[str, Any]:
         """Launches the Tor Onion V3 portal. Strictly restricted to 'lesaintAi' mode."""
         return await self.onion_portal.start_portal(mode=self.mode)

@@ -315,7 +315,7 @@ class TestNeonPostgresAdapter(unittest.TestCase):
     def setUp(self):
         self.neon = NeonMemoryManager()
         is_live = False
-        if self.neon.enabled:
+        if os.environ.get("USE_REAL_NEON", "false").lower() == "true" and self.neon.enabled:
             try:
                 conn = self.neon._get_connection()
                 conn.close()

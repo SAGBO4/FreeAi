@@ -1,0 +1,24 @@
+FROM python:3.10-slim
+
+# Installer les dépendances système
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# Créer un environnement virtuel Python
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Installer les dépendances Python
+COPY requirements_coordinator.txt /tmp/requirements_coordinator.txt
+RUN pip install --no-cache-dir -r /tmp/requirements_coordinator.txt
+
+# Copier le code source
+COPY . /app
+WORKDIR /app
+
+# Exposer le port pour FastAPI
+EXPOSE 8000
+
+# Commande pour lancer le coordinateur
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

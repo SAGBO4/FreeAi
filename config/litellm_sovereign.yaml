@@ -35,6 +35,20 @@ model_list:
       drop_params: true
       additional_drop_params: ["prompt_cache_key", "cache_control", "anthropic_beta"]
 
+  - model_name: claude-3-5-sonnet-20241022
+    litellm_params:
+      model: mistral/open-mistral-nemo
+      api_key: os.environ/MISTRAL_API_KEY
+      drop_params: true
+      additional_drop_params: ["prompt_cache_key", "cache_control", "anthropic_beta"]
+
+  - model_name: claude-3-opus-20240229
+    litellm_params:
+      model: mistral/open-mistral-nemo
+      api_key: os.environ/MISTRAL_API_KEY
+      drop_params: true
+      additional_drop_params: ["prompt_cache_key", "cache_control", "anthropic_beta"]
+
   # ----------------------------------------------------------------------------
   # FAST CORE (Vitesse d'exécution ultra-rapide, classification, micro-tâches)
   # ----------------------------------------------------------------------------

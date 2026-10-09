@@ -1,0 +1,25 @@
+FROM python:3.10-slim
+
+# Installer les dépendances système
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# Créer un environnement virtuel Python
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Installer PyTorch et les autres dépendances nécessaires
+COPY requirements_worker.txt /tmp/requirements_worker.txt
+RUN pip install --no-cache-dir -r /tmp/requirements_worker.txt && \
+    pip install deap transformers numpy scikit-learn
+
+# Copier le code source
+COPY . /app
+WORKDIR /app
+
+# Exposer le port pour la communication
+EXPOSE 8001-8004
+
+# Commande pour lancer le worker ou l'optimisation génétique
+CMD ["python", "genetic_optimization.py"]

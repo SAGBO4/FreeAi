@@ -27,3 +27,76 @@ services:
     restart: unless-stopped
     command: ["--mode", "freeAi"]
 
+  coordinator:
+    build: .
+    image: freeai-coordinator
+    container_name: coordinator
+    ports:
+      - "8000:8000"
+    networks:
+      - freeai_network
+    volumes:
+      - .:/app
+    environment:
+      - WORKERS=4
+    depends_on:
+      - worker1
+      - worker2
+      - worker3
+      - worker4
+
+  worker1:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    image: freeai-worker
+    container_name: worker1
+    ports:
+      - "8001:8001"
+    networks:
+      - freeai_network
+    volumes:
+      - .:/app
+
+  worker2:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    image: freeai-worker
+    container_name: worker2
+    ports:
+      - "8002:8002"
+    networks:
+      - freeai_network
+    volumes:
+      - .:/app
+
+  worker3:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    image: freeai-worker
+    container_name: worker3
+    ports:
+      - "8003:8003"
+    networks:
+      - freeai_network
+    volumes:
+      - .:/app
+
+  worker4:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    image: freeai-worker
+    container_name: worker4
+    ports:
+      - "8004:8004"
+    networks:
+      - freeai_network
+    volumes:
+      - .:/app
+
+networks:
+  freeai_network:
+    driver: bridge

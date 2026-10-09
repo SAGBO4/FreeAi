@@ -1,0 +1,16 @@
+.git
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.env
+venv
+.DS_Store
+*.swp
+*.swo
+.gitignore
+.gitmodules
+Dockerfile*
+requirements*.txt
+*.log
+*.out

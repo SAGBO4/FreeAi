@@ -1,0 +1,105 @@
+name: Sovereign Web Crawler & Heavy Deep Search Swarm
+
+on:
+  workflow_dispatch:
+    inputs:
+      query:
+        description: 'Terme de recherche ou URL cible pour investigation profonde'
+        required: true
+        default: 'Latest AI breakthroughs and security advisories'
+      max_urls:
+        description: 'Nombre maximal d URLs à explorer et nettoyer'
+        required: false
+        default: '5'
+      output_format:
+        description: 'Format de retour'
+        required: false
+        default: 'json'
+
+jobs:
+  deep_crawl:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: 📥 Checkout Codebase
+        uses: actions/checkout@v4
+
+      - name: 🐍 Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: 📦 Install Crawling Dependencies
+        run: |
+          pip install --upgrade pip
+          pip install httpx beautifulsoup4 trafilatura lxml
+
+      - name: 🌐 Execute Deep Sovereign Crawling & Sanitization
+        run: |
+          python -c '
+          import os, json, sys
+          import httpx
+          from bs4 import BeautifulSoup
+
+          query = """${{ github.event.inputs.query }}"""
+          max_urls = int("""${{ github.event.inputs.max_urls }}""")
+          print(f"[RUNNER] Executing offloaded deep crawl for query: {query}")
+
+          # DuckDuckGo HTML search for non-blocked crawling
+          headers = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36"}
+          results = []
+          try:
+              resp = httpx.post(
+                  "https://html.duckduckgo.com/html/",
+                  data={"q": query},
+                  headers=headers,
+                  timeout=15.0
+              )
+              if resp.status_code == 200:
+                  soup = BeautifulSoup(resp.text, "html.parser")
+                  links = soup.find_all("a", class_="result__url")
+                  snippets = soup.find_all("a", class_="result__snippet")
+                  titles = soup.find_all("a", class_="result__title")
+
+                  for i in range(min(max_urls, len(links))):
+                      raw_url = links[i].get("href", "").strip()
+                      # Unpack DDG redirect if present
+                      if "/l/?kh=-1&uddg=" in raw_url:
+                          import urllib.parse
+                          parsed = urllib.parse.parse_qs(urllib.parse.urlparse(raw_url).query)
+                          clean_url = parsed.get("uddg", [raw_url])[0]
+                      else:
+                          clean_url = raw_url
+
+                      t_text = titles[i].get_text(strip=True) if i < len(titles) else "Result"
+                      s_text = snippets[i].get_text(strip=True) if i < len(snippets) else ""
+                      results.append({
+                          "rank": i + 1,
+                          "title": t_text,
+                          "url": clean_url,
+                          "snippet": s_text,
+                          "scraped_by": "GitHub Actions Cloud Runner (Ubuntu)",
+                          "local_cpu_consumed": 0.0
+                      })
+          except Exception as e:
+              print(f"[RUNNER] Search error: {e}", file=sys.stderr)
+
+          os.makedirs("output", exist_ok=True)
+          with open("output/crawl_results.json", "w", encoding="utf-8") as f:
+              json.dump({
+                  "query": query,
+                  "count": len(results),
+                  "runner": "GitHub Actions Cloud Azure",
+                  "results": results
+              }, f, indent=2, ensure_ascii=False)
+          print(f"[RUNNER] Extracted {len(results)} clean results successfully.")
+          '
+
+      - name: 📤 Upload Crawl Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: crawl_results
+          path: output/crawl_results.json
+          retention-days: 1
