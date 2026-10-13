@@ -62,6 +62,7 @@ from app.evolution.omni_chimera import OmniChimeraOrchestrator
 from app.cluster.aether_legion import AetherLegionOrchestrator
 from app.cluster.autonomous_members import AutonomousMemberSwarm, AutonomousMission
 from app.orchestrator.sovereign_resultant import SovereignResultantEngine
+from app.network.sovereign_voice_conduit import SovereignVoiceConduit, VoiceCognitiveBridge, PeerIdentity
 
 logger = logging.getLogger("tech_lead_orchestrator")
 
@@ -199,6 +200,10 @@ class TechLeadOrchestrator:
 
         # Feature F-31: The Sovereign Resultant Engine (ThreatSentinel + StealthConduit + HermesAuditor)
         self.sovereign_resultant = SovereignResultantEngine()
+
+        # Feature F-32: Sovereign P2P Voice Conduit & Mesh (Carrier-free audio streaming in RAM)
+        self.voice_conduit = SovereignVoiceConduit(node_id=f"freeai_{self.mode}", secret_key=b"freeai_mesh_voice_key")
+        self.voice_bridge = VoiceCognitiveBridge()
 
         # Specialized agents under Tech Lead supervision
         self.code_agent = CodeAgent(tool_gateway, forge_bridge=self.forge)
@@ -793,6 +798,47 @@ class TechLeadOrchestrator:
                 "assigned_agent": "sovereign_resultant",
                 "resultant": resultant_rep.to_dict(),
                 "output": resultant_rep.summary
+            }
+
+        # 1.2 Direct routing for Sovereign Voice Conduit (Feature F-32)
+        if any(k in objective.lower() for k in ("/call", "p2p call", "appel p2p", "voice conduit", "conduit vocal")):
+            tor_status = self.voice_conduit.probe_tor_conduit()
+            output_msg = (
+                f"🎙️ [SOVEREIGN VOICE CONDUIT - F-32]\n"
+                f"• Statut Nœud P2P : Actif (Node: {self.voice_conduit.node_id})\n"
+                f"• Port d'écoute : {self.voice_conduit.port} (0 opérateur télécom, 0€)\n"
+                f"• Routage : {tor_status['mode']} (Tor SOCKS5: {'En ligne' if tor_status['is_tor_active'] else 'Repli direct socket'})\n"
+                f"• Mode NÉANT : Audio streaming 100% en RAM, zéro persistance disque\n"
+                f"• Identité cryptographique : p2p://{self.voice_conduit.node_id}\n"
+                f"• AI Cognitive Loopback : Opérationnel ({self.voice_bridge.buffered_audio_bytes} bytes en attente)"
+            )
+            return {
+                "success": True,
+                "status": "completed",
+                "assigned_agent": "sovereign_voice_conduit",
+                "output": output_msg,
+                "tor_status": tor_status,
+            }
+
+        # 1.3 Direct routing for Zero-Touch Local Intercom (Feature F-33)
+        if any(k in objective.lower() for k in ("/intercom", "zero touch", "intercom local", "freeai.local")):
+            service_info = self.sovereign_resultant.intercom.get_service_info()
+            output_msg = (
+                f"📡 [ZERO-TOUCH LOCAL INTERCOM - F-33]\n"
+                f"• Accès Web Universel (ZÉRO-INSTALLATION) : {service_info['access_url']}\n"
+                f"• Hôte mDNS Zeroconf (sans QR code) : http://{service_info['hostname']}:{service_info['port']}/intercom\n"
+                f"• Adresse IP Locale : {service_info['local_ip']} (Port: {service_info['port']})\n"
+                f"• Mode NÉANT : Page HTML5 & WebRTC 100% en RAM, zéro I/O disque\n"
+                f"• Schémas de données : Validés par Pydantic (AudioSignalPayload)\n"
+                f"• Pairs connectés : {len(self.sovereign_resultant.intercom.connected_peers)} actif(s)\n"
+                f"• Buffer audio en mémoire : {self.sovereign_resultant.intercom.buffered_bytes} octets"
+            )
+            return {
+                "success": True,
+                "status": "completed",
+                "assigned_agent": "zero_touch_intercom",
+                "output": output_msg,
+                "service_info": service_info,
             }
 
         # 2. Checkpoint workspace via Git before autonomous changes
