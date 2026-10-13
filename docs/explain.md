@@ -272,9 +272,7 @@ Voici les composants qui contiennent encore des simulations logiques ou qui atte
 
 ---
 
----
-
-### 4. Starlink Adapter (En Attente de Matériel)
+### 3. Starlink Adapter (En Attente de Matériel)
 * **Ce qui est simulé :**
   Les fonctions censées donner la qualité du signal satellite ou le nombre de satellites visibles ne renvoient encore rien, en attendant qu'une vraie antenne soit branchée.
 * **Pourquoi c'est simulé :**
@@ -284,7 +282,7 @@ Voici les composants qui contiennent encore des simulations logiques ou qui atte
 
 ---
 
-### 5. Télépathie Neuronale & Simulation de Futurs
+### 4. Télépathie Neuronale & Simulation de Futurs
 * **Ce qui est simulé :**
   Ce sont des abstractions conceptuelles, malgré leurs noms évocateurs :
   - Le module de "télépathie" n'a rien à voir avec des satellites : c'est un simple carnet de notes partagé en mémoire, qui ne quitte jamais la machine.
