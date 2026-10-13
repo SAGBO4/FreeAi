@@ -189,6 +189,36 @@ class OnlineModelFederation:
     def list_supported_online_models(self) -> Dict[str, Any]:
         return self.CATALOG
 
+    async def query_specific_provider(
+        self,
+        provider: str,
+        prompt: str,
+        model: Optional[str] = None,
+        system_prompt: Optional[str] = None,
+        timeout_sec: int = 25
+    ) -> Optional[Dict[str, Any]]:
+        """Queries one named CATALOG provider directly (no cascade/fallback).
+        Returns None if the provider is unknown, has no API key configured, or the call fails -
+        never a fabricated answer."""
+        meta = self.CATALOG.get(provider.strip().lower())
+        if not meta:
+            return None
+        api_key = getattr(self, meta["env_key"].lower(), None)
+        if not api_key:
+            return None
+        chosen_model = model or meta["default_model"]
+        answer = await self._query_openai_compatible(
+            endpoint=meta["endpoint"],
+            api_key=api_key,
+            model=chosen_model,
+            prompt=prompt,
+            system_prompt=system_prompt,
+            timeout_sec=timeout_sec
+        )
+        if answer is None:
+            return None
+        return {"provider": provider.strip().lower(), "model": chosen_model, "content": answer}
+
     def _purge_disk_cache(self):
         """Purges any lingering database files from disk to preserve 0-byte disk footprint."""
         target = self.memory_dir / self.cache_db

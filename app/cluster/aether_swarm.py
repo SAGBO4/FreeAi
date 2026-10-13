@@ -33,6 +33,7 @@ class SwarmConsensusResult:
     local_cpu_consumed: float = 0.0
     telemetry: Dict[str, Any] = field(default_factory=dict)
     timestamp: float = field(default_factory=time.time)
+    simulated: bool = False
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -41,7 +42,8 @@ class SwarmConsensusResult:
             "participating_models": self.participating_models,
             "local_cpu_consumed": self.local_cpu_consumed,
             "telemetry": self.telemetry,
-            "timestamp": self.timestamp
+            "timestamp": self.timestamp,
+            "simulated": self.simulated
         }
 
 
@@ -51,6 +53,10 @@ class AetherSwarmOrchestrator:
     def __init__(self, federation=None, max_local_ram_budget_mb: float = 60.0):
         self.federation = federation
         self.max_local_ram_budget_mb = max_local_ram_budget_mb
+        try:
+            self._baseline_rss_mb = psutil.Process(os.getpid()).memory_info().rss / (1024 * 1024)
+        except Exception:
+            self._baseline_rss_mb = 0.0
         self.cloud_nodes: List[CloudComputeNode] = [
             CloudComputeNode(
                 name="Groq LPU Tensor Cluster",
@@ -73,21 +79,29 @@ class AetherSwarmOrchestrator:
         ]
 
     def get_local_footprint(self) -> Dict[str, Any]:
-        """Monitors local process resource consumption to enforce the zero-strain pact."""
+        """Monitors local process resource consumption to enforce the zero-strain pact.
+        The host process RSS also includes everything else running in it (e.g. a whole
+        pytest session importing the entire codebase), which has nothing to do with this
+        orchestrator's own footprint. The guarantee is therefore evaluated on the RSS
+        *increase* since this orchestrator was created, not on the host process' absolute
+        RSS."""
         try:
             current_proc = psutil.Process(os.getpid())
             rss_mb = current_proc.memory_info().rss / (1024 * 1024)
             cpu_pct = current_proc.cpu_percent(interval=None)
         except Exception:
-            rss_mb = 35.0
+            rss_mb = self._baseline_rss_mb
             cpu_pct = 0.0
+
+        rss_delta_mb = max(0.0, rss_mb - self._baseline_rss_mb)
 
         return {
             "local_rss_mb": round(rss_mb, 2),
+            "local_rss_delta_mb": round(rss_delta_mb, 2),
             "local_cpu_percent": round(cpu_pct, 2),
             "max_budget_mb": self.max_local_ram_budget_mb,
             "cloud_offload_active": True,
-            "zero_ram_guarantee": rss_mb < 250.0
+            "zero_ram_guarantee": rss_delta_mb < self.max_local_ram_budget_mb
         }
 
     def synthesize_cross_model_consensus(
@@ -98,9 +112,10 @@ class AetherSwarmOrchestrator:
         """Executes cross-validation debate between multiple cloud LLMs to strip hallucinations."""
         if not responses:
             return SwarmConsensusResult(
-                synthesized_content="Aucune réponse d'essaim disponible.",
+                synthesized_content="Aucune réponse d'essaim disponible (aucun modèle cloud n'a répondu : clés API absentes ou réseau indisponible).",
                 agreement_score=0.0,
-                participating_models=[]
+                participating_models=[],
+                simulated=False
             )
 
         participating = [f"{r.get('provider')}:{r.get('model')}" for r in responses]
@@ -137,47 +152,31 @@ class AetherSwarmOrchestrator:
         )
 
     async def execute_swarm_objective(self, objective: str) -> Dict[str, Any]:
-        """Dispatches an objective across the cloud swarm in parallel with zero local overhead."""
+        """Dispatches an objective across the real cloud swarm in parallel with zero local overhead.
+        Only actual provider responses are used - a provider with no configured API key or a failed
+        call is simply absent from the consensus, never replaced by fabricated text."""
         logger.info(f"[AETHER-SWARM] Offloading objective to cloud swarm: '{objective}'")
         start_time = time.time()
 
-        # Query federation if available or generate multi-model consensus
-        responses = []
+        responses: List[Dict[str, Any]] = []
         if self.federation:
-            # Query Groq / Llama 3.3
-            try:
-                res1 = await self.federation.consult_free_online_model(objective)
-                if res1.get("success") and res1.get("response"):
-                    responses.append({
-                        "provider": res1.get("provider", "groq"),
-                        "model": res1.get("model", "llama-3.3-70b"),
-                        "content": res1.get("response")
-                    })
-            except Exception as e:
-                logger.debug(f"[AETHER-SWARM] Cloud node 1 query failed: {e}")
-
-        # Fallback / simulated secondary swarm models for instant consensus
-        if not responses:
-            responses = [
-                {
-                    "provider": "groq",
-                    "model": "llama-3.3-70b-versatile",
-                    "content": f"Solution optimale pour '{objective}' : architecture haute performance décentralisée."
-                },
-                {
-                    "provider": "openrouter",
-                    "model": "deepseek-r1:free",
-                    "content": f"Analyse rigoureuse de '{objective}' : validation mathématique et isolation en mémoire pure."
-                },
-                {
-                    "provider": "qwen",
-                    "model": "qwen-2.5-coder",
-                    "content": f"Code et structure de '{objective}' : implémentation sans faille et zéro dépendance lourde."
-                }
+            tasks = [
+                self.federation.query_specific_provider(node.provider, objective, model=node.model)
+                for node in self.cloud_nodes
             ]
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            for node, res in zip(self.cloud_nodes, results):
+                if isinstance(res, Exception):
+                    logger.debug(f"[AETHER-SWARM] Cloud node '{node.name}' query failed: {res}")
+                    continue
+                if res:
+                    responses.append(res)
 
         consensus = self.synthesize_cross_model_consensus(query=objective, responses=responses)
         duration = round(time.time() - start_time, 3)
+        footprint = self.get_local_footprint()
+        cpu_pct = footprint["local_cpu_percent"]
+        temp_label = "Froid" if cpu_pct < 5 else ("Modéré" if cpu_pct < 30 else "Chaud")
 
         return {
             "success": True,
@@ -185,8 +184,8 @@ class AetherSwarmOrchestrator:
             "telemetry": {
                 "duration_sec": duration,
                 "offloaded_to_cloud": True,
-                "zero_ram_penalty": True,
-                "local_machine_temp": "Froid (0% CPU)",
+                "zero_ram_penalty": footprint["zero_ram_guarantee"],
+                "local_machine_temp": f"{temp_label} ({cpu_pct:.1f}% CPU)",
                 "models_queried": consensus.participating_models
             }
         }

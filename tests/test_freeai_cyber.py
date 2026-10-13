@@ -51,6 +51,22 @@ class TestFreeAICyber(unittest.TestCase):
         self.assertFalse(self.registry.is_tool_available("nonexistent_tool"), "L'outil inexistant est considéré comme disponible.")
         self.assertTrue(self.registry.is_tool_available("sqlmap") or self.registry.is_tool_available("ffuf"), "Aucun outil Kali standard n'est disponible.")
 
+    def test_kali_tool_availability_reflects_real_detection_not_hardcoded_list(self):
+        """is_tool_available doit suivre la détection réelle (shutil.which), pas une liste figée.
+        Régression ciblée : l'ancien code renvoyait True pour 'hydra' sans jamais vérifier le
+        binaire. En simulant un hôte où 'hydra' est absent et 'sqlmap' présent, on vérifie que
+        le résultat suit bien la simulation et non une liste codée en dur."""
+        import app.tools.kali_registry as kr
+
+        def fake_which(bin_name):
+            return "/usr/bin/sqlmap" if bin_name == "sqlmap" else None
+
+        with patch.object(kr.shutil, "which", side_effect=fake_which):
+            registry = kr.KaliToolRegistry()
+            self.assertTrue(registry.is_tool_available("sqlmap"))
+            self.assertFalse(registry.is_tool_available("hydra"))
+            self.assertFalse(registry.is_tool_available("nonexistent_tool"))
+
 
 if __name__ == "__main__":
     unittest.main()

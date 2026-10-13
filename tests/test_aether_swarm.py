@@ -32,13 +32,17 @@ def test_aether_swarm_initialization(aether_swarm):
 
 
 def test_frugal_memory_guard_guarantee(aether_swarm):
-    # Verify that local footprint is strictly capped under 60 MB
+    # Verify the orchestrator's OWN RAM overhead stays within its budget.
+    # The host process' absolute RSS also reflects everything else running in it
+    # (e.g. the whole pytest session), so the guarantee is checked on the RSS
+    # increase attributable to this orchestrator, not on the absolute RSS.
     stats = aether_swarm.get_local_footprint()
     assert "local_rss_mb" in stats
+    assert "local_rss_delta_mb" in stats
     assert "cloud_offload_active" in stats
     assert stats["cloud_offload_active"] is True
-    # Local RAM should not be bloated
-    assert stats["local_rss_mb"] < 250
+    assert stats["local_rss_delta_mb"] < aether_swarm.max_local_ram_budget_mb
+    assert stats["zero_ram_guarantee"] is True
 
 
 def test_cross_model_consensus_synthesis(aether_swarm):
@@ -71,6 +75,47 @@ def test_swarm_offloaded_execution(aether_swarm):
         assert "telemetry" in res
         assert res["telemetry"]["offloaded_to_cloud"] is True
         assert res["telemetry"]["zero_ram_penalty"] is True
+    asyncio.run(_run())
+
+
+def test_swarm_no_fabrication_when_all_providers_fail(aether_swarm, monkeypatch):
+    """Régression ciblée : l'ancien code injectait 3 réponses fabriquées
+    ('Solution optimale pour ...', 'Analyse rigoureuse de ...', 'Code et structure de ...')
+    dès que la fédération ne répondait pas. Ici, les 3 providers échouent réellement
+    (simulant clés API absentes / réseau indisponible) : le consensus doit rester honnête,
+    pas remplacé par du texte inventé."""
+    async def _run():
+        async def all_fail(provider, prompt, model=None, **kwargs):
+            return None
+        monkeypatch.setattr(aether_swarm.federation, "query_specific_provider", all_fail)
+
+        res = await aether_swarm.execute_swarm_objective("Faut-il utiliser PostgreSQL ou MongoDB ?")
+
+        assert res["consensus"]["participating_models"] == []
+        assert res["consensus"]["agreement_score"] == 0.0
+        content = res["consensus"]["synthesized_content"]
+        assert "Solution optimale pour" not in content
+        assert "Analyse rigoureuse de" not in content
+        assert "architecture haute performance décentralisée" not in content
+    asyncio.run(_run())
+
+
+def test_swarm_consensus_reflects_only_real_responses(aether_swarm, monkeypatch):
+    """Régression ciblée : quand un seul provider répond réellement, le consensus ne doit
+    citer que ce provider et son vrai contenu - jamais les 2 autres fabriqués en silence."""
+    async def _run():
+        async def one_real_response(provider, prompt, model=None, **kwargs):
+            if provider == "groq":
+                return {"provider": "groq", "model": model, "content": "Réponse réelle unique de test X42"}
+            return None
+        monkeypatch.setattr(aether_swarm.federation, "query_specific_provider", one_real_response)
+
+        res = await aether_swarm.execute_swarm_objective("Objectif de test")
+
+        assert res["consensus"]["participating_models"] == ["groq:openai/gpt-oss-120b"]
+        assert "Réponse réelle unique de test X42" in res["consensus"]["synthesized_content"]
+        assert "deepseek" not in res["consensus"]["synthesized_content"].lower()
+        assert "qwen" not in res["consensus"]["synthesized_content"].lower()
     asyncio.run(_run())
 
 

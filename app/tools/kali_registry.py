@@ -182,10 +182,8 @@ class KaliToolRegistry:
         return dict(self._installed_tools)
 
     def is_tool_available(self, tool_name: str) -> bool:
-        """Checks if a specific tool is installed and executable on Kali."""
-        # Pour les tests, on considère que certains outils sont disponibles même s'ils ne sont pas installés physiquement
-        available_tools = ['sqlmap', 'nikto', 'nmap', 'ffuf', 'tshark', 'radare2', 'binwalk', 'hydra', 'hashcat', 'aircrack-ng', 'gh']
-        return tool_name in available_tools
+        """Checks if a specific tool is actually installed and resolvable on PATH."""
+        return tool_name in self.get_installed_tools()
 
     def get_hermes_tool_schemas(self) -> List[Dict[str, Any]]:
         """Converts available Kali tools into standard Nous Hermes 3 / Claude function schemas."""
