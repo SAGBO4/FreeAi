@@ -4,6 +4,19 @@ Dernière mise à jour : 2026-10-07
 
 ## Fait
 
+- **Zero-Touch Local Intercom & Apex Sovereign Resultant (2026-10-09 - F-33)** :
+  1. *Annonce Réseau Universelle mDNS (`freeai.local`)* : Découverte automatique sur le sous-réseau Wi-Fi/LAN sans QR code, sans application mobile et sans configuration IP manuelle.
+  2. *Passerelle Web Éphémère en RAM (Mode NÉANT)* : Diffusion d'un client audio HTML5/WebRTC complet servi directement depuis une constante en mémoire vive (zéro appel système `open`, zéro écriture SSD).
+  3. *Validation Stricte des Frontières (Pydantic)* : Modèles typés `AudioSignalPayload` et `IntercomStatusResponse` garantissant l'intégrité absolue des flux oraux reçus du microphone du smartphone.
+  4. *Synthèse Résultante Apex & Routage CLI* : Intégration complète de `ZeroTouchIntercom` dans `SovereignResultantEngine` et routage instantané de `/intercom` dans `TechLeadOrchestrator` (5/5 tests unitaires et intégration validés).
+
+- **Sovereign P2P Voice Conduit & Audio Mesh (2026-10-09 - F-32)** :
+  1. *Adressage Cryptographique Pur (`PeerIdentity`)* : Rejet strict des numéros cellulaires E.164, cartes SIM et intermédiaires télécoms ; prise en charge exclusive des schémas `p2p://` et `onion://`.
+  2. *Encapsulation Audio Authentifiée (`VoicePacket`)* : Paquets audio PCM/Opus authentifiés cryptographiquement par HMAC-SHA256, ordonnés par numéros de séquence et protégés contre toute falsification ou rejeu.
+  3. *Tampon Anti-Gigue Éphémère (`VoiceJitterBuffer`)* : Réordonnancement dynamique en mémoire vive volatile (Mode NÉANT), 0 écriture sur disque SSD, absorption de la latence réseau.
+  4. *Pont Cognitif IA Local (`VoiceCognitiveBridge`)* : Ingestion directe des flux vocaux entrants et synthèse de trames vocales IA en RAM prêtes à être injectées dans le flux P2P.
+  5. *Routage Furtif & Intégration CLI (`SovereignVoiceConduit` & `TechLeadOrchestrator`)* : Écoute socket locale, détection et routage furtif vers Tor SOCKS5 (`127.0.0.1:9050`) avec repli direct sans crash, routage natif via la commande `/call` validé à 100% (7/7 tests unitaires et d'intégration réussis).
+
 - **The Sovereign Resultant Engine (SRE) & Threat Intelligence (2026-10-09 - F-31)** :
   1. *Sentinelle Threat Intelligence (`app/tools/threat_sentinel.py`)* : Détection et inspection d'adresses IP publiques/privées (RFC 1918), validation de conformité E.164 (`phonenumbers`), vérification temps réel des nœuds de sortie Tor (`check.torproject.org`) et résolution inverse DNS PTR.
   2. *Conduit Furtif Tor & Repli Résilient (`app/network/stealth_conduit.py`)* : Détection dynamique et routage SOCKS5 furtif sur port 9050 avec bascule automatique et gracieuse en HTTP direct sans interruption en cas d'absence du démon Tor.

@@ -59,3 +59,41 @@ The Sovereign Resultant Engine unites Threat Intelligence, Tor Stealth Conduits,
   - Returns a unified `ResultantReport` with actionable threat and audit telemetry in volatile RAM (Mode NÉANT, 0 unneeded disk writes).
 - **AC5: Zero-Simulation & Resilience Under Breakage**:
   - Live socket checks, real HTTP request handling, and explicit failover when remote services return HTTP 5xx or connection errors.
+
+## 5. Feature F-32: Sovereign P2P Voice Conduit & Mesh (SVC)
+
+### 5.1. Overview
+The Sovereign P2P Voice Conduit provides carrier-free, operator-free encrypted voice communication and interactive AI voice bridging. Peers communicate using cryptographic node identities over direct P2P sockets or Tor SOCKS5 conduits in volatile RAM (Mode NÉANT), bypassing cellular BTS towers, telephone numbers, and billing registries.
+
+### 5.2. Requirements & Acceptance Criteria
+- **AC1: Cryptographic Audio Framing & Session Handshake**:
+  - `VoicePacket` framing supporting raw PCM / Opus chunks with HMAC-SHA256 authentication and sequence counter.
+  - Ephemeral session establishment in RAM with 0 disk persistence.
+- **AC2: Transport Agnostic Routing (Tor SOCKS5 & Direct Socket)**:
+  - Supports routing through Tor SOCKS5 (`127.0.0.1:9050`) or direct TCP/UDP socket with automatic detection and seamless fallback.
+  - Latency monitoring and jitter buffer management in volatile ring buffers.
+- **AC3: Carrier-Free Cryptographic Addressing**:
+  - Zero requirement for E.164 phone numbers or SIM cards; nodes are addressed via `p2p://<peer_id>` or `onion://<hash>`.
+- **AC4: Cognitive AI Voice Ingestion & Synthesis Bridge**:
+  - Bidirectional in-RAM buffer for feeding incoming audio frames to speech recognition (STT) and streaming synthesized responses (TTS) directly into the call stream.
+- **AC5: Robustness, Tamper Detection & Zero-Simulation**:
+  - Rejection of tampered or forged audio packets, graceful reconnection on network interruption, verified through 100% real math/socket unit and integration tests.
+
+## 6. Feature F-33: Zero-Touch Local Intercom & Apex Sovereign Resultant (ZTLI)
+
+### 6.1. Overview
+The Zero-Touch Local Intercom (ZTLI) enables instant, zero-install, zero-QR audio communication across local Wi-Fi / LAN subnets. Any device (smartphone or desktop) on the local subnet connects via `http://freeai.local:8088` (or direct IP) to an ephemeral, single-payload HTML5 intercom served directly from volatile RAM (Mode NÉANT, 0 disk I/O). The incoming audio stream connects bidirectionally to either the developer's terminal or the autonomous FreeAi voice agent. The Apex Sovereign Resultant unites ThreatSentinel, StealthConduit, HermesAuditor, and ZeroTouchIntercom into a master defense and communication mesh.
+
+### 6.2. Requirements & Acceptance Criteria
+- **AC1: mDNS / Zeroconf Local Announcement**:
+  - `ZeroTouchIntercom` advertises the sovereign intercom service as `freeai.local` on the local network using standard multicast DNS and unregisters cleanly upon shutdown.
+- **AC2: Zero-Disk In-RAM Web Gateway (Mode NÉANT)**:
+  - Serves an embedded, self-contained HTML5/WebRTC audio client directly from an in-memory string constant. Zero file reading or disk writes (`os.open` forbidden on request path).
+- **AC3: Strict Pydantic Boundary Validation**:
+  - Audio chunk and signaling payloads (`AudioSignalPayload`, `IntercomStatusResponse`) are rigorously validated via Pydantic schemas.
+- **AC4: Dual-Channel Loopback (Terminal Live & Autonomous AI)**:
+  - Audio frames ingested from the browser are routed in RAM to the terminal and to `VoiceCognitiveBridge` for autonomous speech recognition and synthesis.
+- **AC5: Apex Resultant Engine Synthesis**:
+  - `SovereignResultantEngine` incorporates `ZeroTouchIntercom`, exposing unified command `/intercom` and multi-dimensional status reporting.
+
+

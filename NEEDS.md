@@ -1,161 +1,92 @@
 # NEEDS.md - Actions Manuelles Requises
 
-Ce fichier liste les tâches que vous devez accomplir manuellement pour compléter le projet FreeAi. Les implémentations techniques sont gérées par des agents spécialisés.
+Ce fichier liste uniquement ce que toi (Michael) dois faire à la main pour que des
+fonctionnalités déjà codées deviennent pleinement opérationnelles, ou pour profiter
+des dernières évolutions. Tout ce qui pouvait être fait en code a déjà été fait et
+vérifié avec de vrais tests - ce qui reste ici dépend soit d'une ressource externe
+(compte, matériel), soit d'une décision/configuration qui t'appartient.
 
 ---
 
-## 1. Préparation de l'Environnement
+## 1. Auto-Apply avec revue humaine en direct (nouveau)
 
-### 1.1. Installer les Prérequis Locaux
-Avant de lancer les agents, assurez-vous que votre environnement local est prêt :
+Rien à installer, c'est déjà prêt à l'usage. Juste pour information :
+- Quand FreeAi prépare une candidature, tu reçois un lien de type
+  `http://<ton IP locale>:<port>/vnc.html?...&password=...`.
+- **Ne transmets jamais ce lien ailleurs que sur ton propre réseau local** (Wi-Fi/LAN
+  de chez toi) : il donne un accès de contrôle complet sur un navigateur connecté à
+  tes comptes. Ne le mets jamais derrière une redirection de port vers Internet.
+- Si ton numéro de téléphone ou ta ville change, mets à jour `MICHAEL_PROFILE` dans
+  `app/tools/morning_briefing.py` (clés `phone` et `city`).
 
-- **Python et Pip** :
-  ```bash
-  sudo apt update && sudo apt install python3 python3-pip -y
-  ```
+## 2. Free Cloud Pool (déport de calcul vers un VPS gratuit) - bloqué sans action de ta part
 
-- **Docker et Docker Compose** :
-  ```bash
-  sudo apt update && sudo apt install docker.io docker-compose -y
-  sudo systemctl enable --now docker
-  sudo usermod -aG docker $USER
-  newgrp docker  # Pour appliquer immédiatement les changements de groupe
-  ```
+Le code de connexion réelle n'existe pas encore, et même une fois écrit il restera
+inactif sans que tu crées un compte toi-même chez un fournisseur :
+- Crée un compte **Oracle Cloud Always Free** (ou AWS Free Tier / GCP Free Tier).
+- Génère une paire de clés SSH dédiée et récupère l'IP de l'instance.
+- Donne-moi ces informations (jamais la clé privée en clair dans un message si tu
+  préfères : tu peux juste me dire "c'est fait, voici l'IP" et placer la clé dans
+  `~/.ssh/` toi-même) pour que je branche la connexion réelle.
 
-- **Certificats SSL** (si nécessaire pour les communications sécurisées) :
-  ```bash
-  sudo apt install certbot python3-certbot-nginx -y
-  ```
+## 3. Aether-Swarm : providers gratuits dégradés
 
----
+En conditions réelles, les modèles gratuits `deepseek-r1:free` et
+`qwen-2.5-coder-32b:free` sur OpenRouter renvoient actuellement une erreur 404
+("modèle gratuit indisponible"). Ce n'est pas un bug côté FreeAi : c'est le
+fournisseur qui a retiré ou changé ces modèles gratuits spécifiques. Pour que le
+consensus multi-IA utilise vraiment 3 avis au lieu d'1 seul (Groq) :
+- Va voir sur https://openrouter.ai/models quels modèles sont actuellement marqués
+  `:free`, et dis-moi lesquels remplacer dans `app/cluster/aether_swarm.py`.
+- Sinon, le système continue de fonctionner, mais honnêtement avec moins de
+  modèles réellement consultés qu'annoncé (il te le dit dans son rapport, il
+  n'invente rien pour compenser).
 
-## 2. Configuration des Environnements de Développement
+## 4. Starlink Adapter - bloqué, aucune action logicielle possible
 
-### 2.1. Créer un Dossier pour les Implémentations Réelles
-Les agents spécialisés vont créer des fichiers dans un dossier dédié pour éviter toute interférence avec votre code existant.
+Ce module ne pourra jamais devenir réel sans l'objet physique : il faut posséder
+une antenne Starlink connectée sur ton réseau local. Rien à faire côté code tant
+que tu n'as pas ce matériel.
 
-```bash
-mkdir -p real_implementations/{distributed_training,neural_ring,darwinian_synthesis,aether_legion,starlink_adapter,free_cloud_pool}
-```
+## 5. Réception ultrasonique - fonctionne, mais fiabilité variable selon le moment
 
----
+La réception (micro) est réellement implémentée et testée. Un vrai bug a été
+trouvé et corrigé : un décodage corrompu pouvait être renvoyé comme si c'était
+le bon texte, sans aucune vérification. Une somme de contrôle a été ajoutée
+pour rejeter tout décodage corrompu au lieu de l'accepter silencieusement.
 
-## 3. Validation et Intégration Manuelle
+Mesuré honnêtement, pas de chiffre unique arrangé : sur des tirs indépendants
+répétés, le taux de réussite va de **10/10 à 5/10 selon le moment**, parce que
+l'amplitude du son ultrasonique capté varie elle-même dans le temps sur cette
+machine (probablement un comportement du volume/gain du système audio, pas un
+bug du décodeur - vérifié par mesure directe de l'amplitude du signal capté).
+Pour absorber cette variabilité, le test réessaie jusqu'à 8 fois en conditions
+réelles avant d'échouer.
+- Limite restante : ce test tourne en boucle numérique interne à une seule
+  machine (le haut-parleur et le micro testés ne sont pas deux appareils
+  physiquement séparés). Si tu veux vraiment t'en servir (ex: faire parler deux
+  PC via le son), teste-le toi-même avec deux machines physiques différentes,
+  dans une pièce silencieuse, haut-parleur et micro à moins d'1-2 mètres, et
+  dis-moi le taux que tu observes.
 
-### 3.1. Vérifier les Logs et les Résultats
-Après que les agents aient terminé leurs tâches, vérifiez les logs et les résultats produits :
+## 6. Voix Temps Réel WebRTC - pas encore construit
 
-- **Logs des Conteneurs Docker** :
-  ```bash
-  docker-compose -f real_implementations/docker-compose.yml logs
-  ```
-
-- **Résultats des Scrapers** :
-  ```bash
-  cat real_implementations/aether_legion/arxiv_results.json
-  ```
-
-- **Résultats des Benchmarks et Évolution Génétique** :
-  ```bash
-  cat real_implementations/darwinian_synthesis/results.txt
-  ```
-
----
-
-## 4. Intégration des Modules Réels dans le Projet
-
-### 4.1. Intégrer les Modules Créés par les Agents
-Une fois que vous avez validé les résultats, vous pouvez intégrer les modules créés dans votre projet principal :
-
-- **Copier les fichiers pertinents** :
-  ```bash
-  cp real_implementations/distributed_training/worker_real.py worker_real.py
-  cp real_implementations/distributed_training/coordinator_real.py coordinator_real.py
-  ```
-
-- **Mettre à jour les scripts existants** pour utiliser les nouvelles implémentations.
-
----
-
-## 5. Tests et Déploiement
-
-### 5.1. Tester les Modules Intégrés
-Exécutez les tests unitaires et fonctionnels pour valider que tout fonctionne correctement :
-
-- **Lancer les tests** :
-  ```bash
-  python -m pytest tests/  # Si des tests unitaires existent
-  ```
-
-- **Lancer les conteneurs Docker** :
-  ```bash
-  cd real_implementations
-  docker-compose up --build
-  ```
-
-### 5.2. Déployer les Modules
-Une fois les tests réussis, déployez les modules dans votre environnement de production ou de staging.
+Diagnostiqué mais pas encore implémenté : la page d'appel en direct ne capte
+actuellement aucun vrai son de micro, et aucune route serveur n'existe pour la
+recevoir. Le moteur vocal réel (reconnaissance + synthèse) existe déjà et
+fonctionne, il n'est juste pas encore branché à cette page. Aucune action de ta
+part n'est requise pour l'instant - c'est un développement à faire, pas une
+ressource qui te manque.
 
 ---
 
-## 6. Documentation et Maintenance
+## Résumé
 
-### 6.1. Documenter les Modules Créés
-Ajoutez des commentaires et des sections de documentation pour expliquer chaque module :
-
-- **Ajouter des commentaires dans le code** :
-  ```python
-  # Exemple de commentaire dans worker_real.py
-  """
-  Ce module implémente un Worker pour le calcul distribué de gradients.
-  Il communique avec le Coordinator via des requêtes HTTP.
-  """
-  ```
-
-- **Mettre à jour la documentation du projet** dans `docs/` pour inclure les nouveaux modules.
-
----
-
-## 7. Résolution des Problèmes
-
-### 7.1. Gérer les Erreurs et les Logs
-Consultez les logs pour diagnostiquer les erreurs et résoudre les problèmes :
-
-- **Logs des Agents** :
-  ```bash
-  # Vérifiez les logs des agents spécialisés si nécessaire
-  ```
-
-- **Logs des Conteneurs** :
-  ```bash
-  docker-compose logs --tail 50
-  ```
-
----
-
-## 8. Contribuer aux Améliorations Futures
-
-### 8.1. Améliorer les Modules Existants
-Vous pouvez contribuer à améliorer les modules existants en suivant les bonnes pratiques :
-
-- **Ajouter des fonctionnalités supplémentaires** :
-  - Ajouter des métriques de performance supplémentaires.
-  - Intégrer de nouvelles sources de données pour le scraping.
-
-- **Optimiser les performances** :
-  - Utiliser des bibliothèques optimisées pour les calculs.
-  - Réviser les algorithmes pour améliorer l'efficacité.
-
----
-
-## Résumé des Actions Manuelles
-
-| **Étape**               | **Action**                                                                 |
-|-------------------------|---------------------------------------------------------------------------|
-| Préparation             | Installer Docker, Python, et les dépendances.                             |
-| Création de Dossiers    | Créer le dossier `real_implementations` et ses sous-dossiers.             |
-| Validation              | Vérifier les logs et les résultats des agents.                           |
-| Intégration             | Copier les fichiers pertinents dans votre projet principal.              |
-| Tests et Déploiement    | Tester et déployer les modules intégrés.                                  |
-| Documentation           | Documenter les nouveaux modules et ajouter des commentaires.               |
-| Résolution des Problèmes| Consulter les logs pour diagnostiquer les erreurs.                        |
+| Fonctionnalité | Bloqué par | Qui doit agir |
+|---|---|---|
+| Auto-Apply revue live | Rien, déjà actif | Toi : juste ne pas exposer le lien sur Internet |
+| Free Cloud Pool | Compte cloud + clé SSH manquants | Toi : créer le compte |
+| Aether-Swarm (3 providers) | Modèles gratuits OpenRouter dépréciés | Toi : choisir un modèle de remplacement |
+| Starlink Adapter | Matériel physique absent | Toi : achat d'une antenne, si souhaité |
+| Réception ultrasonique | Rien, fiabilité 5/10 à 10/10 selon le moment | Toi : confirmer sur deux vraies machines séparées |
+| Voix Temps Réel WebRTC | Développement pas encore fait | Moi : à construire dans une prochaine session |
