@@ -2611,6 +2611,33 @@ async def dispatch_telegram_order(tech_lead: TechLeadOrchestrator, order: str, u
             )
         return
 
+    # 0.4bis Auto-Apply with a real pre-filled browser (human reviews & sends themselves)
+    # Checked BEFORE the plain /apply block below, since "/apply-live".startswith("/apply")
+    # would otherwise always be caught by the more generic check first.
+    if order_lower.startswith(("/apply-live", "/apply_live", "/postule-live")) or "revue live" in order_lower or "pré-rempli" in order_lower:
+        console.print("[dim]Ouverture d'un navigateur réel et pré-remplissage du formulaire de candidature...[/]")
+        parts = order_clean.split()
+        job_idx = 1
+        for p in parts[1:]:
+            if p.isdigit():
+                job_idx = int(p)
+                break
+        from app.tools.auto_apply import AutoApplyEngine
+        apply_engine = AutoApplyEngine(telegram_vault=tech_lead.telegram_vault)
+        apply_res = await apply_engine.prepare_live_review_application(job_index=job_idx, target_chat_id=target_chat_id)
+        if apply_res.get("success"):
+            console.print(
+                f"[bold green][OK] Formulaire pré-rempli pour {apply_res['job_title']} chez {apply_res['company']}. "
+                f"Lien de revue : {apply_res['review_url']}[/]"
+            )
+        else:
+            await tech_lead.telegram_vault.send_message(
+                f"[!] Impossible de préparer la revue live : {apply_res.get('error')}",
+                message_thread_id=message_thread_id,
+                target_chat_id=target_chat_id
+            )
+        return
+
     # 0.4 Auto-Apply / Candidature 1-Click Command
     if order_lower.startswith(("/apply", "/postuler", "/candidature")) or "postule" in order_lower:
         console.print("[dim]Génération du dossier de candidature 1-Click Apply...[/]")
