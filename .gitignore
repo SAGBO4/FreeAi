@@ -30,5 +30,7 @@ video_presentations/
 .perpetual_growth_ledger.json
 jarvis_memory/
 cache/
+memory/browser_profiles/
+memory/applications/*.pdf
 certs/*.key
 certs/*.crt
