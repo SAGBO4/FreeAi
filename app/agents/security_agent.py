@@ -5,11 +5,13 @@ tshark, radare2, binwalk, hydra, hashcat) via Hermes 3 function calling and Tool
 Zero Cloud, Zero Simulation: 100% Real Machine Binaries.
 """
 
+import re
 import logging
 from typing import Dict, Any, List, Optional
 from .base_agent import BaseAgent
 from app.tools.kali_registry import KaliToolRegistry
 from app.cognition.hermes_scratchpad import HermesScratchpadEngine
+from app.cognition.hermes_auditor import HermesAuditor
 
 logger = logging.getLogger("agent_security")
 
@@ -25,6 +27,18 @@ class SecurityAgent(BaseAgent):
         )
         self.kali_registry = KaliToolRegistry()
         self.hermes_engine = HermesScratchpadEngine()
+        self.hermes_auditor = HermesAuditor()
+
+    def extract_target_url(self, task_description: str) -> Optional[str]:
+        """Extracts and normalizes target URL or web domain from user task description."""
+        pattern = r'(https?://[^\s]+|www\.[a-zA-Z0-9.\-]+(?:\.[a-zA-Z]{2,})+(?:/[^\s]*)?|\b[a-zA-Z0-9\-]+(?:\.[a-zA-Z0-9\-]+)*\.(?:com|org|net|io|fr|gov|edu|ai|co|dev|tech|app|me|info|biz|eu|ca|uk|de|ch|be|cm|sn|ci|bj)(?:/[^\s]*)?\b)'
+        match = re.search(pattern, task_description, re.IGNORECASE)
+        if match:
+            raw = match.group(1).rstrip(".,;!?'\"")
+            if not raw.startswith("http://") and not raw.startswith("https://"):
+                return f"https://{raw}"
+            return raw
+        return None
 
     def get_available_kali_tools(self) -> Dict[str, str]:
         """Returns the real cybersecurity binaries discovered on the local Kali machine."""
@@ -52,23 +66,39 @@ class SecurityAgent(BaseAgent):
         logger.info(f"[{self.name}] Running unrestricted security analysis: {task_description}")
         ctx = context or {}
 
-        # 1. Scan files in workspace for hardcoded secrets or suspicious patterns (Core SAST)
-        files_result = self.tool_gateway.list_files()
+        target_url = self.extract_target_url(task_description)
         inspected_files = []
         suspicious_findings = []
+        web_audit_report = None
 
-        if files_result.get("success"):
-            for item in files_result.get("items", []):
-                if not item["is_dir"]:
-                    filename = item["name"]
-                    inspected_files.append(filename)
-                    if any(s in filename.lower() for s in [".env", "secret", "key", "token", "id_rsa"]):
-                        suspicious_findings.append({
-                            "type": "Hardcoded Secret / Sensitive File",
-                            "severity": "High",
-                            "target": filename,
-                            "description": f"Sensitive file exposed in project root: {filename}"
-                        })
+        if target_url:
+            # External Web/API endpoint security audit via HermesAuditor
+            logger.info(f"[{self.name}] Target URL detected for web security audit: {target_url}")
+            audit_report = await self.hermes_auditor.audit_target(target_url)
+            web_audit_report = audit_report.to_dict()
+            for rem in audit_report.remediations:
+                suspicious_findings.append({
+                    "type": rem.issue_type,
+                    "severity": rem.severity,
+                    "target": target_url,
+                    "description": rem.description,
+                    "patch": rem.recommended_patch
+                })
+        else:
+            # 1. Scan files in workspace for hardcoded secrets or suspicious patterns (Core SAST)
+            files_result = self.tool_gateway.list_files() if self.tool_gateway else {"success": False}
+            if files_result.get("success"):
+                for item in files_result.get("items", []):
+                    if not item.get("is_dir"):
+                        filename = item["name"]
+                        inspected_files.append(filename)
+                        if any(s in filename.lower() for s in [".env", "secret", "key", "token", "id_rsa"]):
+                            suspicious_findings.append({
+                                "type": "Hardcoded Secret / Sensitive File",
+                                "severity": "High",
+                                "target": filename,
+                                "description": f"Sensitive file exposed in project root: {filename}"
+                            })
 
         # 2. Check if the task requests active Kali Linux tool execution
         task_lower = task_description.lower()
@@ -98,10 +128,40 @@ class SecurityAgent(BaseAgent):
 
         available_tools = self.get_available_kali_tools()
 
+        if target_url and web_audit_report:
+            status_desc = f"{web_audit_report.get('status_code', 'N/A')}" if web_audit_report.get("reachable") else f"Inaccessible ({web_audit_report.get('error_message', 'Erreur réseau')})"
+            lines = [
+                f"🛡️ **Rapport d'Audit Défensif Web : {target_url}**",
+                f"• Statut HTTP : {status_desc}",
+                f"• En-tête HSTS : {'✔ Présent' if web_audit_report.get('has_hsts') else '❌ Absent (Strict-Transport-Security)'}",
+                f"• En-tête CSP : {'✔ Présent' if web_audit_report.get('has_csp') else '❌ Absent (Content-Security-Policy)'}",
+                f"• En-tête X-Frame-Options : {'✔ Présent' if web_audit_report.get('has_x_frame_options') else '❌ Absent (Protection Clickjacking)'}",
+                f"• Configuration CORS : {'⚠️ Permissif (Wildcard *)' if web_audit_report.get('permissive_cors') else '✔ Sécurisé / Restreint'}",
+            ]
+            if web_audit_report.get("server_token"):
+                lines.append(f"• Bannière Serveur exposée : `{web_audit_report['server_token']}`")
+            if web_audit_report.get("exposed_docs"):
+                lines.append(f"• Endpoints docs exposés : {', '.join(web_audit_report['exposed_docs'])}")
+
+            if suspicious_findings:
+                lines.append(f"\n🔍 **{len(suspicious_findings)} anomalie(s) détectée(s) :**")
+                for f in suspicious_findings:
+                    lines.append(f"  - [{f['severity']}] **{f['type']}** : {f['description']}")
+                    if f.get("patch"):
+                        lines.append(f"    *Correctif recommandé :* `{f['patch']}`")
+            else:
+                lines.append("\n✔ **Posture défensive robuste : aucun vecteur basique exposé.**")
+
+            output_msg = "\n".join(lines)
+        else:
+            output_msg = f"Audit terminé sans restriction. {len(suspicious_findings)} anomalie(s) détectée(s). {len(available_tools)} outils Kali opérationnels."
+
         return {
             "agent": self.name,
             "status": "completed",
             "task": task_description,
+            "target_url": target_url,
+            "web_audit": web_audit_report,
             "policy": "Unrestricted / 100% Offline / Zero Censorship",
             "inspected_files": inspected_files,
             "findings": suspicious_findings,
@@ -110,5 +170,6 @@ class SecurityAgent(BaseAgent):
                 "tools": list(available_tools.keys())
             },
             "kali_execution": kali_execution,
-            "message": f"Audit terminé sans restriction. {len(suspicious_findings)} anomalie(s) détectée(s). {len(available_tools)} outils Kali opérationnels."
+            "message": output_msg,
+            "output": output_msg
         }

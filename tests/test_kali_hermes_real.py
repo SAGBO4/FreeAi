@@ -126,6 +126,30 @@ class TestRealKaliCyberHermes(unittest.TestCase):
 
         asyncio.run(run_task())
 
+    def test_security_agent_external_url_audit(self):
+        """Proves that SecurityAgent detects external web target, uses HermesAuditor, and skips local .env scan."""
+        mock_gw = MagicMock()
+        mock_gw.list_files.return_value = {
+            "success": True,
+            "items": [{"name": ".env", "is_dir": False}, {"name": ".env.example", "is_dir": False}]
+        }
+
+        agent = SecurityAgent(tool_gateway=mock_gw)
+
+        async def run_audit():
+            # Target with www.
+            res = await agent.execute_task("fait moi l'audit de www.google.com")
+            self.assertEqual(res["status"], "completed")
+            self.assertEqual(res["target_url"], "https://www.google.com")
+            self.assertIsNotNone(res["web_audit"])
+            # Inspected files must be empty (local files skipped)
+            self.assertEqual(res["inspected_files"], [])
+            # Findings should be from web audit (not local .env)
+            self.assertFalse(any("Sensitive file exposed in project root" in f.get("description", "") for f in res["findings"]))
+            self.assertIn("Rapport d'Audit Défensif Web", res["message"])
+
+        asyncio.run(run_audit())
+
     def test_ac7_adaptive_self_healing_react_loop(self):
         """AC7: Proves that the ReAct loop executes tools, listens to output, and self-corrects until convergence."""
         async def run_test():
