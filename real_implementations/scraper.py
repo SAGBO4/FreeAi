@@ -28,6 +28,7 @@ logger = logging.getLogger("freeai.scraper")
 
 # Constantes des endpoints officiels
 ARXIV_API_URL = "http://export.arxiv.org/api/query"
+TRANSLATE_API_URL = "https://translate.googleapis.com/translate_a/single"
 GITHUB_API_URL = "https://api.github.com/search/repositories"
 
 # Chemins de sortie des données
@@ -63,20 +64,52 @@ def save_cache() -> None:
         logger.error(f"Erreur d'écriture du cache: {e}")
 
 
-def fetch_arxiv_data(max_results: int = 10) -> list:
+def translate_to_english(text: str, source_lang: str = "fr") -> str:
+    """
+    Traduit un sujet de recherche vers l'anglais (arXiv et GitHub sont indexés en anglais).
+
+    Utilise l'endpoint public de Google Translate (sans clé API). En cas d'échec réseau
+    ou de réponse inattendue, retourne le texte d'origine tel quel (aucune donnée inventée).
+    """
+    if not text:
+        return text
+    try:
+        response = requests.get(
+            TRANSLATE_API_URL,
+            params={"client": "gtx", "sl": source_lang, "tl": "en", "dt": "t", "q": text},
+            timeout=5,
+        )
+        response.raise_for_status()
+        data = response.json()
+        # Format de réponse : [[["translated text", "original text", ...], ...], ...]
+        translated = "".join(segment[0] for segment in data[0] if segment and segment[0])
+        return translated.strip() or text
+    except Exception as e:
+        logger.warning(f"[TRADUCTION] Échec de la traduction de '{text}' : {e}. Utilisation du texte original.")
+        return text
+
+
+def fetch_arxiv_data(max_results: int = 10, topic: str = None) -> list:
     """
     Récupère les derniers articles scientifiques depuis arXiv.
-    
+
     Paramètres :
         max_results (int) : Nombre maximum d'articles à retourner (défaut : 10).
-    
+        topic (str) : Sujet libre à rechercher (ex: "transformers", "rust").
+                      Si absent, recherche par défaut en IA/vision/ML (cs.AI, cs.CV, cs.LG).
+
     Fonctionnement :
         - Envoie une requête GET sur l'API officielle export.arxiv.org.
         - Parse le flux Atom XML retourné pour extraire titre, auteurs, résumé et lien.
         - Supporte le repli vers du JSON si un mock unitaire est injecté dans les tests.
     """
+    if topic:
+        search_query = f'all:"{topic}"'
+    else:
+        search_query = "cat:cs.AI OR cat:cs.CV OR cat:cs.LG"
+
     params = {
-        "search_query": "cat:cs.AI OR cat:cs.CV OR cat:cs.LG",
+        "search_query": search_query,
         "start": 0,
         "max_results": max_results,
         "sortBy": "submittedDate",
@@ -144,12 +177,17 @@ def fetch_arxiv_data(max_results: int = 10) -> list:
         return []
 
 
-def fetch_github_data(per_page: int = 10) -> list:
+def fetch_github_data(per_page: int = 10, topic: str = None) -> list:
     """
-    Récupère les dépôts populaires dans le domaine de l'IA via l'API GitHub.
-    
+    Récupère les dépôts populaires via l'API GitHub.
+
+    Paramètres :
+        per_page (int) : Nombre de dépôts à retourner (défaut : 10).
+        topic (str) : Sujet libre à rechercher (ex: "rust cli", "llm agents").
+                      Si absent, recherche par défaut sur "machine-learning language:python".
+
     Gestion du cache et des quotas :
-        - Vérifie si les données en cache ont moins de 60 minutes.
+        - Vérifie si les données en cache (pour ce même sujet) ont moins de 60 minutes.
         - Utilise automatiquement GITHUB_TOKEN depuis l'environnement si présent
           pour bénéficier d'une limite de 5000 requêtes/heure.
     """
@@ -163,21 +201,24 @@ def fetch_github_data(per_page: int = 10) -> list:
     if github_token:
         headers["Authorization"] = f"token {github_token}"
 
+    query = topic if topic else "machine-learning language:python"
+    cache_key = f"github_{query}"
+
     params = {
-        "q": "machine-learning language:python",
+        "q": query,
         "sort": "stars",
         "order": "desc",
         "per_page": per_page,
     }
 
-    # Vérification du cache pour éviter la saturation du quota
-    last_fetch_time = CACHE.get("github_last_fetch")
+    # Vérification du cache pour éviter la saturation du quota (par sujet de recherche)
+    last_fetch_time = CACHE.get(f"{cache_key}_last_fetch")
     if last_fetch_time:
         try:
             delta = datetime.now() - datetime.strptime(last_fetch_time, "%Y-%m-%d %H:%M:%S")
             if delta.total_seconds() < 3600:
                 logger.info("[GITHUB] Données lues depuis le cache local (moins d'une heure).")
-                return CACHE.get("github_data", [])
+                return CACHE.get(f"{cache_key}_data", [])
         except ValueError:
             pass
 
@@ -199,8 +240,8 @@ def fetch_github_data(per_page: int = 10) -> list:
             repos.append(repo_data)
 
         # Mise à jour du cache
-        CACHE["github_data"] = repos
-        CACHE["github_last_fetch"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        CACHE[f"{cache_key}_data"] = repos
+        CACHE[f"{cache_key}_last_fetch"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         save_cache()
 
         logger.info(f"[GITHUB] {len(repos)} dépôts extraits avec succès.")

@@ -972,6 +972,92 @@ class MainScreen(Screen):
 
 
 
+def _fetch_research_markdown(args: List[str]) -> str:
+    """Récupère et formate la veille scientifique arXiv, dépôts GitHub et DuckDuckGo en Markdown."""
+    from pathlib import Path
+    import importlib.util
+
+    scraper_path = Path(__file__).resolve().parent.parent.parent / "real_implementations" / "scraper.py"
+    spec = importlib.util.spec_from_file_location("freeai_research_scraper", scraper_path)
+    scraper = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(scraper)
+
+    VALID_SOURCES = ("arxiv", "github", "web", "all")
+    source = args[0].lower() if args else "all"
+    topic = " ".join(args[1:]).strip() if len(args) > 1 else None
+
+    if source not in VALID_SOURCES:
+        topic = " ".join(args).strip()
+        source = "all"
+
+    original_topic = topic
+    if topic:
+        translated = scraper.translate_to_english(topic)
+        topic = translated
+
+    lines = []
+    lines.append("### ◈ Veille Scientifique & Technique Souveraine")
+    if topic:
+        if original_topic and original_topic.lower() != topic.lower():
+            lines.append(f"• **Sujet :** {original_topic} *(indexé en anglais : `{topic}`)*\n")
+        else:
+            lines.append(f"• **Sujet :** {topic}\n")
+    else:
+        lines.append("• **Sujet :** Intelligence Artificielle & Machine Learning\n")
+
+    if source in ("arxiv", "all"):
+        papers = scraper.fetch_arxiv_data(max_results=6, topic=topic)
+        lines.append("#### [arXiv] Derniers Articles Scientifiques (export.arxiv.org)")
+        if papers:
+            for p in papers:
+                title = p.get("title", "N/A").replace("\n", " ").strip()
+                authors = p.get("authors", "N/A")
+                date = p.get("published", "N/A")[:10]
+                url = p.get("url", "")
+                link_text = f"[{title}]({url})" if url else title
+                lines.append(f"- **{link_text}**\n  *Auteurs :* {authors} · *Date :* {date}")
+        else:
+            lines.append("- *(Aucun article arXiv trouvé ou réseau indisponible)*")
+        lines.append("")
+
+    if source in ("github", "all"):
+        repos = scraper.fetch_github_data(per_page=6, topic=topic)
+        lines.append("#### [GitHub] Dépôts Populaires Tendances (api.github.com)")
+        if repos:
+            for r in repos:
+                name = r.get("name", "N/A")
+                owner = r.get("owner", "N/A")
+                stars = r.get("stars", 0)
+                desc = (r.get("description") or "-").replace("\n", " ").strip()
+                if len(desc) > 90:
+                    desc = desc[:87] + "..."
+                url = r.get("url") or f"https://github.com/{owner}/{name}"
+                lines.append(f"- **[{name}]({url})** ({owner}) — ★ {stars}\n  {desc}")
+        else:
+            lines.append("- *(Aucun dépôt GitHub trouvé ou quota dépassé)*")
+        lines.append("")
+
+    if source in ("web", "all"):
+        try:
+            from app.tools.sovereign_web import sovereign_web
+            web_query = topic or "intelligence artificielle actualités"
+            web_results = sovereign_web.search_sync(web_query, max_results=5)
+            lines.append("#### [Web] Résultats DuckDuckGo Souverains")
+            if web_results:
+                for w in web_results:
+                    w_title = w.get("title", "N/A")
+                    w_url = w.get("url", "#")
+                    w_snip = (w.get("snippet") or "-").replace("\n", " ").strip()
+                    lines.append(f"- **[{w_title}]({w_url})**\n  {w_snip}")
+            else:
+                lines.append("- *(Aucun résultat web disponible)*")
+        except Exception as e:
+            lines.append(f"- *(Erreur recherche web : {e})*")
+        lines.append("")
+
+    return "\n".join(lines)
+
+
 # =============================================================================
 # COMMAND PALETTE PROVIDER (Ctrl+P)
 # =============================================================================
@@ -984,6 +1070,8 @@ class OpenCodeCommandProvider(Provider):
         matcher = self.matcher(query)
 
         commands = [
+            ("/research", "Veille scientifique & technique réelle (arXiv, GitHub, Web)", lambda: app.run_slash_command("/research")),
+            ("/cyber", "Arsenal cybersécurité & exécution d'outils Kali", lambda: app.run_slash_command("/cyber")),
             ("/undo", "Rollback atomique git & fichiers modifiés", lambda: app.run_slash_command("/undo")),
             ("/compact", "Distillation neuronale de l'historique", lambda: app.run_slash_command("/compact")),
             ("/lsp", "Sonde en direct pyright / ruff / ast", lambda: app.run_slash_command("/lsp")),
@@ -2075,6 +2163,8 @@ class FreeAITUIApp(App):
         elif cmd == "/help":
             help_text = (
                 "**Arsenal des Commandes OpenCode :**\n"
+                "- `/research <sujet>` : Veille scientifique et technique réelle (arXiv, GitHub, Web)\n"
+                "- `/cyber` : Arsenal de cybersécurité souverain et exécution d'outils Kali\n"
                 "- `/undo` : Rollback atomique git & fichiers modifiés\n"
                 "- `/compact` : Distillation neuronale de l'historique de conversation\n"
                 "- `/lsp` : Sonde en direct pyright / ruff / syntaxe AST\n"
@@ -2212,6 +2302,55 @@ class FreeAITUIApp(App):
                     target_path.parent.mkdir(parents=True, exist_ok=True)
                     target_path.touch()
                 self.open_code_editor(target_path)
+        elif cmd == "/research":
+            card = AssistantMessageCard()
+            await chat_scroll.mount(card)
+            card.update_streaming_text("◈ Interrogation en direct d'arXiv, GitHub et DuckDuckGo...")
+            chat_scroll.scroll_end(animate=False)
+            try:
+                markdown_text = await asyncio.to_thread(_fetch_research_markdown, args)
+                card.finalize_text(markdown_text)
+            except Exception as ex:
+                card.finalize_text(f"✗ Erreur lors de la recherche /research : {ex}")
+        elif cmd == "/cyber":
+            subcmd = args[0].lower() if args else "status"
+            if subcmd == "exec":
+                if len(args) < 2:
+                    card = AssistantMessageCard()
+                    await chat_scroll.mount(card)
+                    card.finalize_text("Usage : `/cyber exec <outil_kali> [arguments_json]`\nExemple : `/cyber exec nmap '{\"target\": \"127.0.0.1\"}'`")
+                    return
+                tool_name = args[1]
+                try:
+                    arguments = json.loads(" ".join(args[2:])) if len(args) > 2 else {}
+                except json.JSONDecodeError as e:
+                    card = AssistantMessageCard()
+                    await chat_scroll.mount(card)
+                    card.finalize_text(f"✗ Arguments JSON invalides : {e}")
+                    return
+                card = AssistantMessageCard()
+                await chat_scroll.mount(card)
+                card.update_streaming_text(f"◈ Exécution de l'outil Kali `{tool_name}`...")
+                chat_scroll.scroll_end(animate=False)
+                import freeai_cyber
+                out = await asyncio.to_thread(freeai_cyber.non_interactive_mode, tool_name, arguments)
+                if out:
+                    card.finalize_text(f"**Sortie réelle de `{tool_name}` :**\n```text\n{out}\n```")
+                else:
+                    card.finalize_text(f"✗ Échec d'exécution ou outil `{tool_name}` indisponible.")
+            else:
+                card = AssistantMessageCard()
+                await chat_scroll.mount(card)
+                cyber_info = (
+                    "**Arsenal Cybersécurité & Pentest FreeAI :**\n"
+                    "- **Protection Sanctuaire** : `SacredLifeSentinel (Inviolable, Veto Immédiat)`\n"
+                    "- **Modules Pentest & Audit** : `pentest-gate, threat-model, run-poc, securecoder, scan_dependencies`\n"
+                    "- **Sandbox d'Exécution** : `ShadowDockerExecutor (RAM éphémère) & KineticShadowNetns`\n"
+                    "- **Réseau Souverain** : `Tor Onion V3 & Ultrasonic Air-Gap Transceiver`\n"
+                    "- **Stockage Distant** : `Telegram Neural Vault & Neon PostgreSQL`\n\n"
+                    "Tapez `/cyber exec <outil> [json_args]` pour exécuter un outil Kali."
+                )
+                card.finalize_text(cyber_info)
         else:
             card = AssistantMessageCard()
             await chat_scroll.mount(card)

@@ -990,9 +990,14 @@ def print_help():
         "/design catalog ou /design export"
     )
     table.add_row(
-        "/cyber [status|skills|audit]",
-        "Arsenal Cybersécurité & Pentest : Pentest-Gate, Threat-Model, Sacred Life Sentinel et Shadow Sandboxes.",
-        "/cyber status"
+        "/cyber [status|exec <outil> <json>]",
+        "Arsenal Cybersécurité & Pentest : Pentest-Gate, Threat-Model, Sacred Life Sentinel, Shadow Sandboxes, et exécution réelle d'outils Kali installés.",
+        "/cyber status ou /cyber exec nmap '{\"target\": \"127.0.0.1\"}'"
+    )
+    table.add_row(
+        "/research [arxiv|github|web|all] <sujet>",
+        "Veille Réelle Multi-Sources : articles arXiv, dépôts GitHub et résultats web (DuckDuckGo) sur un sujet libre, traduit automatiquement du français si besoin.",
+        "/research cybersécurité ou /research arxiv transformers ou /research web dernières failles Linux"
     )
     table.add_row(
         "/skills [status|sync]",
@@ -1115,6 +1120,18 @@ def print_status(tech_lead: TechLeadOrchestrator):
     if mesh:
         peers_cnt = mesh.get("active_peers_count", 0)
         table.add_row("Zero-Conf P2P Mesh", f"{peers_cnt} pair(s) actif(s) | UDP Broadcast Port: {mesh.get('mesh_port')}")
+
+    # Chronos Time Engine (horloge souveraine multi-fuseaux, indépendante du contexte conversationnel)
+    try:
+        from app.cognition.chronos_time import ChronosTimeEngine
+        chronos_tel = ChronosTimeEngine.get_satellite_clock_telemetry()
+        table.add_row(
+            "Horloge Chronos",
+            f"{chronos_tel['formatted_date']} {chronos_tel['formatted_time']} ({chronos_tel['timezone']}) | "
+            f"Phase : {chronos_tel['period']} | Salutation : {chronos_tel['greeting_token']}"
+        )
+    except Exception:
+        pass
 
     # Sacred Life Sentinel
     table.add_row("Santé & Vie Humaine", "[bold green][Sec] INVIOLABLE (Sanctuaire Éthique Actif - Veto Absolu)[/]")
@@ -2152,8 +2169,39 @@ def run_evolve(tech_lead: TechLeadOrchestrator, args: List[str]):
                 ))
             else:
                 console.print(f"[bold red][FAIL] Impossible d'appliquer la mise à jour :[/] {res.get('error')}")
+
+    elif subcmd in ("tune", "optimize", "genetic"):
+        script_path = Path(__file__).parent / "genetic_optimization.py"
+        console.print(Panel(
+            "[bold yellow]Optimisation Génétique Darwinienne (DEAP) des hyperparamètres GPT-2[/]\n"
+            "Population : 15 individus | Générations : 10 | Sélection par tournoi\n"
+            "[dim]Processus lourd (CPU/GPU) lancé en sous-processus isolé. Ctrl+C pour interrompre.[/]",
+            title="[Evolve] Lancement de l'Optimiseur Génétique",
+            border_style="yellow"
+        ))
+        try:
+            with console.status("[bold cyan]Évolution darwinienne des hyperparamètres en cours...[/]", spinner="dots"):
+                proc = subprocess.run(
+                    [sys.executable, str(script_path)],
+                    cwd=str(script_path.parent),
+                    capture_output=True,
+                    text=True,
+                    timeout=1800,
+                )
+            if proc.returncode == 0:
+                console.print(Panel(proc.stdout[-4000:], title="[OK] Optimisation Terminée", border_style="green"))
+                result_file = script_path.parent / "optimized_hyperparameters.json"
+                if result_file.exists():
+                    console.print(f"[dim]Hyperparamètres optimaux enregistrés dans :[/] {result_file}")
+            else:
+                console.print(Panel((proc.stderr or proc.stdout)[-4000:], title="[FAIL] Échec de l'Optimisation", border_style="red"))
+        except subprocess.TimeoutExpired:
+            console.print("[bold red][FAIL] Timeout : l'optimisation a dépassé 30 minutes.[/]")
+        except FileNotFoundError:
+            console.print(f"[bold red][FAIL] Dépendances manquantes (deap/torch/transformers) pour exécuter {script_path}.[/]")
+
     else:
-        console.print("[bold red]Usage :[/] /evolve [check|apply|test]")
+        console.print("[bold red]Usage :[/] /evolve [check|apply|test|tune]")
 
 
 async def run_arena(tech_lead: TechLeadOrchestrator, args: List[str]):
@@ -4318,6 +4366,31 @@ async def run_design(tech_lead: TechLeadOrchestrator, args: List[str]):
 
 async def run_cyber(tech_lead: TechLeadOrchestrator, args: List[str]):
     """Affiche et active les compétences souveraines de Cybersécurité et Pentest."""
+    subcmd = args[0].lower() if args else "status"
+
+    if subcmd == "exec":
+        if len(args) < 2:
+            console.print("[bold red]Usage :[/] /cyber exec <outil_kali> [arguments_json]")
+            console.print("[dim]Exemple : /cyber exec nmap '{\"target\": \"127.0.0.1\"}'[/]")
+            return
+
+        tool_name = args[1]
+        try:
+            arguments = json.loads(" ".join(args[2:])) if len(args) > 2 else {}
+        except json.JSONDecodeError as e:
+            console.print(f"[bold red][FAIL] Arguments JSON invalides :[/] {e}")
+            return
+
+        import freeai_cyber
+        with console.status(f"[bold cyan]Exécution de l'outil Kali '{tool_name}'...[/]", spinner="dots"):
+            output = freeai_cyber.non_interactive_mode(tool_name, arguments)
+
+        if output:
+            console.print(Panel(output, title=f"[Sec] Sortie réelle de '{tool_name}'", border_style="green"))
+        else:
+            console.print(f"[bold red][FAIL] Échec de l'exécution ou outil '{tool_name}' indisponible sur ce système.[/]")
+        return
+
     domains = tech_lead.forge.get_skills_by_domain()
     cyber_skills = domains.get("cybersecurity", [])
 
@@ -4335,6 +4408,78 @@ async def run_cyber(tech_lead: TechLeadOrchestrator, args: List[str]):
     for s in cyber_skills[:12]:
         console.print(f"  • [bold red][Sec] {s}[/]")
     console.print("\n[dim]Tapez [cyan]/skills sync[/] pour synchroniser tout l'arsenal vers Telegram et Neon Cloud.[/]")
+
+
+def run_research(tech_lead: TechLeadOrchestrator, args: List[str]):
+    """Veille scientifique et technique réelle : derniers papiers arXiv et dépôts GitHub IA tendances."""
+    import importlib.util
+
+    scraper_path = Path(__file__).parent / "real_implementations" / "scraper.py"
+    spec = importlib.util.spec_from_file_location("freeai_research_scraper", scraper_path)
+    scraper = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(scraper)
+
+    VALID_SOURCES = ("arxiv", "github", "web", "all")
+    source = args[0].lower() if args else "all"
+    topic = " ".join(args[1:]).strip() if len(args) > 1 else None
+
+    if source not in VALID_SOURCES:
+        # Pas de source reconnue en premier argument : tout l'argument est traité comme sujet, source = all
+        topic = " ".join(args).strip()
+        source = "all"
+
+    if topic:
+        translated_topic = scraper.translate_to_english(topic)
+        if translated_topic.lower() != topic.lower():
+            console.print(f"[dim][Traduction] « {topic} » -> « {translated_topic} » (arXiv/GitHub indexés en anglais)[/]")
+        topic = translated_topic
+
+    topic_label = f" sur « {topic} »" if topic else " (IA / ML par défaut)"
+
+    if source in ("arxiv", "all"):
+        with console.status(f"[bold cyan]Interrogation de l'API officielle arXiv{topic_label}...[/]", spinner="dots"):
+            papers = scraper.fetch_arxiv_data(max_results=8, topic=topic)
+        if papers:
+            table = Table(title=f"[Veille] Derniers Articles Scientifiques arXiv{topic_label}", border_style="cyan")
+            table.add_column("Titre", style="bold yellow", max_width=50)
+            table.add_column("Auteurs", style="dim", max_width=25)
+            table.add_column("Publié", style="green")
+            for p in papers:
+                table.add_row(p["title"], p["authors"], p["published"][:10])
+            console.print(table)
+        else:
+            console.print("[yellow]Aucun article récupéré (sujet introuvable, réseau indisponible ou API arXiv en erreur).[/]")
+
+    if source in ("github", "all"):
+        with console.status(f"[bold cyan]Interrogation de l'API GitHub{topic_label}...[/]", spinner="dots"):
+            repos = scraper.fetch_github_data(per_page=8, topic=topic)
+        if repos:
+            table = Table(title=f"[Veille] Dépôts GitHub les Plus Étoilés{topic_label}", border_style="magenta")
+            table.add_column("Dépôt", style="bold yellow")
+            table.add_column("Auteur", style="dim")
+            table.add_column("Étoiles", style="green")
+            table.add_column("Description", max_width=45)
+            for r in repos:
+                table.add_row(r["name"], r["owner"], str(r["stars"]), r["description"] or "-")
+            console.print(table)
+        else:
+            console.print("[yellow]Aucun dépôt récupéré (sujet introuvable, réseau indisponible, API GitHub en erreur ou quota atteint).[/]")
+
+    if source in ("web", "all"):
+        from app.tools.sovereign_web import sovereign_web
+        web_query = topic or "intelligence artificielle actualités"
+        with console.status(f"[bold cyan]Recherche web souveraine (DuckDuckGo){topic_label}...[/]", spinner="dots"):
+            web_results = sovereign_web.search_sync(web_query, max_results=6)
+        if web_results:
+            table = Table(title=f"[Veille] Résultats Web Généraux{topic_label}", border_style="green")
+            table.add_column("Titre", style="bold yellow", max_width=45)
+            table.add_column("URL", style="dim underline", max_width=40)
+            table.add_column("Extrait", max_width=40)
+            for r in web_results:
+                table.add_row(r.get("title", "N/A"), r.get("url", "N/A"), (r.get("snippet") or "-")[:120])
+            console.print(table)
+        else:
+            console.print("[yellow]Aucun résultat web (réseau indisponible ou requête bloquée).[/]")
 
 
 async def run_skills(tech_lead: TechLeadOrchestrator, args: List[str]):
@@ -4568,10 +4713,35 @@ async def run_satellite(tech_lead, args: List[str]):
         return
     
     if not args:
-        console.print("[bold red]Usage :[/] /satellite [scan <zone>|avions <zone>|iss|menace|meteo <zone>]")
+        console.print("[bold red]Usage :[/] /satellite [scan <zone>|avions <zone>|iss|menace|meteo <zone>|starlink]")
         return
 
     subcmd = args[0].lower()
+
+    if subcmd == "starlink":
+        from app.network.starlink_adapter import StarlinkAdapter
+        adapter = StarlinkAdapter()
+        with console.status("[bold cyan][Sat] Sonde réelle du terminal Starlink (gRPC local)...[/]"):
+            status = await adapter.get_full_status()
+        if status["dish_reachable"]:
+            console.print(Panel(
+                f"• Hôte configuré : [bold yellow]{status['configured_host']}[/]\n"
+                f"• Dish joignable : [bold green]Oui[/]\n"
+                f"• Qualité signal : {status['signal_quality']}\n"
+                f"• Satellites visibles : {status['visible_satellites']}",
+                title="[Sat] Terminal Starlink — Statut Réel",
+                border_style="green"
+            ))
+        else:
+            console.print(Panel(
+                f"• Hôte configuré : [bold yellow]{status['configured_host']}[/]\n"
+                f"• Dish joignable : [bold red]Non[/] (aucun terminal Starlink détecté sur ce réseau)\n"
+                f"[dim]Configurez STARLINK_IP dans .env si votre parabole utilise une IP non-standard.[/]",
+                title="[Sat] Terminal Starlink — Non Détecté",
+                border_style="yellow"
+            ))
+        return
+
     from app.satellite.satellite_eye import SatelliteEye
     eye = SatelliteEye(tech_lead.mode)
     vault = None
@@ -5564,6 +5734,8 @@ async def interactive_cli(initial_mode: str = "freeAi"):
                     await run_design(tech_lead, args)
                 elif cmd == "/cyber":
                     await run_cyber(tech_lead, args)
+                elif cmd == "/research":
+                    run_research(tech_lead, args)
                 elif cmd == "/skills":
                     await run_skills(tech_lead, args)
                 elif cmd == "/video":
@@ -5636,7 +5808,6 @@ def main():
         rm = ResourceManager()
 
         # SECURITY INVARIANT: lesaintAi can only run inside a Docker container
-        import os
         in_docker = os.path.exists("/.dockerenv") or (
             os.path.exists("/proc/1/cgroup") and "docker" in open("/proc/1/cgroup").read()
         )
@@ -5772,6 +5943,8 @@ def main():
                 asyncio.run(run_design(tech_lead, args))
             elif cmd == "/cyber":
                 asyncio.run(run_cyber(tech_lead, args))
+            elif cmd == "/research":
+                run_research(tech_lead, args)
             elif cmd == "/skills":
                 asyncio.run(run_skills(tech_lead, args))
             elif cmd == "/video":

@@ -30,39 +30,6 @@ logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)
 logger = logging.getLogger("freeai_cyber")
 
 
-class ToolGateway:
-    """Simule une interface pour exécuter des commandes."""
-def reformulate_demand(user_input: str) -> str:
-    """Réformule une demande utilisateur interdite en une tâche acceptable."""
-    user_input_lower = user_input.lower()
-    for forbidden_term, reformulated_term in REFORMULATION_MAP.items():
-        if forbidden_term in user_input_lower:
-            logger.info(f"Réformulation de la demande: '{user_input}' -> '{reformulated_term}'")
-            return reformulated_term
-    return user_input
-
-
-def execute_command(tool_name: str, arguments: Dict[str, Any]):
-        try:
-            result = subprocess.run(
-                cmd,
-                shell=True,
-                capture_output=True,
-                text=True,
-                timeout=timeout_sec
-            )
-            return {
-                "success": result.returncode == 0,
-                "stdout": result.stdout.strip(),
-                "stderr": result.stderr.strip(),
-                "returncode": result.returncode
-            }
-        except subprocess.TimeoutExpired:
-            return {"success": False, "error": "Timeout atteint."}
-        except Exception as e:
-            return {"success": False, "error": str(e)}
-
-
 def reformulate_demand(user_input: str) -> str:
     """Réformule une demande utilisateur interdite en une tâche acceptable."""
     user_input_lower = user_input.lower()
@@ -157,14 +124,6 @@ def interactive_mode():
                     logger.error("Aucun outil spécifié dans la réflexion.")
             else:
                 logger.error("Aucun appel d'outil généré.")
-
-            # Construire et exécuter la commande
-            command = registry.build_tool_command(tool_name.replace("kali_", ""), arguments)
-            if command:
-                result = ToolGateway().execute_command(command)
-                print(json.dumps(result, indent=2))
-            else:
-                logger.error(f"Impossible de construire la commande pour {tool_name}.")
         except KeyboardInterrupt:
             logger.info("Sortie du mode interactif...")
             break
@@ -191,20 +150,6 @@ def non_interactive_mode(tool_name: str, arguments: Dict[str, Any]) -> Optional[
         return None
 
     return execute_command(tool_name, arguments)
-    """Mode non-interactif pour l'exécution directe."""
-    registry = KaliToolRegistry()
-    if not registry.is_tool_available(tool_name):
-        logger.error(f"L'outil '{tool_name}' n'est pas disponible.")
-        return {"success": False, "error": f"L'outil '{tool_name}' n'est pas disponible."}
-
-    # Construire la commande
-    command = registry.build_tool_command(tool_name, arguments)
-    if not command:
-        return {"success": False, "error": "Impossible de construire la commande."}
-
-    # Exécuter la commande
-    result = ToolGateway().execute_command(command)
-    return result
 
 
 def main():
