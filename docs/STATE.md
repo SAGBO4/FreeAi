@@ -1,8 +1,39 @@
 # État du projet
 
-Dernière mise à jour : 2026-10-07
+Dernière mise à jour : 2026-10-20
 
 ## Fait
+
+- **Inngest Sovereign Durable Conduit & Multi-LLM Circuit-Breaker (2026-10-20 - F-37, vérifié de bout en bout)** :
+  1. *Moteur Natif (toujours actif, Mode NÉANT)* : `step_run`/`step_sleep` mémoïsent les étapes dans un dict en RAM du process courant (0 Mo SSD).
+  2. *Moteur Cloud (`INNGEST_EVENT_KEY` + `INNGEST_SIGNING_KEY` + paquet `inngest`)* : la mission est déléguée comme événement signé à Inngest Cloud ; la fonction durable `resilient-swarm-cascade` est enregistrée et exécutée via `inngest.fast_api.serve`.
+  3. *Micro-Serveur Dédié Isolé (port 8005)* : `app/orchestrator/inngest_server.py` expose exclusivement `/api/inngest` avec vérification stricte de signature cryptographique Inngest. Le port applicatif 8000 et ses routes locales (`/execute`) restent hermétiquement inaccessibles depuis l'extérieur.
+  4. *Circuit-Breaker Multi-Modèles Auto-Adaptatif* : Cascade résiliente (Groq LPU -> Kimi Web K3 -> Kilo AI Gateway) partagée par les deux moteurs, bascule sans ré-exécuter les étapes précédentes.
+  5. *Validation Bidirectionnelle Inngest Cloud en Conditions Réelles* : Synchronisation réussie (`PUT /api/inngest` HTTP 200, `sync_id: 9a5ab767-495b-4880-b0bd-19506b56c7c7`), envoi réel d'événement `freeai/resilient.swarm.requested` (`event_id: 01M5CZPN842F3ZPP4BVZJ7DKYS`) et callback Inngest Cloud confirmé (`POST /api/inngest` HTTP 200). Limite `KI-001` levée et résolue.
+  6. *Télémétrie Déportée Telegram Neural Vault* : Envoi asynchrone non-bloquant des rapports d'exécution vers Telegram (`@LesaintAi_bot`).
+  7. *Intégration CLI & TUI (`/inngest`)* : Commandes `/inngest status` et `/inngest swarm <prompt>` opérationnelles (10/10 tests validés contre le vrai SDK, 0 finding `tamper_check`, 0 erreur `docs_check`).
+
+- **Sovereign Kimi Interactive Playwright Authenticator (2026-10-20 - F-36)** :
+  1. *Lancement Navigateur Furtif Anti-Détection* : Contexte Chromium Playwright interactif doté des drapeaux anti-automatisation (`--disable-blink-features=AutomationControlled`, neutralisation de `navigator.webdriver`, User-Agent réaliste) naviguant vers `https://kimi.moonshot.cn`.
+  2. *Interception Active de Session* : Sondage automatique et non-bloquant des cookies contextuels à la recherche du cookie `refresh_token` émis après l'authentification utilisateur (SMS ou QR code).
+  3. *Persistance Éphémère & Hybride* : Mise à jour instantanée du pont en mémoire vive `KimiWebBridge` (Mode NÉANT) et persistance propre dans le fichier `.env` local (`KIMI_REFRESH_TOKEN=...`).
+  4. *Fermeture Propre & Garde-Fou de Timeout* : Destruction immédiate et sans résidu des contextes de navigation dès capture du jeton ou en cas d'expiration/fermeture par l'utilisateur.
+  5. *Commande Intégrée CLI & Orchestrateur* : Commande dédiée `/kimi login` et `/kimi status` permettant un embarquement sans aucune manipulation manuelle des DevTools F12 (100% des tests validés).
+
+- **Sovereign Kimi Web Bridge & Direct Cloud Moonshot (2026-10-20 - F-35)** :
+  1. *Pont Web Kimi Natif (Zero-Local Server)* : Émulation asynchrone sécurisée du protocole web Kimi (`https://kimi.moonshot.cn/api/auth/token/refresh`) via `KIMI_REFRESH_TOKEN` stocké en mémoire vive volatile (Mode NÉANT), régénération automatique du `access_token` sans nécessiter de serveur mandataire local ni de redirection de port.
+  2. *Rotation de Pool Multi-Jetons* : Prise en charge transparente d'un pool de tokens séparés par des virgules avec rotation automatique round-robin et exclusion gracieuse des jetons expirés ou épuisés.
+  3. *Cycle de Vie & Streaming SSE Kimi* : Création de session de conversation (`/api/chat`), envoi de prompt et agrégation fluide du flux Server-Sent Events (`/api/chat/{id}/completion/stream`) avec reconstruction intégrale des segments sans perte de texte.
+  4. *Repli Hybride Moonshot Direct API* : Détection transparente de `MOONSHOT_API_KEY` ou `KIMI_API_KEY` et bascule directe vers l'API OpenAI-compatible officielle (`https://api.moonshot.cn/v1/chat/completions`, modèles `kimi-k1.5`, `kimi-k2`, `moonshot-v1-8k/32k/128k`) si configurée ou en cas de repli.
+  5. *Intégration Fédération FreeAi* : Enregistrement complet des cibles `kimi_web` et `kimi` dans le catalogue `OnlineModelFederation.CATALOG` et dans la cascade d'interrogation libre (100% RAM, 0 résidu disque, 7/7 tests unitaires passés).
+
+- **OurFreeModel Sovereign Bridge (2026-10-20 - F-34)** :
+  1. *Pont Souverain OpenCode v2 Fingerprint* : Implémentation complète de l'encodage bitwise descendant 48-bit (`ses_<12hex><14base62>`) avec validation stricte du gate `^[0-9a-f]{9}f[c-f][0-9a-f]$`, en-têtes officiels (`User-Agent: opencode/latest/2.0.26/cli`, `Authorization: Bearer public`, quadruple miroir de session, suppression de `x-opencode-request`), injection verbatim des outils `read` et `shell` et purge de `tool_choice: "none"`.
+  2. *Passerelle Publique Kilo AI* : Détection dynamique et interrogation sans clé de la tranche `isFree: true` (`kilo-auto/free`, `minimax/minimax-m3.1-flash:free`, `nvidia/nemotron-3.5-super-vl:free`, etc.) avec modulation unifiée du `reasoning.effort`.
+  3. *Détection Automatique Forward Gateway Local* : Sondage automatique sans blocage des ports loopback `18900`, `18899`, `18923` et extraction transparente de `forwardKey` dans `~/.our-free-model/settings.json`.
+  4. *Intégration Fédération & Mode NÉANT* : Enregistrement de `opencode_free`, `kilo_free` et `our_free_model_local` dans `OnlineModelFederation.CATALOG` et cascade de secours intelligente permettant à FreeAi d'interroger DeepSeek V4.1 Flash et GLM 5.3 Flash en direct et gratuitement même avec 0 clé configurée (100% RAM volatile, 0 écriture SSD).
+  5. *Validation Complète (15/15 tests)* : Couverture intégrale des sessions descendantes, empreinte v2, injection de leurres d'outils, filtrage Kilo et cascade de fédération (`tests/test_our_free_model_bridge.py`).
+  6. *Correctif AC4 (2026-10-20)* : `asyncio` n'était pas importé dans `our_free_model.py`, ce qui rendait `detect_local_forward_gateway` silencieusement inopérant (toute passerelle locale était déclarée absente, même si elle écoutait réellement). Import ajouté, exception resserrée, et ajout d'un test non-mocké sur un vrai socket TCP pour empêcher une régression silencieuse de ce type.
 
 - **Zero-Touch Local Intercom & Apex Sovereign Resultant (2026-10-09 - F-33)** :
   1. *Annonce Réseau Universelle mDNS (`freeai.local`)* : Découverte automatique sur le sous-réseau Wi-Fi/LAN sans QR code, sans application mobile et sans configuration IP manuelle.

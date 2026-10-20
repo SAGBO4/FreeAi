@@ -28,3 +28,7 @@ boto3>=1.34.0
 
 # Optional/Local LLM bindings (uncomment when compiled/installed)
 # llama-cpp-python>=0.2.75
+
+# Durable workflow conduit (Feature F-37) - optional, only activates Inngest
+# Cloud mode when INNGEST_EVENT_KEY is set; native in-RAM fallback otherwise
+inngest>=0.5.19

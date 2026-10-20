@@ -498,6 +498,18 @@ class TechLeadOrchestrator:
         async for token in self.free_ai.federation.stream_free_online_model(prompt):
             yield token
 
+    async def kimi_login(self, headless: bool = False, timeout_sec: float = 120.0) -> Dict[str, Any]:
+        """Launches interactive Playwright session to intercept Kimi refresh_token cookie."""
+        from app.llm.kimi_authenticator import KimiPlaywrightAuthenticator
+        authenticator = KimiPlaywrightAuthenticator()
+        return await authenticator.launch_interactive_login(headless=headless, timeout_sec=timeout_sec)
+
+    async def run_inngest_swarm(self, prompt: str) -> Dict[str, Any]:
+        """Executes resilient multi-model workflow via Inngest Sovereign Conduit."""
+        from app.orchestrator.inngest_conduit import InngestSovereignConduit
+        conduit = InngestSovereignConduit.get_instance()
+        return await conduit.execute_resilient_swarm(prompt)
+
     async def ask_online_with_log(self, prompt: str, log_path: str, max_lines: int = 150) -> Dict[str, Any]:
         """Reads a log file from anywhere on the PC and submits it to the remote online AI (DeepSeek/Grok/Qwen) with a question."""
         log_res = self.tool_gateway.read_log_tail(log_path, max_lines=max_lines)

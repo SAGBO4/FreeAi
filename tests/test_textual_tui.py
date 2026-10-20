@@ -230,6 +230,18 @@ class TestTextualTUI(unittest.IsolatedAsyncioTestCase):
             await app.run_slash_command("/mode lesaintAi")
             self.assertEqual(app.mode, "lesaintAi")
 
+            # 4.bis /kimi status
+            await app.run_slash_command("/kimi status")
+            self.assertIn("Kimi", app.query(AssistantMessageCard).last().raw_text)
+
+            # 4.ter /online
+            await app.run_slash_command("/online")
+            self.assertIn("Modèles en Ligne", app.query(AssistantMessageCard).last().raw_text)
+
+            # 4.quater /inngest status
+            await app.run_slash_command("/inngest status")
+            self.assertIn("Inngest Sovereign Durable Conduit", app.query(AssistantMessageCard).last().raw_text)
+
             # 5. /clear
             await app.action_clear_chat()
             self.assertEqual(len(app.query(AssistantMessageCard)), 0)

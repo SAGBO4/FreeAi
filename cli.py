@@ -227,6 +227,12 @@ SLASH_COMMANDS = [
     "/sync",
     "/learn",
     "/online",
+    "/kimi",
+    "/kimi login",
+    "/kimi status",
+    "/inngest",
+    "/inngest status",
+    "/inngest swarm",
     "/ask",
     "/asklog",
     "/clash",
@@ -1780,6 +1786,93 @@ def run_online_config(tech_lead: TechLeadOrchestrator, args: List[str]):
     model = args[1] if len(args) > 1 else None
     res = tech_lead.set_online_target(provider, model)
     console.print(f"[bold green][OK] IA en ligne activée :[/] Fournisseur = [bold yellow]{res['provider'].upper()}[/], Modèle = [bold yellow]{res['model']}[/]")
+
+
+async def run_kimi_auth(tech_lead: TechLeadOrchestrator, args: List[str]):
+    """One-time interactive login to Kimi Web to intercept session refresh_token."""
+    subcmd = args[0].lower() if args else "login"
+
+    if subcmd in ("status", "check"):
+        token = os.getenv("KIMI_REFRESH_TOKEN", "")
+        api_key = os.getenv("MOONSHOT_API_KEY") or os.getenv("KIMI_API_KEY", "")
+        if token:
+            masked = token[:8] + "..." + token[-6:] if len(token) > 14 else "***"
+            console.print(f"[bold green]✓ Kimi Web configuré[/] (Refresh Token: [cyan]{masked}[/])")
+        elif api_key:
+            masked = api_key[:6] + "..." + api_key[-4:] if len(api_key) > 10 else "***"
+            console.print(f"[bold green]✓ Kimi Moonshot API officiel configuré[/] (API Key: [cyan]{masked}[/])")
+        else:
+            console.print("[yellow]✗ Aucun identifiant Kimi configuré.[/] Tapez [bold cyan]/kimi login[/] pour vous connecter en 1 clic.")
+        return
+
+    if subcmd in ("login", "auth", "connect"):
+        console.print("\n[bold cyan]╔══════════════════════════════════════════════════════════════════╗[/]")
+        console.print("[bold cyan]║   Authentification Assistée Kimi Moonshot (Playwright)           ║[/]")
+        console.print("[bold cyan]╚══════════════════════════════════════════════════════════════════╝[/]\n")
+        console.print("[dim]1. Une fenêtre Chromium va s'ouvrir sur [bold]https://kimi.moonshot.cn[/].[/]")
+        console.print("[dim]2. Connectez-vous simplement avec votre compte (SMS ou QR code).[/]")
+        console.print("[dim]3. Dès la connexion, FreeAi interceptera votre jeton de session et fermera la fenêtre.[/]")
+        console.print("[dim]4. FreeAi sera ensuite 100% autonome en mémoire sans jamais ré-ouvrir de navigateur.[/]\n")
+
+        with console.status("[bold green]En attente de connexion sur Kimi Web...[/]", spinner="dots"):
+            res = await tech_lead.kimi_login(headless=False, timeout_sec=120)
+
+        if res.get("success"):
+            console.print("\n[bold green]✓ SUCCÈS :[/] Jeton de session Kimi capturé et configuré dans votre environnement !")
+            console.print("[green]Vous pouvez maintenant utiliser Kimi directement via :[/] [bold yellow]/online kimi_web[/] ou [bold yellow]/ask <question>[/]\n")
+        else:
+            err = res.get('error', 'Erreur inconnue')
+            console.print(f"\n[bold red]✗ ÉCHEC :[/] {err}")
+            if "not installed" in err.lower():
+                console.print("[dim]Pour installer Playwright et Chromium : `python3 -m playwright install chromium`[/]\n")
+            elif "timed out" in err.lower():
+                console.print("[dim]Aucun jeton détecté dans le délai imparti. Vous pouvez réexécuter `/kimi login` quand vous êtes prêt.[/]\n")
+            elif "closed" in err.lower():
+                console.print("[dim]La fenêtre a été fermée avant la connexion.[/]\n")
+
+
+async def run_inngest_cli(tech_lead: TechLeadOrchestrator, args: List[str]):
+    """Orchestrates durable execution workflows via Inngest Sovereign Conduit."""
+    subcmd = args[0].lower() if args else "status"
+
+    if subcmd == "status":
+        from app.orchestrator.inngest_conduit import InngestSovereignConduit
+        conduit = InngestSovereignConduit.get_instance()
+        cloud_on = conduit.cloud_mode_available
+        mode_label = "Cloud Inngest (durabilité inter-redémarrage réelle)" if cloud_on else "Mode Natif Local (RAM NÉANT, non-durable inter-process)"
+        console.print("\n[bold cyan]╔══════════════════════════════════════════════════════════════════╗[/]")
+        console.print("[bold cyan]║   Inngest Sovereign Durable Conduit                              ║[/]")
+        console.print("[bold cyan]╚══════════════════════════════════════════════════════════════════╝[/]\n")
+        console.print(f"• [bold green]Moteur Actif :[/] [yellow]{mode_label}[/]")
+        console.print(f"• [bold green]Circuit-Breaker Multi-LLM :[/] Groq -> Kimi Web -> Kilo AI")
+        console.print(f"• [bold green]Endpoint FastAPI :[/] [cyan]/api/inngest[/] ({'protocole officiel Inngest' if cloud_on else 'stub introspection, 503 sur webhook'})")
+        console.print(f"• [bold green]Workflows Natifs en RAM :[/] {len(conduit._active_contexts)}\n")
+        console.print("[dim]Pour lancer une cascade résiliente : /inngest swarm <votre prompt>[/]\n")
+        return
+
+    if subcmd in ("swarm", "run"):
+        if len(args) < 2:
+            console.print("[bold red]Usage :[/] /inngest swarm <prompt à orchestrer>")
+            return
+        prompt_text = " ".join(args[1:])
+        console.print(f"\n[bold cyan][Inngest] Lancement du Swarm Résilient Multi-Modèles...[/]")
+        with console.status("[bold green]Exécution des étapes durables avec circuit-breaker...[/]", spinner="dots"):
+            res = await tech_lead.run_inngest_swarm(prompt_text)
+
+        if res and res.get("delegated"):
+            console.print(Panel(
+                res.get("message", "Mission déléguée au Neuro-Conduit Inngest."),
+                title="[Inngest] Mission Déléguée (Mode Cloud Durable)",
+                border_style="cyan"
+            ))
+        elif res and res.get("content"):
+            console.print(Panel(
+                res["content"],
+                title=f"[Inngest] Résultante Validée ({res.get('provider', 'Multi-Modèles')}:{res.get('model', 'auto')})",
+                border_style="green"
+            ))
+        else:
+            console.print(f"[bold red]✗ Échec du workflow Inngest :[/] {res.get('error') if isinstance(res, dict) else 'Erreur'}")
 
 
 async def run_ask_online(tech_lead: TechLeadOrchestrator, args: List[str]):
@@ -5659,6 +5752,10 @@ async def interactive_cli(initial_mode: str = "freeAi"):
                     await run_learn(tech_lead, args)
                 elif cmd == "/online":
                     run_online_config(tech_lead, args)
+                elif cmd == "/kimi":
+                    await run_kimi_auth(tech_lead, args)
+                elif cmd == "/inngest":
+                    await run_inngest_cli(tech_lead, args)
                 elif cmd == "/ask":
                     await run_ask_online(tech_lead, args)
                 elif cmd == "/web":
@@ -5866,6 +5963,10 @@ def main():
                 run_search_code(tech_lead, args)
             elif cmd == "/online":
                 run_online_config(tech_lead, args)
+            elif cmd == "/kimi":
+                asyncio.run(run_kimi_auth(tech_lead, args))
+            elif cmd == "/inngest":
+                asyncio.run(run_inngest_cli(tech_lead, args))
             elif cmd == "/ask":
                 asyncio.run(run_ask_online(tech_lead, args))
             elif cmd == "/web":

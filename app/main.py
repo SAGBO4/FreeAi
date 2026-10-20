@@ -67,6 +67,10 @@ app.state.resource_manager = resource_manager
 # Include OpenCode Real-Time Session & Streaming Router
 app.include_router(session_router)
 
+# Mount Inngest Sovereign Durable Conduit
+from app.orchestrator.inngest_conduit import register_inngest_routes
+register_inngest_routes(app)
+
 # Mount OpenCode static files
 WEB_DIR = Path(__file__).resolve().parent / "web"
 if WEB_DIR.exists():

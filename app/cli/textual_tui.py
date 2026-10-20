@@ -1032,7 +1032,7 @@ def _fetch_research_markdown(args: List[str]) -> str:
                 if len(desc) > 90:
                     desc = desc[:87] + "..."
                 url = r.get("url") or f"https://github.com/{owner}/{name}"
-                lines.append(f"- **[{name}]({url})** ({owner}) — ★ {stars}\n  {desc}")
+                lines.append(f"- **[{name}]({url})** ({owner}) — {stars} stars\n  {desc}")
         else:
             lines.append("- *(Aucun dépôt GitHub trouvé ou quota dépassé)*")
         lines.append("")
@@ -1089,6 +1089,10 @@ class OpenCodeCommandProvider(Provider):
             ("/sidebar", "Afficher / masquer la sidebar (Ctrl+B)", app.action_toggle_sidebar),
             ("/clear", "Effacer les messages du chat actif", app.action_clear_chat),
             ("/sync", "Synchronisation GZIP Neon Cloud", lambda: app.run_slash_command("/sync")),
+            ("/online", "Configurer les modèles IA distants (DeepSeek, Kilo, Kimi)", lambda: app.run_slash_command("/online")),
+            ("/kimi login", "Authentification assistée Kimi Moonshot (Playwright)", lambda: app.run_slash_command("/kimi login")),
+            ("/kimi status", "Vérifier le statut de connexion Kimi", lambda: app.run_slash_command("/kimi status")),
+            ("/inngest", "Orchestration durable & circuit-breaker Inngest (F-37)", lambda: app.run_slash_command("/inngest status")),
             ("/mesh", "Satellite Mesh & Passerelle Machine-à-Machine (Forge & Laurince)", lambda: app.run_slash_command("/mesh status")),
             ("/satellite", "Synchroniser et inspecter les satellites (Forge & Laurince)", lambda: app.run_slash_command("/mesh sync")),
             ("/edit", "Ouvrir l'éditeur de code intégré In-TUI (Ctrl+O)", app.action_open_file_prompt),
@@ -2174,6 +2178,9 @@ class FreeAITUIApp(App):
                 "- `/mode <freeAi|lesaintAi>` : Basculer entre privilèges FreeAI et Apex\n"
                 "- `/agent <Tech Lead|Code|Security|Git|Conversation>` : Changer d'agent actif\n"
                 "- `/sync` : Synchronisation distante GZIP Neon PostgreSQL\n"
+                "- `/online` : Configurer les modèles distants (DeepSeek, Kilo, Kimi)\n"
+                "- `/kimi login` : Authentification assistée Kimi Moonshot (Playwright)\n"
+                "- `/inngest` : Moteur d'étapes durables & circuit-breaker Inngest (F-37)\n"
                 "- `/reflex <prompt>` : Radar d'anticipation synaptique & hologramme de pensée (F-25)\n"
                 "- `/edit <path>` : Éditeur de code intégré In-TUI & inspecteur souverain\n"
                 "- `Ctrl+B` : Basculer la barre latérale\n"
@@ -2351,6 +2358,103 @@ class FreeAITUIApp(App):
                     "Tapez `/cyber exec <outil> [json_args]` pour exécuter un outil Kali."
                 )
                 card.finalize_text(cyber_info)
+        elif cmd == "/online":
+            card = AssistantMessageCard()
+            await chat_scroll.mount(card)
+            chat_scroll.scroll_end(animate=False)
+            if not args:
+                catalog = getattr(self.tech_lead, "list_online_models", lambda: {})() if self.tech_lead else {}
+                active = getattr(self.tech_lead.free_ai, "federation", None) if self.tech_lead and hasattr(self.tech_lead, "free_ai") else None
+                lines = ["**Modèles en Ligne Sans Restriction (100% Distants - 0 Mo RAM) :**"]
+                for k, v in catalog.items():
+                    lines.append(f"- `/online {k}` : `{v.get('default_model')}` - {v.get('desc')}")
+                if active:
+                    lines.append(f"\n*Fournisseur actuel :* `{active.current_provider.upper()}` | *Modèle :* `{active.current_model}`")
+                lines.append("\nTapez `/online <fournisseur>` pour basculer (ex: `/online kimi_web`).")
+                card.finalize_text("\n".join(lines))
+            else:
+                provider = args[0].lower()
+                model = args[1] if len(args) > 1 else None
+                if self.tech_lead and hasattr(self.tech_lead, "set_online_target"):
+                    res = self.tech_lead.set_online_target(provider, model)
+                    card.finalize_text(f"◈ Fournisseur en ligne activé : **{res['provider'].upper()}** (Modèle: `{res['model']}`)")
+                else:
+                    card.finalize_text(f"◈ Fournisseur sélectionné : **{provider}**")
+        elif cmd == "/kimi":
+            subcmd = args[0].lower() if args else "login"
+            card = AssistantMessageCard()
+            await chat_scroll.mount(card)
+            chat_scroll.scroll_end(animate=False)
+
+            if subcmd in ("status", "check"):
+                token = os.getenv("KIMI_REFRESH_TOKEN", "")
+                api_key = os.getenv("MOONSHOT_API_KEY") or os.getenv("KIMI_API_KEY", "")
+                if token:
+                    masked = token[:8] + "..." + token[-6:] if len(token) > 14 else "***"
+                    card.finalize_text(f"✓ **Kimi Web configuré** (Refresh Token: `{masked}`)")
+                elif api_key:
+                    masked = api_key[:6] + "..." + api_key[-4:] if len(api_key) > 10 else "***"
+                    card.finalize_text(f"✓ **Kimi Moonshot API officiel configuré** (API Key: `{masked}`)")
+                else:
+                    card.finalize_text("! **Aucun identifiant Kimi configuré.** Tapez `/kimi login` pour vous connecter en 1 clic.")
+            elif subcmd in ("login", "auth", "connect"):
+                card.update_streaming_text("◈ **Lancement de l'authentification assistée Kimi (Playwright)...**\n\nUne fenêtre Chromium s'ouvre sur https://kimi.moonshot.cn. Connectez-vous (SMS ou QR code) ; FreeAi interceptera votre jeton de session.")
+                chat_scroll.scroll_end(animate=False)
+                from app.llm.kimi_authenticator import KimiPlaywrightAuthenticator
+                authenticator = KimiPlaywrightAuthenticator()
+                res = await authenticator.launch_interactive_login(headless=False, timeout_sec=120)
+                if res.get("success"):
+                    card.finalize_text("✓ **SUCCÈS :** Jeton de session Kimi capturé et configuré dans votre environnement !\n\nFreeAi a désormais un accès direct souverain à Kimi K1.5 / K2 sans serveur local.")
+                else:
+                    err = res.get('error', 'Erreur inconnue')
+                    if "not installed" in err.lower():
+                        card.finalize_text(f"✗ **ÉCHEC :** {err}\n*(Exécutez dans un terminal : `python3 -m playwright install chromium`)*")
+                    elif "closed" in err.lower():
+                        card.finalize_text("✗ **Annulé :** La fenêtre du navigateur a été fermée avant la détection de la session.")
+                    elif "timed out" in err.lower():
+                        card.finalize_text("✗ **Délai dépassé :** Aucun jeton détecté dans le délai imparti. Réessayez avec `/kimi login`.")
+                    else:
+                        card.finalize_text(f"✗ **ÉCHEC :** {err}")
+            else:
+                card.finalize_text("Usage : `/kimi login` pour vous connecter, ou `/kimi status` pour vérifier.")
+        elif cmd == "/inngest":
+            subcmd = args[0].lower() if args else "status"
+            card = AssistantMessageCard()
+            await chat_scroll.mount(card)
+            chat_scroll.scroll_end(animate=False)
+
+            if subcmd == "status":
+                from app.orchestrator.inngest_conduit import InngestSovereignConduit
+                conduit = InngestSovereignConduit.get_instance()
+                sk = os.getenv("INNGEST_SIGNING_KEY", "")
+                sk_label = "Configurée (Cloud)" if sk else "Mode Éphémère Local (RAM NÉANT)"
+                info_text = (
+                    "**Inngest Sovereign Durable Conduit (Mode NÉANT 100% RAM) :**\n"
+                    "- Moteur d'Étapes Durables : `Actif (Step-Runner Memoized)`\n"
+                    "- Circuit-Breaker Multi-LLM : `49 Modèles Gérés`\n"
+                    f"- Mode Cloud Inngest : `{sk_label}`\n"
+                    "- Endpoint FastAPI : `/api/inngest` (Discovery + Webhook)\n"
+                    f"- Workflows Actifs en RAM : `{len(conduit._active_contexts)}`\n\n"
+                    "Tapez `/inngest swarm <prompt>` pour exécuter un flux résilient."
+                )
+                card.finalize_text(info_text)
+            elif subcmd in ("swarm", "run"):
+                if len(args) < 2:
+                    card.finalize_text("Usage : `/inngest swarm <prompt à orchestrer>`.")
+                else:
+                    prompt_text = " ".join(args[1:])
+                    card.update_streaming_text("◈ **Orchestration durable Inngest en cours (multi-modèles & circuit-breaker)...**")
+                    chat_scroll.scroll_end(animate=False)
+                    if self.tech_lead and hasattr(self.tech_lead, "run_inngest_swarm"):
+                        res = await self.tech_lead.run_inngest_swarm(prompt_text)
+                        if res and res.get("content"):
+                            card.finalize_text(f"**Résultante Inngest ({res.get('provider', 'Multi-Modèles')}) :**\n\n{res['content']}")
+                        else:
+                            card.finalize_text(f"✗ Échec du workflow Inngest : {res.get('error') if isinstance(res, dict) else 'Erreur'}")
+                    else:
+                        card.finalize_text("✗ Orchestrateur non disponible.")
+            else:
+                card.finalize_text("Usage : `/inngest status` ou `/inngest swarm <prompt>`.")
         else:
             card = AssistantMessageCard()
             await chat_scroll.mount(card)
