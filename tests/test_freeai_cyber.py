@@ -58,9 +58,19 @@ class TestFreeAICyber(unittest.TestCase):
             self.assertIn("sqlmap", command, "La commande ne contient pas sqlmap.")
 
     def test_kali_tool_availability(self):
-        """Test de la disponibilité des outils."""
+        """Test de la disponibilité des outils (sqlmap forcé présent : sa détection réelle
+        dépend du binaire installé sur l'hôte, absent sur un runner CI propre)."""
         self.assertFalse(self.registry.is_tool_available("nonexistent_tool"), "L'outil inexistant est considéré comme disponible.")
-        self.assertTrue(self.registry.is_tool_available("sqlmap") or self.registry.is_tool_available("ffuf"), "Aucun outil Kali standard n'est disponible.")
+
+        real_which = shutil.which
+
+        def fake_which(cmd, *args, **kwargs):
+            if cmd == "sqlmap":
+                return "/usr/bin/sqlmap"
+            return real_which(cmd, *args, **kwargs)
+
+        with patch("app.tools.kali_registry.shutil.which", side_effect=fake_which):
+            self.assertTrue(self.registry.is_tool_available("sqlmap") or self.registry.is_tool_available("ffuf"), "Aucun outil Kali standard n'est disponible.")
 
     def test_kali_tool_availability_reflects_real_detection_not_hardcoded_list(self):
         """is_tool_available doit suivre la détection réelle (shutil.which), pas une liste figée.
