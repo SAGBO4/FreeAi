@@ -302,7 +302,7 @@ class BountyRadarEngine:
 
         return results
 
-    async def solve_bounty(self, bounty: BountyItem) -> Dict[str, Any]:
+    async def solve_bounty(self, bounty: BountyItem, create_pr: bool = False) -> Dict[str, Any]:
         """Generates an architectural analysis and production-ready PR solution using Google AI Pro."""
         logger.info(f"[BOUNTY SOLVER] Analyzing and generating solution for {bounty.bounty_id}: {bounty.title}")
 
@@ -350,10 +350,12 @@ class BountyRadarEngine:
             "branch": branch_name,
             "commit_message": commit_msg,
             "solution_code": raw_solution,
-            "pr_body": pr_body
+            "pr_body": pr_body,
+            # Flag to indicate whether PR should be created when caller requests
+            "_create_pr": create_pr
         }
 
-        # Record in War Chest Ledger
+        # Record in War Chest Ledger (pending PR creation)
         self.war_chest.record_bounty_solution(
             bounty_id=bounty.bounty_id,
             title=bounty.title,
@@ -362,10 +364,114 @@ class BountyRadarEngine:
             issue_url=bounty.issue_url
         )
 
+        # Optionally create the PR immediately if create_pr flag is set
+        if create_pr:
+            pr_result = await self.create_pr_for_bounty(package)
+            if not pr_result.get("success"):
+                # Log the error but don't fail the whole operation
+                # The solution is still generated and recorded, just no PR created
+                logger.warning(f"[BOUNTY SOLVER] PR creation failed: {pr_result.get('error')}")
+                # Add error info to package for caller awareness
+                package["_pr_creation_error"] = pr_result.get("error")
+        
         return {
             "success": True,
             "package": package
         }
+
+    async def create_pr_for_bounty(self, package: Dict[str, Any]) -> Dict[str, Any]:
+        """Create a real GitHub Pull Request for the bounty solution.
+        
+        Uses the gh CLI (already authenticated) to create a PR against the bounty repo.
+        Updates the War Chest Ledger to mark the PR as created.
+        """
+        bounty_id = package.get("bounty_id")
+        repo_url = package.get("repo_url", "")
+        title = package.get("title")
+        solution_code = package.get("solution_code", "")
+        pr_body = package.get("pr_body", "")
+        branch = package.get("branch", "fix/bounty-patch")
+        
+        # Safe URL parsing (regex validation)
+        match = re.match(r"^https://github\.com/([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+)/?$", repo_url)
+        if not match:
+            return {"success": False, "error": f"Cannot parse repo URL: {repo_url}"}
+        
+        owner, repo_name = match.groups()
+        
+        # Pre-flight gh auth status check
+        try:
+            auth_proc = await asyncio.create_subprocess_exec(
+                "gh", "auth", "status",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            try:
+                _, stderr = await asyncio.wait_for(auth_proc.communicate(), timeout=30.0)
+                if auth_proc.returncode != 0:
+                    return {"success": False, "error": "gh CLI not authenticated. Run 'gh auth login'."}
+            except asyncio.TimeoutError:
+                auth_proc.kill()
+                await auth_proc.wait()
+                return {"success": False, "error": "gh auth status timed out."}
+        except FileNotFoundError:
+            return {"success": False, "error": "❌ GitHub CLI (gh) introuvable. Veuillez l'installer ou utiliser l'API alternative."}
+            
+        # Prepare PR title
+        pr_title = f"fix: {title[:70]} (closes #{bounty_id})"
+        
+        cmd = [
+            "gh", "pr", "create",
+            "--title", pr_title,
+            "--body", pr_body,
+            "--repo", f"{owner}/{repo_name}",
+            "--head", branch,
+            "--label", "bounty",
+            "--assignee", owner
+        ]
+        
+        # Exponential retry backoff mechanism for transient network failures
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                proc = await asyncio.create_subprocess_exec(
+                    *cmd,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE
+                )
+                try:
+                    stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=30.0)
+                except asyncio.TimeoutError:
+                    proc.kill()
+                    await proc.wait()
+                    raise TimeoutError("gh subprocess timed out.")
+                
+                if proc.returncode == 0:
+                    data = self.war_chest._read_data()
+                    for sol in data.get("solutions", []):
+                        if sol.get("bounty_id") == bounty_id:
+                            sol["status"] = "pr_created"
+                            sol["pr_url"] = stdout.decode().strip() if stdout else ""
+                            break
+                    self.war_chest._save_data(data)
+                    
+                    return {
+                        "success": True,
+                        "pr_url": stdout.decode().strip() if stdout else "",
+                        "message": f"✅ Pull Request créé avec succès !\n🌐 {stdout.decode().strip() if stdout else ''}\n\n💰 La récompense de {package.get('estimated_reward_usd', 75.0)}$ est maintenant tracée dans le ledger."
+                    }
+                else:
+                    error_msg = stderr.decode() if stderr else "Unknown error"
+                    # If not a network error, maybe don't retry, but for safety we'll let it retry or fail.
+                    if "graphql" not in error_msg.lower() and "network" not in error_msg.lower():
+                        return {"success": False, "error": f"❌ Erreur GitHub CLI : {error_msg}"}
+                    raise RuntimeError(f"GitHub CLI transient error: {error_msg}")
+                    
+            except Exception as e:
+                if attempt == max_retries - 1:
+                    return {"success": False, "error": f"❌ Erreur inattendue création PR (après {max_retries} tentatives): {str(e)}"}
+                await asyncio.sleep(2 ** attempt) # Exponential backoff
+
 
     async def broadcast_bounties_summary(self, target_chat_id: Optional[str] = None) -> Dict[str, Any]:
         """Broadcasts live bounties and War Chest funding progress to Telegram Topic #Forge & Dev."""

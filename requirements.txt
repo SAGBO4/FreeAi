@@ -8,6 +8,18 @@ httpx>=0.27.0
 
 # Numerical & Memory Geometry
 numpy>=1.26.0
+lz4>=4.3.3
+
+# Threat intelligence (app/tools/threat_sentinel.py)
+phonenumbers>=8.13.0
+
+# Worker/coordinator HTTP calls (backend/worker/worker.py)
+requests>=2.31.0
+
+# Browser automation for Kimi web auth / live-review auto-apply (tests patch
+# playwright.async_api directly, so the package must be importable even
+# without browser binaries installed)
+playwright>=1.44.0
 
 # System & Resource Monitoring
 psutil>=5.9.8
@@ -22,5 +34,13 @@ pytest>=8.0.0
 edge-tts>=6.1.12
 psycopg2-binary>=2.9.9
 
+# Cloud persistence (real_implementations/data_migration.py) — needs real AWS/Supabase credentials in cloud_config.json
+tenacity>=8.2.3
+boto3>=1.34.0
+
 # Optional/Local LLM bindings (uncomment when compiled/installed)
 # llama-cpp-python>=0.2.75
+
+# Durable workflow conduit (Feature F-37) - optional, only activates Inngest
+# Cloud mode when INNGEST_EVENT_KEY is set; native in-RAM fallback otherwise
+inngest>=0.5.19

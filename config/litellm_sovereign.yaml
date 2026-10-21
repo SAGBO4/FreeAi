@@ -1,0 +1,107 @@
+# ==============================================================================
+#  FreeAi Sovereign Mesh v3 — LiteLLM Production Configuration
+#  Triple-Tier Fallback (Mistral ➔ Groq ➔ OpenRouter) | Disk Cache | 0€ Illimité
+# ==============================================================================
+
+model_list:
+  # ----------------------------------------------------------------------------
+  # LOGIC CORE (Raisonnement, génération de code, tool calling)
+  # ----------------------------------------------------------------------------
+  - model_name: logic
+    litellm_params:
+      model: mistral/open-mistral-nemo
+      api_key: os.environ/MISTRAL_API_KEY
+      drop_params: true
+      additional_drop_params: ["prompt_cache_key", "cache_control", "anthropic_beta"]
+
+  - model_name: logic-backup-groq
+    litellm_params:
+      model: groq/openai/gpt-oss-120b
+      api_key: os.environ/GROQ_API_KEY
+      drop_params: true
+      additional_drop_params: ["prompt_cache_key", "cache_control", "anthropic_beta"]
+
+  - model_name: logic-backup-openrouter
+    litellm_params:
+      model: openrouter/nvidia/nemotron-3-super-120b-a12b:free
+      api_key: os.environ/OPENROUTER_API_KEY
+      drop_params: true
+      additional_drop_params: ["prompt_cache_key", "cache_control", "anthropic_beta"]
+
+  - model_name: logic-backup-gemma
+    litellm_params:
+      model: openrouter/google/gemma-4-31b-it:free
+      api_key: os.environ/OPENROUTER_API_KEY
+      drop_params: true
+      additional_drop_params: ["prompt_cache_key", "cache_control", "anthropic_beta"]
+
+  - model_name: claude-3-5-sonnet-20241022
+    litellm_params:
+      model: mistral/open-mistral-nemo
+      api_key: os.environ/MISTRAL_API_KEY
+      drop_params: true
+      additional_drop_params: ["prompt_cache_key", "cache_control", "anthropic_beta"]
+
+  - model_name: claude-3-opus-20240229
+    litellm_params:
+      model: mistral/open-mistral-nemo
+      api_key: os.environ/MISTRAL_API_KEY
+      drop_params: true
+      additional_drop_params: ["prompt_cache_key", "cache_control", "anthropic_beta"]
+
+  # ----------------------------------------------------------------------------
+  # FAST CORE (Vitesse d'exécution ultra-rapide, classification, micro-tâches)
+  # ----------------------------------------------------------------------------
+  - model_name: fast
+    litellm_params:
+      model: groq/openai/gpt-oss-120b
+      api_key: os.environ/GROQ_API_KEY
+      drop_params: true
+      additional_drop_params: ["prompt_cache_key", "cache_control", "anthropic_beta"]
+
+  - model_name: fast-backup-groq20b
+    litellm_params:
+      model: groq/openai/gpt-oss-20b
+      api_key: os.environ/GROQ_API_KEY
+      drop_params: true
+      additional_drop_params: ["prompt_cache_key", "cache_control", "anthropic_beta"]
+
+  - model_name: fast-backup-openrouter
+    litellm_params:
+      model: openrouter/cohere/north-mini-code:free
+      api_key: os.environ/OPENROUTER_API_KEY
+      drop_params: true
+      additional_drop_params: ["prompt_cache_key", "cache_control", "anthropic_beta"]
+
+# ------------------------------------------------------------------------------
+# ROUTAGE INTELLIGENT, CASCADE DE FALLBACKS & ALIASES CLAUDE CODE
+# ------------------------------------------------------------------------------
+router_settings:
+  fallbacks:
+    - logic: ["logic-backup-groq", "logic-backup-openrouter", "logic-backup-gemma"]
+    - fast: ["fast-backup-groq20b", "fast-backup-openrouter"]
+  model_group_alias:
+    "claude-3-7-sonnet-20250219": "logic"
+    "claude-3-5-sonnet-20241022": "logic"
+    "claude-3-5-sonnet": "logic"
+    "claude-3-opus-20240229": "logic"
+    "claude-3-opus": "logic"
+    "claude-3-5-haiku-20241022": "fast"
+    "claude-3-5-haiku": "fast"
+    "claude-3-haiku-20240307": "fast"
+
+# ------------------------------------------------------------------------------
+# CACHE SÉMANTIQUE LOCAL PERSISTANT & RÉSILIENCE RÉSEAU
+# ------------------------------------------------------------------------------
+litellm_settings:
+  num_retries: 3
+  request_timeout: 60
+  drop_params: true
+  additional_drop_params: ["prompt_cache_key", "cache_control", "anthropic_beta"]
+  cache: true
+  cache_params:
+    type: "disk"
+    disk_cache_dir: "/home/lesaint/Rendue/FreeAi/cache/litellm_cache"
+
+general_settings:
+  dangerously_permit_weak_or_unset_master_key: true

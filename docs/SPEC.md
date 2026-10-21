@@ -1,268 +1,243 @@
-# Spécification FreeAI
+# SPEC: Autonomous Sovereign Bounty Hunter & Self-Healing Defense
 
-Source: Cahier des charges souverain FreeAI & Forge Pipeline
-Dernière mise à jour : 2026-10-05
+## 1. Overview
+The FreeAi project requires critical robustness and security remediations in its GitHub CLI integrations and LZ4 training data synchronisation. Concurrently, it will evolve to include an "Autonomous Sovereign Bounty Hunter" and a "Self-Healing Defense" system.
 
-## Features
+## 2. Requirements & Acceptance Criteria
 
-| Id | Feature | Depends on | Status |
-|---|---|---|---|
-| F-01 | Orchestrateur Tech Lead & Multi-Agents autonomes | - | done |
-| F-02 | Mode NÉANT & Frugalité RAM (< 70 Mo, 0 résidu SSD) | F-01 | done |
-| F-03 | Telegram Neural Vault & Télépathie Mobile (@LesaintAi_bot) | F-01, F-02 | done |
-| F-04 | Alliance VORTEX-AETHER (Hologramme 1-bit, Air-Gap, Phantom Bus) | F-02 | done |
-| F-05 | Continuum Ghost-Worker & Exécution Distante (PC éteint) | F-03 | done |
-| F-06 | Intégration Forge & Craft-Suite (167 skills, 26 agents, tamper-check) | F-01 | done |
-| F-07 | Protocole Phoenix Blackout & Éveil LesaintAI Apex | F-01, F-02 | done |
-| F-08 | Nexus Tri-Brid & Live Hologram Call (Synesthésie Multimodale Telegram) | F-01, F-03 | done |
-| F-09 | Protocole AETHER-SWARM (Délégation Cloud Serverless, 0% Charge PC) | F-01, F-06 | done |
-| F-10 | Vision & Vidéo Multimodale Télépathique Telegram (Mode NÉANT) | F-01, F-03 | done |
-| F-11 | Noyau Neural Natif JARVIS (ex-GENÈSE) | F-01, F-02 | done |
-| F-12 | Protocole AETHER-LEGION (Éclaireurs Décentralisés) | F-01, F-09 | done |
-| F-13 | Streaming Réel Token-par-Token TUI (LeftBorderStreamer) | F-01 | done |
-| F-14 | Gestionnaire de Session & Continuité (/compact, /undo, /sessions) | F-01, F-02 | done |
-| F-15 | Autocomplétion Flottante @fichiers & Sélecteur Prompt | F-13 | done |
-| F-16 | Sonde LSP Vivante Temps Réel (• LSP Status Bar) | F-01 | done |
-| F-17 | Full-Screen TUI OpenCode Réplique Souveraine (Textual) | F-01, F-02, F-13, F-15, F-16 | done |
-| F-18 | Éditeur de Code Intégré In-TUI & Inspecteur Syntaxique (CodeEditorScreen) | F-01, F-16, F-17 | done |
+### 2.1. Robustness of GitHub CLI (Bounty Radar)
+**Component:** `app/tools/bounty_radar.py` & `cli.py`
+- **Requirement 1:** Safe URL Parsing.
+  - *Acceptance Criterion:* `repo_path.split('/', 1)` must be wrapped in a validation layer. Malformed URLs must be rejected explicitly with a typed error, without causing a crash.
+- **Requirement 2:** Pre-flight Authentication Check.
+  - *Acceptance Criterion:* The system must execute `gh auth status` before any API-dependent operations. Unauthenticated states must halt the process cleanly.
+- **Requirement 3:** Strict Subprocess Lifecycle.
+  - *Acceptance Criterion:* All `gh` subprocess calls must use `asyncio.wait_for` with a configurable timeout. Timeout exceptions must trigger cancellation of the subprocess.
+- **Requirement 4:** Network Resilience.
+  - *Acceptance Criterion:* Transitory network failures must be retried using an exponential backoff strategy (e.g., up to 3 retries).
 
-## Feature details
+### 2.2. Security of Training Sync
+**Component:** `app/training/` (`gradient_sync.py`, `coordinator.py`, `worker.py`)
+- **Requirement 5:** Safe Decompression.
+  - *Acceptance Criterion:* LZ4 decompression of `packed_delta` must validate a cryptographic checksum before processing.
+  - *Acceptance Criterion:* Decompression must enforce a strict maximum size limit (e.g., 50MB) to prevent decompression bomb attacks.
+- **Requirement 6:** Defensive Timeouts.
+  - *Acceptance Criterion:* Worker heartbeats and HTTP requests must have hard timeouts configured.
 
-### F-01 Orchestrateur Tech Lead & Multi-Agents
-Acteur: Développeur / Utilisateur distant
-Acceptation:
-  AC1: Routage automatique des objectifs vers CodeAgent, GitAgent ou SecurityAgent.
-  AC2: Veto absolu du SacredLifeSentinel en cas de violation éthique.
-Statut: done
+### 2.3. Autonomous Sovereign Bounty Hunter
+- **Requirement 7:** Automated Recon & Discovery.
+  - *Acceptance Criterion:* The system asynchronously scans target scopes using the robustified `bounty_radar`, managing its own rate limits and authentication states.
+- **Requirement 8:** Sovereign Life-cycle Management.
+  - *Acceptance Criterion:* Discovered targets are queued and processed independently without manual user triggers.
 
-### F-02 Mode NÉANT & Frugalité RAM
-Acteur: Système d'exploitation
-Acceptation:
-  AC1: Empreinte RAM strictement inférieure à 70 Mo au repos.
-  AC2: 0 octet résiduel sur SSD, mémoire 100% volatile memfd.
-Statut: done
+### 2.4. Self-Healing Defense
+- **Requirement 9:** Anomaly Detection & Recovery.
+  - *Acceptance Criterion:* If a worker process fails or times out repeatedly, the coordinator automatically isolates the worker, kills the stalled process, and spawns a fresh instance (Self-Healing).
 
-### F-03 Telegram Neural Vault
-Acteur: Utilisateur mobile (@SpeedyLesaint)
-Acceptation:
-  AC1: Réception et transcription audio Groq Whisper en direct.
-  AC2: Sauvegarde et auto-clonage GZIP-9 dans le chat privé.
-Statut: done
+## 3. Production Scenarios
+- **Scenario A:** A malformed GitHub URL is passed to Bounty Radar. The system rejects it cleanly without a stack trace.
+- **Scenario B:** The LZ4 payload is tampered with. The checksum validation fails, and the sync payload is dropped securely.
+- **Scenario C:** The network connection to GitHub drops during a bounty scan. The system pauses, applies exponential backoff, and resumes or fails gracefully.
+- **Scenario D:** A worker stalls during training sync. The coordinator detects the missing heartbeat, terminates the worker, and provisions a replacement.
 
-### F-04 Alliance VORTEX-AETHER
-Acteur: Réseau P2P & Cluster
-Acceptation:
-  AC1: Recherche vectorielle binaire 1-bit AVX-512 en microsecondes.
-  AC2: Canal ultrasonique 19.4-20.4 kHz sans émission RF.
-Statut: done
+## 4. Feature F-31: The Sovereign Resultant Engine (SRE)
 
-### F-05 Continuum Ghost-Worker
-Acteur: GitHub Actions Cloud Runner
-Acceptation:
-  AC1: Poursuite de missions longues même si la machine locale est éteinte.
-  AC2: Télémétrie et notification du rapport sur Telegram à la fin du job.
-Statut: done
+### 4.1. Overview
+The Sovereign Resultant Engine unites Threat Intelligence, Tor Stealth Conduits, Multi-target Hermes Self-Healing Auditing (Local & Remote APIs), and Cloud Scout synthesis into a single autonomous pipeline.
 
-### F-06 Intégration Forge & Craft-Suite
-Acteur: Ingénieur Fullstack
-Acceptation:
-  AC1: Vérification d'intégrité anti-falsification (tamper_check: 0 finding).
-  AC2: Living documentation synchronisée (docs_check: 0 error, 0 warning).
-Statut: done
+### 4.2. Requirements & Acceptance Criteria
+- **AC1: Threat Sentinel (IP/ASN & Tor Exit Inspection)**:
+  - `ThreatSentinel` evaluates public IP addresses, queries official Tor bulk exit node lists, resolves BGP/ASN metadata, and validates E.164 phone numbering schemas.
+- **AC2: Stealth Conduit (SOCKS5/Tor Dynamic Detection & Fallback)**:
+  - `StealthConduit` auto-detects active SOCKS5 proxy on `127.0.0.1:9050`. If Tor is offline, it falls back seamlessly to direct async egress without throwing unhandled exceptions.
+- **AC3: Hermes Multi-Target Security Auditor (Local, Staging & Remote APIs)**:
+  - `HermesAuditor` accepts any target URL (localhost, Docker containers, remote VPS, staging environments, bug bounty scopes).
+  - Performs non-destructive checks: HTTP security headers (HSTS, CSP, X-Frame-Options), permissive CORS (`*`), exposed documentation (`/docs`, `/openapi.json`), and information disclosure (stack traces).
+  - Generates typed remediation patches with specific header/config recommendations.
+- **AC4: Sovereign Resultant Synthesis**:
+  - `SovereignResultantEngine` coordinates ThreatSentinel, StealthConduit, HermesAuditor, and SovereignSearch.
+  - Returns a unified `ResultantReport` with actionable threat and audit telemetry in volatile RAM (Mode NÉANT, 0 unneeded disk writes).
+- **AC5: Zero-Simulation & Resilience Under Breakage**:
+  - Live socket checks, real HTTP request handling, and explicit failover when remote services return HTTP 5xx or connection errors.
 
-### F-07 Protocole Phoenix & Mode Sudo LesaintAI
-Acteur: Administrateur souverain
-Acceptation:
-  AC1: Restauration automatique sans perte en cas de coupure de courant.
-  AC2: Éveil visuel et vocal Apex avec TTS natif Linux.
-Statut: done
+## 5. Feature F-32: Sovereign P2P Voice Conduit & Mesh (SVC)
 
-### F-08 Nexus Tri-Brid & Live Hologram Call Realtime
-Acteur: Utilisateur mobile (@SpeedyLesaint) & Terminal
-Acceptation:
-  AC1: Pont Audio Full-Duplex WebRTC / Mini App avec barge-in en RAM pure (Mode NÉANT).
-  AC2: Canal Visuel Synesthésique projetant diagrammes Mermaid, code live et Shadcn UI synchronisés avec la parole.
-  AC3: Intervention furtive en direct permettant au TechLead d'exécuter des actions en tâche de fond sans couper l'appel.
-Statut: done
+### 5.1. Overview
+The Sovereign P2P Voice Conduit provides carrier-free, operator-free encrypted voice communication and interactive AI voice bridging. Peers communicate using cryptographic node identities over direct P2P sockets or Tor SOCKS5 conduits in volatile RAM (Mode NÉANT), bypassing cellular BTS towers, telephone numbers, and billing registries.
 
-### F-09 Protocole AETHER-SWARM
-Acteur: Utilisateur souverain & Machine HP EliteBook
-Acceptation:
-  AC1: Délégation totale des calculs neuronaux lourds vers les serveurs Cloud mondiaux gratuits (Groq LPU, OpenRouter, GitHub Runners).
-  AC2: Garantie stricte de zéro-charge sur le PC local (RAM < 60 Mo, 0% CPU au repos, 0 écriture SSD).
-  AC3: Arène de consensus contradictoire multi-modèles (Llama 70B + DeepSeek + Qwen) éliminant les hallucinations.
-Statut: done
+### 5.2. Requirements & Acceptance Criteria
+- **AC1: Cryptographic Audio Framing & Session Handshake**:
+  - `VoicePacket` framing supporting raw PCM / Opus chunks with HMAC-SHA256 authentication and sequence counter.
+  - Ephemeral session establishment in RAM with 0 disk persistence.
+- **AC2: Transport Agnostic Routing (Tor SOCKS5 & Direct Socket)**:
+  - Supports routing through Tor SOCKS5 (`127.0.0.1:9050`) or direct TCP/UDP socket with automatic detection and seamless fallback.
+  - Latency monitoring and jitter buffer management in volatile ring buffers.
+- **AC3: Carrier-Free Cryptographic Addressing**:
+  - Zero requirement for E.164 phone numbers or SIM cards; nodes are addressed via `p2p://<peer_id>` or `onion://<hash>`.
+- **AC4: Cognitive AI Voice Ingestion & Synthesis Bridge**:
+  - Bidirectional in-RAM buffer for feeding incoming audio frames to speech recognition (STT) and streaming synthesized responses (TTS) directly into the call stream.
+- **AC5: Robustness, Tamper Detection & Zero-Simulation**:
+  - Rejection of tampered or forged audio packets, graceful reconnection on network interruption, verified through 100% real math/socket unit and integration tests.
 
-### F-10 Vision & Vidéo Multimodale Télépathique
-Acteur: Utilisateur mobile (@SpeedyLesaint) & Telegram
-Acceptation:
-  AC1: Réception et traitement direct de photos et vidéos Telegram en RAM pure (Mode NÉANT).
-  AC2: Analyse visuelle ultra-rapide via Groq LPU Vision (Llama 3.2 Vision) et Qwen 2 VL.
-  AC3: Restitution textuelle claire de la réponse et intégration dans la mémoire épisodique.
-Statut: done
+## 6. Feature F-33: Zero-Touch Local Intercom & Apex Sovereign Resultant (ZTLI)
 
-### F-11 Noyau Neural Natif JARVIS (ex-GENÈSE)
-Acteur: Architecture Interne de FreeAI
-Acceptation:
-  AC1: Remplacement de l'ancien moteur heuristique scriptique par un véritable Transformer Décodeur (d_model=384, 17M paramètres) en Stade 0.
-  AC2: Intégration de l'Âme (Gardien Ethique et Elastic Weight Consolidation).
-  AC3: Fonctionnement catadien autonome avec consolidation nocturne (Auto-Curriculum Learning) et distillation (Professeurs : DeepSeek/Qwen).
-  AC4: Evolution darwinienne intégrée avec algorithme génétique pour optimiser les hyperparamètres (Genome) et lignée infalsifiable (SHA-256).
-  AC5: Zéro écriture SSD pendant l'inférence, respect strict du Mode NÉANT (100% RAM SQLite Vector Memory).
-Statut: done
+### 6.1. Overview
+The Zero-Touch Local Intercom (ZTLI) enables instant, zero-install, zero-QR audio communication across local Wi-Fi / LAN subnets. Any device (smartphone or desktop) on the local subnet connects via `http://freeai.local:8088` (or direct IP) to an ephemeral, single-payload HTML5 intercom served directly from volatile RAM (Mode NÉANT, 0 disk I/O). The incoming audio stream connects bidirectionally to either the developer's terminal or the autonomous FreeAi voice agent. The Apex Sovereign Resultant unites ThreatSentinel, StealthConduit, HermesAuditor, and ZeroTouchIntercom into a master defense and communication mesh.
 
-### F-12 Protocole AETHER-LEGION
-Acteur: Éclaireurs Autonomes & Cloud
-Acceptation:
-  AC1: Déploiement d'éclaireurs autonomes en RAM pure.
-  AC2: Moisson d'insights décentralisée sans charge locale.
-Statut: done
+### 6.2. Requirements & Acceptance Criteria
+- **AC1: mDNS / Zeroconf Local Announcement**:
+  - `ZeroTouchIntercom` advertises the sovereign intercom service as `freeai.local` on the local network using standard multicast DNS and unregisters cleanly upon shutdown.
+- **AC2: Zero-Disk In-RAM Web Gateway (Mode NÉANT)**:
+  - Serves an embedded, self-contained HTML5/WebRTC audio client directly from an in-memory string constant. Zero file reading or disk writes (`os.open` forbidden on request path).
+- **AC3: Strict Pydantic Boundary Validation**:
+  - Audio chunk and signaling payloads (`AudioSignalPayload`, `IntercomStatusResponse`) are rigorously validated via Pydantic schemas.
+- **AC4: Dual-Channel Loopback (Terminal Live & Autonomous AI)**:
+  - Audio frames ingested from the browser are routed in RAM to the terminal and to `VoiceCognitiveBridge` for autonomous speech recognition and synthesis.
+- **AC5: Apex Resultant Engine Synthesis**:
+  - `SovereignResultantEngine` incorporates `ZeroTouchIntercom`, exposing unified command `/intercom` and multi-dimensional status reporting.
 
-### F-13 Streaming Réel Token-par-Token TUI (LeftBorderStreamer)
-Acteur: Développeur dans le terminal
-Acceptation:
-  AC1: Rendu token-par-token asynchrone avec pacing dynamique sous composant LeftBorder.
-  AC2: Zéro clignotement de terminal (Zero-Flicker 40fps) avec curseur noble ▌.
-  AC3: Respect absolu de 0 émoji et finalisation sous bordure LeftBorderFinal (┃ et ╹).
-Statut: done
+## 7. Feature F-34: OurFreeModel Sovereign Bridge (OFMB)
 
-### F-14 Gestionnaire de Session & Continuité (/compact, /undo, /sessions)
-Acteur: Développeur en session interactive
-Acceptation:
-  AC1: /compact distille l'historique de conversation (85-95% compression) sans perdre les ancres d'architecture.
-  AC2: /undo snapshotte l'état des fichiers avant chaque tâche et permet un rollback atomique immédiat.
-  AC3: Prise en charge des sous-commandes /undo list et /undo redo.
-Statut: done
+### 7.1. Overview
+The OurFreeModel Sovereign Bridge gives FreeAi direct, keyless access to cutting-edge frontier models (DeepSeek V4.1 Flash, GLM 5.3 Flash, MiMo V2.6, Nemotron 3.5, etc.) using the exact reverse-engineered protocols and mechanisms of `dsh-our-free-model`. It unifies three zero-cost conduits: OpenCode Zen Gateway (with strict v2 client fingerprinting), Kilo AI Public Keyless Gateway, and Local Standalone Forward Gateway detection.
 
-### F-15 Autocomplétion Flottante @fichiers & Sélecteur Prompt
-Acteur: Saisie utilisateur interactive dans prompt_toolkit
-Acceptation:
-  AC1: Détection en temps réel de @path complétant dynamiquement fichiers et dossiers du workspace.
-  AC2: Complétion unifiée des commandes slash (/undo, /compact, /lsp, etc.) et ancres de contexte (#context).
-  AC3: Raccourci Ctrl+P pour la palette de commandes.
-Statut: done
+### 7.2. Requirements & Acceptance Criteria
+- **AC1: OpenCode Descending Session Minting & Canonicalization**:
+  - `OurFreeModelEngine` implements time-descending 48-bit session encoding `ses_<12hex><14base62>` obeying `^[0-9a-f]{9}f[c-f][0-9a-f]$` on characters 4-16, with monotonic counter 1-63.
+  - Generates deterministic sessions from conversation keys (`canonicalize_session`).
+- **AC2: OpenCode v2 Client Fingerprint & Tool Hygiene**:
+  - Exact headers: `Authorization: Bearer public`, `User-Agent: opencode/latest/2.0.26/cli`, `x-opencode-client: cli`, mirrored `x-opencode-session`, `x-opencode-session-id`, `x-session-affinity`, `x-session-id`, `x-opencode-project: global`, and strictly NO `x-opencode-request`.
+  - Injects official verbatim `read` and `shell` tool declarations, with system prompt guidance note, and strictly removes `tool_choice: "none"`.
+- **AC3: Kilo AI Keyless Gateway**:
+  - Dynamic discovery and execution of `isFree: true` models from `https://api.kilo.ai/api/gateway/models`.
+  - Direct OpenAI-compatible POST to `https://api.kilo.ai/api/gateway/chat/completions` with unified reasoning effort format and no API key required.
+- **AC4: Local Standalone Forward Auto-Discovery**:
+  - Detects local running instances of `dsh-our-free-model` forward proxy (ports 18900, 18899, 18923).
+  - Automatically loads `forwardKey` from `~/.our-free-model/settings.json` or `~/.config/dsh/our-free-model/settings.json`.
+- **AC5: OnlineModelFederation Integration & Mode NÉANT**:
+  - Seamlessly integrates into `OnlineModelFederation` (`opencode_free`, `kilo_free`, `our_free_model_local`) in `app/llm/federation.py`.
+  - Zero disk write during inference (100% ephemeral RAM, Mode NÉANT).
 
-### F-16 Sonde LSP Vivante Temps Réel (• LSP Status Bar)
-Acteur: Système d'ingénierie et qualité
-Acceptation:
-  AC1: Sonde non-bloquante avec cache TTL (0 ms latence UI) détectant Ruff, Pyright ou AST natif.
-  AC2: Affichage dynamique dans le pied de page OpenCode (• 0 LSP, • N LSP).
-  AC3: Commande /lsp et /lsp diagnose pour inspection tabulaire détaillée.
-Statut: done
+## 8. Feature F-35: Sovereign Kimi Web Bridge (SKWB)
 
-### F-17 Full-Screen TUI OpenCode Réplique Souveraine (Textual)
-Acteur: Développeur en session terminal interactive
-Acceptation:
-  AC1: Bascule automatique et totale dans le tampon d'écran alternatif (alternate screen buffer, 100% de la surface terminale, 0 scrollback standard pollué) avec restauration immaculée du terminal hôte à la sortie (Ctrl+Q, Ctrl+C).
-  AC2: Layout persistant composite à 5 zones : Top Header avec onglets de sessions actives, Sidebar gauche pliable (sessions, arborescence fichiers projet, liste des agents), Panneau central de Chat à défilement captif, Barre de saisie ancrée en bas avec métadonnées contextuelles, et Barre de statut inférieure (compteur LSP vivant, branche Git active, raccourcis essentiels).
-  AC3: Rendu du chat captif intégrant le streaming asynchrone des tokens sous LeftBorder noble (┃ et terminaison ╹), accordéons pliables/dépliables "Thought" de couleur ambre pour les réflexions internes de l'agent, et épilogue télémétrique noble ▣ en fin de génération.
-  AC4: Sidebar gauche repliable dynamiquement par raccourci clavier (Ctrl+B) avec bascule fluide et redimensionnement automatique du panneau de chat sans scintillement.
-  AC5: Frugalité stricte Mode NÉANT : empreinte RAM résidente (RSS) strictement inférieure à 70 Mo au repos et garantie de zéro écriture sur disque SSD (100% en RAM / memfd).
-  AC6: Interdiction absolue de tout émoji dans l'ensemble des widgets, conteneurs, bordures, étiquettes et flux du TUI, avec substitution systématique par des glyphes typographiques nobles (┃, ╹, ▣, ❯, •, ─, ┌, └, etc.).
-  AC7: Tentative de saisie ou de soumission multiple pendant une génération en cours rejetée proprement sans crash ni désynchronisation d'état (protection double-submit).
-  AC8: En cas de dimension de terminal insuffisante (< 60 colonnes ou < 15 lignes), le TUI ne panique pas et adapte son layout ou affiche un avertissement de redimensionnement clair sans corrompre le terminal hôte.
-Scenarios: PS-01 double submit, PS-11 unicode/sans émoji, PS-12 absence git/lsp, PS-13 scalabilité mémoire tampon chat, PS-20 mode dégradé terminal
-Data: Sessions et état UI éphémères en mémoire volatile RAM uniquement (0 écriture SSD)
-Out of scope: Rendu web/GUI navigateur, persistance automatique sur disque physique, dépendances graphiques hors Textual
-Statut: done
+### 8.1. Overview
+The Sovereign Kimi Web Bridge provides direct, serverless, and cloud-native access to Moonshot AI's Kimi models (Kimi K2.5 / K3) from FreeAi. It eliminates any requirement for a local proxy daemon or Node.js runtime by directly speaking the reverse-engineered Kimi Web authentication and streaming protocol (`https://kimi.moonshot.cn`), with graceful fallback to the official Moonshot developer API if an API key is configured.
 
-### F-18 Éditeur de Code Intégré In-TUI & Inspecteur Syntaxique (CodeEditorScreen)
-Acteur: Développeur dans le Full-Screen TUI
-Acceptation:
-  AC1: Écran Éditeur Dédié (`CodeEditorScreen`) : Sélection d'un fichier dans le NobleDirectoryTree (clic souris ou touche Entrée), raccourci `Ctrl+O` ou commande `/edit <chemin>` ouvrant un écran d'édition plein écran au sein du TUI Textual, sans quitter l'application.
-  AC2: Coloration Syntaxique & Numérotation de Lignes : Utilisation du composant `TextArea` de Textual avec numéros de lignes dans la gouttière latérale `│`, détection automatique du langage (python, json, markdown, yaml, bash, etc.) et thème TokyoNight épuré (`#080808` / `#161616`).
-  AC3: Raccourcis d'Éditeur & Sauvegarde Sécurisée : `Ctrl+S` enregistrant les modifications sur le disque avec snapshot pré-sauvegarde automatique en mémoire vive pour rollback `/undo`, et `Escape` / `Ctrl+W` fermant l'éditeur pour revenir au chat.
-  AC4: Touche d'Innovation Extrême - AI Code Lens & Explain (`F4` / `Ctrl+E`) : Raccourci transmettant le fichier ou la sélection de code active à l'orchestrateur Tech Lead avec le prompt "Analyse, explique et optimise ce code", basculant automatiquement sur le chat pour le streaming de réponse.
-  AC5: Touche d'Innovation Extrême - Inline Git Diff Inspector (`Ctrl+D`) : Affichage instantané du diff par rapport à HEAD pour le fichier ouvert dans un panneau latéral ou superposé avec coloration des lignes ajoutées (`+`) et supprimées (`-`).
-  AC6: Touche d'Innovation Extrême - Gouttière de Diagnostic LSP Temps Réel : Couplage avec la sonde `LiveLspProbe` (F-16) indiquant dans la barre de titre de l'éditeur le statut syntaxique et les éventuelles erreurs de syntaxe/diagnostics détectés à la volée (`• 0 LSP`).
-  AC7: Frugalité Mode NÉANT & Sécurité des Chemins : Respect strict du confinement workspace en mode `freeAi` et déverrouillage total en mode `lesaintAi` (sudo), empreinte RAM résidente < 70 Mo au repos.
-  AC8: Règle d'Or Zéro Émoji : 100% de conformité typographique noble (`•`, `›`, `│`, `┃`, `╹`, `~`, `*`, `$`, `←`, `→`, `✱`, `◈`, `⊙`, `✓`, `✗`, `▣`).
-Scenarios: PS-21 ouverture fichier existant, PS-22 fichier volumineux/degradé, PS-23 sauvegarde avec snapshot undo, PS-24 AI code lens explain, PS-25 zéro émoji éditeur
-Data: Édition en mémoire vive, sauvegarde persistante sur le fichier ciblé avec snapshot RAM volatil
-Out of scope: Édition graphique externe (VSCode/Sublime), plugins LSP binaires tiers lourds
-Statut: done
+### 8.2. Requirements & Acceptance Criteria
+- **AC1: Automated Token Refresh & In-RAM Caching**:
+  - `KimiWebBridge` exchanges user `refresh_token` (from `KIMI_REFRESH_TOKEN` or multi-token pool) for an ephemeral `access_token` via `GET https://kimi.moonshot.cn/api/auth/token/refresh`.
+  - Caches `access_token` strictly in volatile memory (Mode NÉANT, 0 disk I/O) with TTL management and auto-renewal.
+- **AC2: Ephemeral Chat Lifecycle Management**:
+  - Creates and manages conversation sessions on `POST https://kimi.moonshot.cn/api/chat`.
+  - Employs conversational state reuse or session-per-query isolation based on user settings.
+- **AC3: SSE Stream Ingestion & Parsing**:
+  - Streams tokens from `POST https://kimi.moonshot.cn/api/chat/{chat_id}/completion/stream`.
+  - Parses incremental delta frames (`cmpl` event or `text` chunks) and terminates cleanly on `[DONE]` or stream completion.
+- **AC4: Dual-Channel Fallback (Web Protocol & Official Platform API)**:
+  - If `KIMI_API_KEY` is present, supports direct OpenAI-compatible querying of `https://api.moonshot.cn/v1/chat/completions`.
+  - Seamlessly routes requests between Kimi Web (`kimi_web`) and Official API (`kimi`).
+- **AC5: OnlineModelFederation Integration & Zero Disk Footprint**:
+  - Integrates `kimi` and `kimi_web` into `OnlineModelFederation.CATALOG` in `app/llm/federation.py`.
+  - Allows dynamic targeting via `/online kimi` or `/online kimi_web`.
+  - 100% ephemeral in RAM (Mode NÉANT).
 
-### F-19 Apprentissage Nocturne Dynamique & Swarm (DynamicNightlyLearner)
-Acteur: Boucle nocturne autonome FreeAI
-Acceptation:
-  AC1: Éradication totale de la liste statique codée en dur dans get_nightly_swarm_learnings().
-  AC2: Exploration et moisson dynamique de thèmes d'avant-garde (Web3 & DeFi security, LPU/LLM inference, 1-bit vector hologram, UI/TUI) avec rotation et seed déterministe quotidienne.
-  AC3: Déduplication stricte par empreinte SHA-256 et persistance dans le ledger dynamique volatile (.nightly_learnings_ledger.json), garantissant 0 répétition jour après jour.
-Scenarios: PS-30 déduplication nocturne, PS-31 rotation de thèmes, PS-32 persistance ledger
-Data: Ledger .nightly_learnings_ledger.json en mémoire/disque frugal
-Statut: done
+## 9. Feature F-36: Sovereign Kimi Interactive Playwright Authenticator (SKIPA)
 
-### F-20 Rapports Matin & Soir avec Note Vocale OGG Opus (DailyReportsEngine)
-Acteur: Démon permanent Jarvis / Telegram (freeai-jarvis.service)
-Acceptation:
-  AC1: Rapport matinal diffusé automatiquement à >= 7h00 avec météo, opportunités, apprentissages nocturnes dynamiques et note vocale OGG Opus encodée par tech_lead.voice (telegram_vault.send_voice).
-  AC2: Rapport du soir (débriefing) diffusé automatiquement à >= 19h00 avec bilan de productivité, alertes sécurité, statut du système et note vocale OGG Opus.
-  AC3: Commandes manuelles /soir, /debrief, /matin et /briefing opérationnelles dans le CLI et sur Telegram.
-Scenarios: PS-33 émission matinale vocale, PS-34 émission vespérale vocale, PS-35 repli résilient audio
-Data: Synthèse audio OGG Opus 100% en RAM (io.BytesIO) sans résidu disque
-Statut: done
+### 9.1. Overview
+The Sovereign Kimi Interactive Playwright Authenticator enables zero-manual-effort, assisted one-time onboarding for Moonshot Kimi AI. It automates browser launch via Playwright Chromium with anti-detection flags (`--disable-blink-features=AutomationControlled`, stealth user-agent, `navigator.webdriver` removal), directs the user to `https://kimi.moonshot.cn`, intercepts the authenticated `refresh_token` cookie upon user login (SMS/QR), saves it into `.env` and volatile memory, and closes the browser cleanly. From that point on, FreeAi runs 100% autonomously in RAM (Mode NÉANT) without ever needing a browser.
 
-### F-21 Conscience Temporelle Satellitaire & Salutation Infaillible (ChronosTimeEngine)
-Acteur: Moteur cognitif de persona (app/cognition/persona.py)
-Acceptation:
-  AC1: Classification temporelle satellitaire déterministe basée sur l'horloge système et le fuseau : matin (05h-12h), midi (12h-14h), après-midi (14h-18h), soirée (18h-23h), nuit (23h-05h).
-  AC2: Interdiction absolue et inconditionnelle de saluer avec Bonjour entre 18h00 et 04h59 (Bonsoir obligatoire entre 18h et 23h, Bonne nuit entre 23h et 05h).
-  AC3: Intégration dans le prompt système et la génération des réponses du persona pour éliminer toute anachronie.
-Scenarios: PS-36 salutation matinale, PS-37 salutation 18h (bonsoir strict), PS-38 salutation nocturne
-Data: Télémétrie temporelle en RAM
-Statut: done
+### 9.2. Requirements & Acceptance Criteria
+- **AC1: Stealth Interactive Browser Context Launch**:
+  - `KimiPlaywrightAuthenticator.launch_interactive_login(headless=False, timeout_sec=120)` initializes a Playwright Chromium context with anti-automation flags (`--disable-blink-features=AutomationControlled`, custom stealth scripts masking `navigator.webdriver`), navigating directly to `https://kimi.moonshot.cn`.
+- **AC2: Network & Cookie Sniffing Engine**:
+  - Actively polls and sniffs context cookies and network response headers on `kimi.moonshot.cn` for the `refresh_token` cookie or auth payload.
+- **AC3: Automatic In-RAM & Environment Persistence**:
+  - Upon capture of `refresh_token`, updates `KimiWebBridge.get_instance().set_refresh_token(...)` in RAM and writes/updates `KIMI_REFRESH_TOKEN` in `.env` if `.env` exists.
+- **AC4: Clean Teardown & Timeout Guard**:
+  - Closes the browser context and stops Playwright immediately upon successful extraction or if `timeout_sec` expires or if the user closes the window, preventing zombie browser processes.
+- **AC5: CLI Integration & One-Touch Command**:
+  - Exposes `/kimi login` in CLI and `TechLeadOrchestrator` with clear user feedback and instructions.
 
-### F-22 Sentinelle d'Auto-Guérison Proactive (AutonomousSelfHealingGuardian)
-Acteur: Sentinelle permanente de veille autonome
-Acceptation:
-  AC1: Surveillance continue et proactive sans intervention humaine (RAM, RSS anormale, descripteurs de fichiers FDs > 500, coupures WAN, désynchronisation LSP).
-  AC2: Remédiation instantanée et autonome en mémoire vive (purge gc.collect(), bascule résiliente air-gap, reconnexion silencieuse) dès qu'une anomalie est détectée, sans attendre que l'utilisateur ne la découvre.
-  AC3: Commande /heal disponible pour auto-réparation forcée et rapport de diagnostic en direct.
-Scenarios: PS-39 auto-réparation mémoire, PS-40 détection WAN dégradé, PS-41 remédiation FDs
-Data: Journal des remédiations en RAM volatile
-Statut: done
+## 10. Feature F-37: Inngest Sovereign Durable Conduit (ISDC)
 
-### F-23 Verrou de Branche Souverain & Sentinelle Autonome du Credo (CredoSentinel)
-Acteur: Michael SAGBO (propriétaire exclusif) & Collaborateurs distants
-Acceptation:
-  AC1: Verrouillage GitHub de la branche main : interdiction absolue de push direct pour les collaborateurs, revue obligatoire avec Michael (@SAGBO4 via CODEOWNERS) et statut check requis 'credo-sentinel'.
-  AC2: Module d'audit souverain CredoSentinel (app/security/credo_sentinel.py) évaluant chaque PR et commit sur les 7 Piliers Sacrés (Sanctuaire Michael SAGBO, Mode NÉANT, 0 espion/télémétrie, 0 émoji CLI/TUI, Chronos politesse, anti-backdoor/reverse-shell, intégrité Forge).
-  AC3: Workflow GitHub Actions (.github/workflows/credo_sentinel.yml) exécutant l'audit autonome, publiant le verdict circonstancié sur la PR et expédiant une alerte Telegram instantanée à Michael.
-  AC4: Surveillance en tâche de fond dans le démon 24/7 Jarvis (cli.py /telegram loop) et commandes interactives /credo et /gatekeeper.
-Scenarios: PS-42 blocage push direct main, PS-43 détection payload hostile PR, PS-44 alerte Telegram collaborateur
-Data: Rapports d'audit volatils en mémoire RAM
-Statut: done
+### 10.1. Overview
+The Inngest Sovereign Durable Conduit provides resilient multi-LLM cascade execution across FreeAi's 49 online models. It is a genuine dual-engine architecture, and the two engines offer **different, non-interchangeable guarantees** - this distinction is load-bearing and must not be blurred in any future report:
 
-### F-24 Arsenal d'Innovations d'Autonomie Souveraine (Sovereign Web & Code Sentinel)
-Acteur: FreeAI Orchestrator, CLI/TUI & ToolGateway (Inspiré de my_jarvis)
-Acceptation:
-  AC1: Moteur Web Souverain Zéro-API (app/tools/sovereign_web.py) offrant la recherche DuckDuckGo et l'extraction épurée de contenu de pages Web avec la bibliothèque standard Python, 100% sans clé d'API et avec interfaces asynchrones et synchrones unifiées.
-  AC2: Gardien d'Intégrité Anti-Truncation & Code Sentinel (app/security/code_integrity_guardian.py et app/tools/code_integrity_guardian.py) couplé à ToolGateway.write_file pour rejeter tout code contenant des raccourcis de paresse d'IA ('... (rest of code)'), assainir les émojis parasites et valider l'AST.
-  AC3: Connecteur Haute Performance Local Ollama (app/llm/local_ollama_provider.py) pour inférence 100% hors-ligne, support des tool calls natifs et benchmark de vitesse matérielle VRAM GPU/CPU.
-  AC4: Formateur Télémétrique de Flux d'Agents (app/orchestrator/agent_stream_watcher.py) pour le suivi temps réel des réflexions, tool calls et résultats.
-  AC5: Commandes CLI /websearch, /webread et /integrity opérationnelles dans cli.py.
-Scenarios: PS-45 recherche web zéro-API, PS-46 blocage code tronqué, PS-47 benchmark Ollama local
-Data: Structures éphémères en mémoire vive (Mode NÉANT, 0 résidu SSD)
-Statut: done
+- **Native engine (always on, Mode NÉANT)**: in-process step memoization (a dict keyed by `workflow_id`). Prevents re-executing an already-succeeded step during a retry *within the same running process*. It provides **no durability across a process crash, a reboot, or a Wi-Fi/PC shutdown** - the state is plain RAM of one process and is lost with it. This is the only engine active when the `inngest` package is absent or `INNGEST_EVENT_KEY` is unset.
+- **Cloud engine (opt-in)**: activated only when the official `inngest` PyPI package is installed AND `INNGEST_EVENT_KEY` is set. The mission is sent as a signed event to Inngest Cloud (or a local Inngest Dev Server); Inngest registers and calls back into a durable function (`resilient-swarm-cascade`) via the real Inngest protocol mounted on `/api/inngest` (signature verification, function sync - not a hand-rolled stub). This is the only path that genuinely resumes a mission at its last completed step after this process restarts, and it still requires this FastAPI server to be reachable from Inngest (a public URL, or a tunnel such as ngrok/cloudflared for local dev) while a mission is in flight.
 
-### F-25 Radar Synaptique & Hologramme de Pensée (Synaptic Reflex Engine)
-Acteur: Développeur en session CLI/TUI & Orchestrateur
-Acceptation:
-  AC1: Moteur d'anticipation synaptique (app/cognition/synaptic_reflex.py) avec décomposition spectrale d'intention (< 0.5 ms en RAM, 0 B SSD).
-  AC2: Matrice holographique en typographie noble OpenCode (◈, ⊙, ▣, zéro émoji brut).
-  AC3: Commandes CLI /reflex et /synapse intégrées.
-Scenarios: PS-48 analyse intention sub-milliseconde, PS-49 pureté typographique noble
-Data: Éphémère en RAM pure
-Statut: done
+### 10.2. Requirements & Acceptance Criteria
+- **AC1: Native Durable Step Engine**:
+  - `InngestSovereignConduit.step_run(ctx, step_id, func, ...)` memoizes step results in `ctx.memoized_steps`, skipping completed steps on retry within the same process.
+  - `step_sleep(ctx, step_id, seconds)` provides a non-blocking delay, recorded the same way.
+  - Explicitly documented as non-durable across process restarts (see 10.1).
+- **AC2: Multi-LLM Adaptive Circuit Breaker**:
+  - `execute_resilient_swarm` cascades Groq LPU -> Kimi Web -> Kilo AI -> generic free-model fallback, escalating on empty/erroring steps without re-running earlier steps. Shared by both engines via `_run_cascade`.
+- **AC3: Real Inngest Protocol Endpoint (`/api/inngest`)**:
+  - When cloud mode is available, `register_inngest_routes` mounts the official `inngest.fast_api.serve(...)` handler (real signature verification and function registration), not a custom reimplementation.
+  - When cloud mode is unavailable, mounts a stub that explicitly reports `cloud_mode_available: false` on GET and returns HTTP 503 on POST, so the absence of real Inngest protocol support cannot be silently mistaken for presence.
+- **AC4: Ghost-Mission Telegram Telemetry Dispatch**:
+  - On workflow completion or terminal failure, `dispatch_telemetry` sends execution metrics (workflow id, steps validated/failed, active engine) to Telegram Neural Vault without blocking the caller.
+- **AC5: CLI & Orchestrator Integration (`/inngest`)**:
+  - Exposes `/inngest status` and `/inngest swarm <prompt>` in `cli.py` / `TechLeadOrchestrator`.
+- **AC6: Graceful Dual-Engine Selection**:
+  - `InngestSovereignConduit.cloud_mode_available` is the single source of truth for which engine is active; `execute_resilient_swarm` picks the cloud engine (delegated, async, durable) when available and otherwise runs the native cascade synchronously in-process.
 
-### F-26 HyperMesh Causal Singularity & Retrocausal Swarm Matrix
-Acteur: Développeur en session interactive, Orchestrateur & Sentinelles Cloud
-Acceptation:
-  AC1: Dissection quadri-vectorielle des causes profondes selon les Principes Premiers : strictement 2 causes directes (alpha interface, beta ressource) et 2 causes indirectes (gamma topologie/SPOF, delta asymétrie d'environnement).
-  AC2: Mobilisation active des membres distribués sur Internet : Web Souverain Zéro-API, Satellite Peer Sync (repo Laurince), Fédération Neurale (Groq LPU, OpenRouter free, Gemini), et Veille Nocturne (HuggingFace/arXiv).
-  AC3: Simulation prospective in-memory Ghost Fork : test spéculatif des 4 futurs d'effondrement en RAM volatile (< 2 ms) avant exécution réelle.
-  AC4: Télémétrie holographique noble OpenCode sans émoji brut (◈, ⊙, ▣) et commandes CLI /causal et /hypermesh.
-  AC5: Invariant éternel gravé en RAM (Mode NÉANT, 0 B SSD) empêchant toute récidive.
-Scenarios: PS-50 dissection quadri-vectorielle, PS-51 mobilisation membres internet, PS-52 ghost fork simulation
-Data: Registre d'immunité éphémère en RAM volatile (0 B SSD)
-Statut: done
+---
+
+## 11. Feature F-38: Integrity Cleanup & Deprecation of Simulated Stubs
+
+### 11.1. Overview
+Purges all false claims and simulated stubs identified in `docs/explain.md`. Replaces misleading vocabularies ("future simulation", "satellite telepathy", "free cloud pool auto-deployment") with accurate, honest technical descriptions. Ensures FreeAi strictly complies with the Implementation Integrity constitutional rule (no stub handlers masquerading as real systems).
+
+### 11.2. Requirements & Acceptance Criteria
+- **AC1: Ghost Fork Heuristic Re-qualification**:
+  - Refactors `simulate_ghost_fork` in `app/cognition/hypermesh_causal_singularity.py` to `evaluate_static_risk_heuristics`.
+  - Replaces all CLI, TUI, and documentation references asserting "simulation of 4 futures" with "Static Heuristic Risk Assessment (Keywords)".
+- **AC2: Honest Labeling of Theoretical/Hardware-Pending Stubs**:
+  - Any module relying on unattached physical hardware (Starlink, raw radio RF) or non-existent external cloud provisioning (Free Cloud Pool) returns an explicit status `STATUS_SIMULATED_PENDING_HARDWARE` or `STATUS_THEORETICAL_CATALOGUE` instead of pretending execution succeeded.
+- **AC3: Elimination of Dead/Fake Claims in CLI & Help**:
+  - Cleans `cli.py` and `app/cli/smart_completer.py` so that no command description promises capabilities not backed by real code.
+- **AC4: Regression Test Immunity**:
+  - Preserves 100% test pass rate across existing test suites while eliminating misleading assertions.
+
+Status: proposed
+
+---
+
+## 12. Feature F-39: Sovereign 49-Model Benchmark & Swarm Matrix
+
+### 12.1. Overview
+Delivers a dedicated, unified benchmark and multi-model consensus matrix utilizing the 49 real, verified online models documented in `disponible.md`. Allows users to evaluate any prompt or technical question simultaneously across all available inference channels with zero local RAM/disk footprint (Mode NÉANT), obtaining live latency measurements, response rankings, and synthesized consensus.
+
+### 12.2. Requirements & Acceptance Criteria
+- **AC1: 49-Model Catalog Ingestion & Federation Bridge**:
+  - `Sovereign49BenchmarkMatrix` dynamically indexes all 49 operational models from the 5 verified channels: Kimi AI (Web), Kilo AI Gateway (18 free models), OpenRouter Gateway (17 free models), Groq Cloud LPU (11 models), and Google Gemini Pro (2 models).
+- **AC2: Concurrent Asynchronous Dispatch Engine**:
+  - `run_benchmark(prompt: str, mode: str = "fast", timeout_sec: int = 15)` executes concurrent queries using non-blocking HTTP streaming/gather.
+  - Mode `"fast"` queries 5 champion models (1 representative per provider family).
+  - Mode `"all"` queries all 49 models concurrently with semaphore-governed connection pooling to prevent socket exhaustion.
+- **AC3: Live Telemetry & Metrics Capture**:
+  - For every responding model, measures:
+    - Real latency (in milliseconds).
+    - Status (HTTP 200 vs timeout/rate-limit/network drop).
+    - Response length (character count and token estimation).
+    - Output snippet and first token latency when available.
+  - Never fabricates or hallucinates output for unresponsive or rate-limited endpoints.
+- **AC4: Cross-Model Consensus & Quality Scoring**:
+  - Analyzes the multi-model responses to extract core agreed concepts, detecting the fastest responder, highest-density technical answer, and a unified sovereign resultant.
+- **AC5: Rich CLI Integration (`/benchmark`)**:
+  - Adds `/benchmark [prompt]` and `/benchmark all [prompt]` to `cli.py` and `TechLeadOrchestrator`.
+  - Displays a clear Rich terminal table with columns: `N°`, `Fournisseur`, `Modèle`, `Latence (s)`, `Statut`, `Extrait Réponse`.
+  - Prints the synthesized consensus summary at the bottom.
+- **AC6: Strict Mode NÉANT Purity**:
+  - 100% volatile memory execution: 0 SSD disk writes during benchmark execution.
+
+Status: proposed
+
+
+
+
+
+
+

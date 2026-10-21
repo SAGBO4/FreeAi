@@ -954,7 +954,7 @@ class MainScreen(Screen):
                         )
                     with Horizontal(id="prompt-meta-row"):
                         yield Label(f"{app.mode} · Groq LPU · auto", id="prompt-meta-left")
-                        yield Label("ctrl+b: sidebar · ctrl+p: palette · ctrl+n: session · ctrl+c: quitter", id="prompt-meta-right")
+                        yield Label("ctrl+b: sidebar · ctrl+p: palette · ctrl+n: session · ctrl+q: quitter", id="prompt-meta-right")
 
             # Zone 6: Split In-TUI Code Editor Pane (Right 50%)
             with EditorPane(id="editor-pane"):
@@ -972,6 +972,92 @@ class MainScreen(Screen):
 
 
 
+def _fetch_research_markdown(args: List[str]) -> str:
+    """Récupère et formate la veille scientifique arXiv, dépôts GitHub et DuckDuckGo en Markdown."""
+    from pathlib import Path
+    import importlib.util
+
+    scraper_path = Path(__file__).resolve().parent.parent.parent / "real_implementations" / "scraper.py"
+    spec = importlib.util.spec_from_file_location("freeai_research_scraper", scraper_path)
+    scraper = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(scraper)
+
+    VALID_SOURCES = ("arxiv", "github", "web", "all")
+    source = args[0].lower() if args else "all"
+    topic = " ".join(args[1:]).strip() if len(args) > 1 else None
+
+    if source not in VALID_SOURCES:
+        topic = " ".join(args).strip()
+        source = "all"
+
+    original_topic = topic
+    if topic:
+        translated = scraper.translate_to_english(topic)
+        topic = translated
+
+    lines = []
+    lines.append("### ◈ Veille Scientifique & Technique Souveraine")
+    if topic:
+        if original_topic and original_topic.lower() != topic.lower():
+            lines.append(f"• **Sujet :** {original_topic} *(indexé en anglais : `{topic}`)*\n")
+        else:
+            lines.append(f"• **Sujet :** {topic}\n")
+    else:
+        lines.append("• **Sujet :** Intelligence Artificielle & Machine Learning\n")
+
+    if source in ("arxiv", "all"):
+        papers = scraper.fetch_arxiv_data(max_results=6, topic=topic)
+        lines.append("#### [arXiv] Derniers Articles Scientifiques (export.arxiv.org)")
+        if papers:
+            for p in papers:
+                title = p.get("title", "N/A").replace("\n", " ").strip()
+                authors = p.get("authors", "N/A")
+                date = p.get("published", "N/A")[:10]
+                url = p.get("url", "")
+                link_text = f"[{title}]({url})" if url else title
+                lines.append(f"- **{link_text}**\n  *Auteurs :* {authors} · *Date :* {date}")
+        else:
+            lines.append("- *(Aucun article arXiv trouvé ou réseau indisponible)*")
+        lines.append("")
+
+    if source in ("github", "all"):
+        repos = scraper.fetch_github_data(per_page=6, topic=topic)
+        lines.append("#### [GitHub] Dépôts Populaires Tendances (api.github.com)")
+        if repos:
+            for r in repos:
+                name = r.get("name", "N/A")
+                owner = r.get("owner", "N/A")
+                stars = r.get("stars", 0)
+                desc = (r.get("description") or "-").replace("\n", " ").strip()
+                if len(desc) > 90:
+                    desc = desc[:87] + "..."
+                url = r.get("url") or f"https://github.com/{owner}/{name}"
+                lines.append(f"- **[{name}]({url})** ({owner}) — {stars} stars\n  {desc}")
+        else:
+            lines.append("- *(Aucun dépôt GitHub trouvé ou quota dépassé)*")
+        lines.append("")
+
+    if source in ("web", "all"):
+        try:
+            from app.tools.sovereign_web import sovereign_web
+            web_query = topic or "intelligence artificielle actualités"
+            web_results = sovereign_web.search_sync(web_query, max_results=5)
+            lines.append("#### [Web] Résultats DuckDuckGo Souverains")
+            if web_results:
+                for w in web_results:
+                    w_title = w.get("title", "N/A")
+                    w_url = w.get("url", "#")
+                    w_snip = (w.get("snippet") or "-").replace("\n", " ").strip()
+                    lines.append(f"- **[{w_title}]({w_url})**\n  {w_snip}")
+            else:
+                lines.append("- *(Aucun résultat web disponible)*")
+        except Exception as e:
+            lines.append(f"- *(Erreur recherche web : {e})*")
+        lines.append("")
+
+    return "\n".join(lines)
+
+
 # =============================================================================
 # COMMAND PALETTE PROVIDER (Ctrl+P)
 # =============================================================================
@@ -984,6 +1070,8 @@ class OpenCodeCommandProvider(Provider):
         matcher = self.matcher(query)
 
         commands = [
+            ("/research", "Veille scientifique & technique réelle (arXiv, GitHub, Web)", lambda: app.run_slash_command("/research")),
+            ("/cyber", "Arsenal cybersécurité & exécution d'outils Kali", lambda: app.run_slash_command("/cyber")),
             ("/undo", "Rollback atomique git & fichiers modifiés", lambda: app.run_slash_command("/undo")),
             ("/compact", "Distillation neuronale de l'historique", lambda: app.run_slash_command("/compact")),
             ("/lsp", "Sonde en direct pyright / ruff / ast", lambda: app.run_slash_command("/lsp")),
@@ -1001,6 +1089,10 @@ class OpenCodeCommandProvider(Provider):
             ("/sidebar", "Afficher / masquer la sidebar (Ctrl+B)", app.action_toggle_sidebar),
             ("/clear", "Effacer les messages du chat actif", app.action_clear_chat),
             ("/sync", "Synchronisation GZIP Neon Cloud", lambda: app.run_slash_command("/sync")),
+            ("/online", "Configurer les modèles IA distants (DeepSeek, Kilo, Kimi)", lambda: app.run_slash_command("/online")),
+            ("/kimi login", "Authentification assistée Kimi Moonshot (Playwright)", lambda: app.run_slash_command("/kimi login")),
+            ("/kimi status", "Vérifier le statut de connexion Kimi", lambda: app.run_slash_command("/kimi status")),
+            ("/inngest", "Orchestration durable & circuit-breaker Inngest (F-37)", lambda: app.run_slash_command("/inngest status")),
             ("/mesh", "Satellite Mesh & Passerelle Machine-à-Machine (Forge & Laurince)", lambda: app.run_slash_command("/mesh status")),
             ("/satellite", "Synchroniser et inspecter les satellites (Forge & Laurince)", lambda: app.run_slash_command("/mesh sync")),
             ("/edit", "Ouvrir l'éditeur de code intégré In-TUI (Ctrl+O)", app.action_open_file_prompt),
@@ -1045,7 +1137,6 @@ class FreeAITUIApp(App):
         Binding("ctrl+e", "ai_explain_split_editor", "AI Explain", show=False),
         Binding("f4", "ai_explain_split_editor", "AI Explain", show=False),
         Binding("ctrl+w", "close_split_editor", "Close Editor", show=False),
-        Binding("ctrl+c", "quit_app", "Quit", show=False),
         Binding("ctrl+q", "quit_app", "Quit", show=False),
         Binding("escape", "escape_action", "Dismiss", show=False),
     ]
@@ -2075,6 +2166,8 @@ class FreeAITUIApp(App):
         elif cmd == "/help":
             help_text = (
                 "**Arsenal des Commandes OpenCode :**\n"
+                "- `/research <sujet>` : Veille scientifique et technique réelle (arXiv, GitHub, Web)\n"
+                "- `/cyber` : Arsenal de cybersécurité souverain et exécution d'outils Kali\n"
                 "- `/undo` : Rollback atomique git & fichiers modifiés\n"
                 "- `/compact` : Distillation neuronale de l'historique de conversation\n"
                 "- `/lsp` : Sonde en direct pyright / ruff / syntaxe AST\n"
@@ -2084,6 +2177,9 @@ class FreeAITUIApp(App):
                 "- `/mode <freeAi|lesaintAi>` : Basculer entre privilèges FreeAI et Apex\n"
                 "- `/agent <Tech Lead|Code|Security|Git|Conversation>` : Changer d'agent actif\n"
                 "- `/sync` : Synchronisation distante GZIP Neon PostgreSQL\n"
+                "- `/online` : Configurer les modèles distants (DeepSeek, Kilo, Kimi)\n"
+                "- `/kimi login` : Authentification assistée Kimi Moonshot (Playwright)\n"
+                "- `/inngest` : Moteur d'étapes durables & circuit-breaker Inngest (F-37)\n"
                 "- `/reflex <prompt>` : Radar d'anticipation synaptique & hologramme de pensée (F-25)\n"
                 "- `/edit <path>` : Éditeur de code intégré In-TUI & inspecteur souverain\n"
                 "- `Ctrl+B` : Basculer la barre latérale\n"
@@ -2212,6 +2308,152 @@ class FreeAITUIApp(App):
                     target_path.parent.mkdir(parents=True, exist_ok=True)
                     target_path.touch()
                 self.open_code_editor(target_path)
+        elif cmd == "/research":
+            card = AssistantMessageCard()
+            await chat_scroll.mount(card)
+            card.update_streaming_text("◈ Interrogation en direct d'arXiv, GitHub et DuckDuckGo...")
+            chat_scroll.scroll_end(animate=False)
+            try:
+                markdown_text = await asyncio.to_thread(_fetch_research_markdown, args)
+                card.finalize_text(markdown_text)
+            except Exception as ex:
+                card.finalize_text(f"✗ Erreur lors de la recherche /research : {ex}")
+        elif cmd == "/cyber":
+            subcmd = args[0].lower() if args else "status"
+            if subcmd == "exec":
+                if len(args) < 2:
+                    card = AssistantMessageCard()
+                    await chat_scroll.mount(card)
+                    card.finalize_text("Usage : `/cyber exec <outil_kali> [arguments_json]`\nExemple : `/cyber exec nmap '{\"target\": \"127.0.0.1\"}'`")
+                    return
+                tool_name = args[1]
+                try:
+                    arguments = json.loads(" ".join(args[2:])) if len(args) > 2 else {}
+                except json.JSONDecodeError as e:
+                    card = AssistantMessageCard()
+                    await chat_scroll.mount(card)
+                    card.finalize_text(f"✗ Arguments JSON invalides : {e}")
+                    return
+                card = AssistantMessageCard()
+                await chat_scroll.mount(card)
+                card.update_streaming_text(f"◈ Exécution de l'outil Kali `{tool_name}`...")
+                chat_scroll.scroll_end(animate=False)
+                import freeai_cyber
+                out = await asyncio.to_thread(freeai_cyber.non_interactive_mode, tool_name, arguments)
+                if out:
+                    card.finalize_text(f"**Sortie réelle de `{tool_name}` :**\n```text\n{out}\n```")
+                else:
+                    card.finalize_text(f"✗ Échec d'exécution ou outil `{tool_name}` indisponible.")
+            else:
+                card = AssistantMessageCard()
+                await chat_scroll.mount(card)
+                cyber_info = (
+                    "**Arsenal Cybersécurité & Pentest FreeAI :**\n"
+                    "- **Protection Sanctuaire** : `SacredLifeSentinel (Inviolable, Veto Immédiat)`\n"
+                    "- **Modules Pentest & Audit** : `pentest-gate, threat-model, run-poc, securecoder, scan_dependencies`\n"
+                    "- **Sandbox d'Exécution** : `ShadowDockerExecutor (RAM éphémère) & KineticShadowNetns`\n"
+                    "- **Réseau Souverain** : `Tor Onion V3 & Ultrasonic Air-Gap Transceiver`\n"
+                    "- **Stockage Distant** : `Telegram Neural Vault & Neon PostgreSQL`\n\n"
+                    "Tapez `/cyber exec <outil> [json_args]` pour exécuter un outil Kali."
+                )
+                card.finalize_text(cyber_info)
+        elif cmd == "/online":
+            card = AssistantMessageCard()
+            await chat_scroll.mount(card)
+            chat_scroll.scroll_end(animate=False)
+            if not args:
+                catalog = getattr(self.tech_lead, "list_online_models", lambda: {})() if self.tech_lead else {}
+                active = getattr(self.tech_lead.free_ai, "federation", None) if self.tech_lead and hasattr(self.tech_lead, "free_ai") else None
+                lines = ["**Modèles en Ligne Sans Restriction (100% Distants - 0 Mo RAM) :**"]
+                for k, v in catalog.items():
+                    lines.append(f"- `/online {k}` : `{v.get('default_model')}` - {v.get('desc')}")
+                if active:
+                    lines.append(f"\n*Fournisseur actuel :* `{active.current_provider.upper()}` | *Modèle :* `{active.current_model}`")
+                lines.append("\nTapez `/online <fournisseur>` pour basculer (ex: `/online kimi_web`).")
+                card.finalize_text("\n".join(lines))
+            else:
+                provider = args[0].lower()
+                model = args[1] if len(args) > 1 else None
+                if self.tech_lead and hasattr(self.tech_lead, "set_online_target"):
+                    res = self.tech_lead.set_online_target(provider, model)
+                    card.finalize_text(f"◈ Fournisseur en ligne activé : **{res['provider'].upper()}** (Modèle: `{res['model']}`)")
+                else:
+                    card.finalize_text(f"◈ Fournisseur sélectionné : **{provider}**")
+        elif cmd == "/kimi":
+            subcmd = args[0].lower() if args else "login"
+            card = AssistantMessageCard()
+            await chat_scroll.mount(card)
+            chat_scroll.scroll_end(animate=False)
+
+            if subcmd in ("status", "check"):
+                token = os.getenv("KIMI_REFRESH_TOKEN", "")
+                api_key = os.getenv("MOONSHOT_API_KEY") or os.getenv("KIMI_API_KEY", "")
+                if token:
+                    masked = token[:8] + "..." + token[-6:] if len(token) > 14 else "***"
+                    card.finalize_text(f"✓ **Kimi Web configuré** (Refresh Token: `{masked}`)")
+                elif api_key:
+                    masked = api_key[:6] + "..." + api_key[-4:] if len(api_key) > 10 else "***"
+                    card.finalize_text(f"✓ **Kimi Moonshot API officiel configuré** (API Key: `{masked}`)")
+                else:
+                    card.finalize_text("! **Aucun identifiant Kimi configuré.** Tapez `/kimi login` pour vous connecter en 1 clic.")
+            elif subcmd in ("login", "auth", "connect"):
+                card.update_streaming_text("◈ **Lancement de l'authentification assistée Kimi (Playwright)...**\n\nUne fenêtre Chromium s'ouvre sur https://kimi.moonshot.cn. Connectez-vous (SMS ou QR code) ; FreeAi interceptera votre jeton de session.")
+                chat_scroll.scroll_end(animate=False)
+                from app.llm.kimi_authenticator import KimiPlaywrightAuthenticator
+                authenticator = KimiPlaywrightAuthenticator()
+                res = await authenticator.launch_interactive_login(headless=False, timeout_sec=120)
+                if res.get("success"):
+                    card.finalize_text("✓ **SUCCÈS :** Jeton de session Kimi capturé et configuré dans votre environnement !\n\nFreeAi a désormais un accès direct souverain à Kimi K1.5 / K2 sans serveur local.")
+                else:
+                    err = res.get('error', 'Erreur inconnue')
+                    if "not installed" in err.lower():
+                        card.finalize_text(f"✗ **ÉCHEC :** {err}\n*(Exécutez dans un terminal : `python3 -m playwright install chromium`)*")
+                    elif "closed" in err.lower():
+                        card.finalize_text("✗ **Annulé :** La fenêtre du navigateur a été fermée avant la détection de la session.")
+                    elif "timed out" in err.lower():
+                        card.finalize_text("✗ **Délai dépassé :** Aucun jeton détecté dans le délai imparti. Réessayez avec `/kimi login`.")
+                    else:
+                        card.finalize_text(f"✗ **ÉCHEC :** {err}")
+            else:
+                card.finalize_text("Usage : `/kimi login` pour vous connecter, ou `/kimi status` pour vérifier.")
+        elif cmd == "/inngest":
+            subcmd = args[0].lower() if args else "status"
+            card = AssistantMessageCard()
+            await chat_scroll.mount(card)
+            chat_scroll.scroll_end(animate=False)
+
+            if subcmd == "status":
+                from app.orchestrator.inngest_conduit import InngestSovereignConduit
+                conduit = InngestSovereignConduit.get_instance()
+                sk = os.getenv("INNGEST_SIGNING_KEY", "")
+                sk_label = "Configurée (Cloud)" if sk else "Mode Éphémère Local (RAM NÉANT)"
+                info_text = (
+                    "**Inngest Sovereign Durable Conduit (Mode NÉANT 100% RAM) :**\n"
+                    "- Moteur d'Étapes Durables : `Actif (Step-Runner Memoized)`\n"
+                    "- Circuit-Breaker Multi-LLM : `49 Modèles Gérés`\n"
+                    f"- Mode Cloud Inngest : `{sk_label}`\n"
+                    "- Endpoint FastAPI : `/api/inngest` (Discovery + Webhook)\n"
+                    f"- Workflows Actifs en RAM : `{len(conduit._active_contexts)}`\n\n"
+                    "Tapez `/inngest swarm <prompt>` pour exécuter un flux résilient."
+                )
+                card.finalize_text(info_text)
+            elif subcmd in ("swarm", "run"):
+                if len(args) < 2:
+                    card.finalize_text("Usage : `/inngest swarm <prompt à orchestrer>`.")
+                else:
+                    prompt_text = " ".join(args[1:])
+                    card.update_streaming_text("◈ **Orchestration durable Inngest en cours (multi-modèles & circuit-breaker)...**")
+                    chat_scroll.scroll_end(animate=False)
+                    if self.tech_lead and hasattr(self.tech_lead, "run_inngest_swarm"):
+                        res = await self.tech_lead.run_inngest_swarm(prompt_text)
+                        if res and res.get("content"):
+                            card.finalize_text(f"**Résultante Inngest ({res.get('provider', 'Multi-Modèles')}) :**\n\n{res['content']}")
+                        else:
+                            card.finalize_text(f"✗ Échec du workflow Inngest : {res.get('error') if isinstance(res, dict) else 'Erreur'}")
+                    else:
+                        card.finalize_text("✗ Orchestrateur non disponible.")
+            else:
+                card.finalize_text("Usage : `/inngest status` ou `/inngest swarm <prompt>`.")
         else:
             card = AssistantMessageCard()
             await chat_scroll.mount(card)

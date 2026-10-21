@@ -17,16 +17,43 @@ class BinaryHologramEngine:
         self.bit_vectors: List[np.ndarray] = []  # Packed uint8 arrays
         self.metadata_index: List[Dict[str, Any]] = []
 
-    def _hash_projection(self, text: str) -> np.ndarray:
-        """Deterministic zero-RAM semantic projection vector from text using multi-seed hashing.
-        Generates pseudo-random float vector without loading any multi-gigabyte neural models into RAM.
-        """
-        # Generate dimension-sized float vector from multi-salted SHA256 hashes
-        seed = int(hashlib.md5(text.encode("utf-8")).hexdigest()[:8], 16)
+    def _token_vector(self, token: str) -> np.ndarray:
+        """Computes a deterministic pseudo-orthogonal basis vector in R^d for a single token."""
+        h = hashlib.sha256(token.encode("utf-8")).digest()
+        seed = int.from_bytes(h[:8], "big")
         rng = np.random.default_rng(seed)
-        # Zero-mean normal distribution
-        vec = rng.standard_normal(self.dimension).astype(np.float32)
-        return vec
+        return rng.standard_normal(self.dimension).astype(np.float32)
+
+    def _hash_projection(self, text: str) -> np.ndarray:
+        """Hyperdimensional semantic projection using token-level orthogonal basis aggregation.
+        Preserves genuine semantic overlap without cloud models:
+        Sentences sharing vocabulary or concepts project into vectors with positive cosine similarity.
+        """
+        import re
+        tokens = re.findall(r"\w+", text.lower())
+        if not tokens:
+            return np.zeros(self.dimension, dtype=np.float32)
+
+        accum = np.zeros(self.dimension, dtype=np.float32)
+        for idx, tok in enumerate(tokens):
+            weight = 1.0 / (1.0 + 0.05 * idx)
+            accum += weight * self._token_vector(tok)
+
+            if len(tok) >= 3:
+                for i in range(len(tok) - 2):
+                    trigram = tok[i:i+3]
+                    accum += 0.3 * self._token_vector(f"_tri_{trigram}")
+
+        norm = float(np.linalg.norm(accum))
+        if norm > 1e-9:
+            accum = accum / norm
+        return accum.astype(np.float32)
+
+    def compute_cosine_similarity(self, text_a: str, text_b: str) -> float:
+        """Computes true cosine similarity between continuous hyperdimensional projections of two texts."""
+        v_a = self._hash_projection(text_a)
+        v_b = self._hash_projection(text_b)
+        return float(np.dot(v_a, v_b))
 
     def binarize(self, dense_vector: np.ndarray) -> np.ndarray:
         """Projects dense float32 embedding into 1-bit representation (sign-based quantization).
