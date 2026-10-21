@@ -31,6 +31,7 @@ class SovereignOnionPortal:
         self.sentinel = SacredLifeSentinel(strict_mode=True)
         self.auth_token: Optional[str] = None
         self.onion_address: Optional[str] = None
+        self.bootstrap_pending: bool = False
         self.is_active: bool = False
         self._server_task: Optional[asyncio.Task] = None
         self._tor_process: Optional[Any] = None
@@ -135,9 +136,15 @@ class SovereignOnionPortal:
             await asyncio.sleep(0.5)
 
         if not self.onion_address:
-            # Fallback simulated sovereign address if daemon is still bootstrapping circuits
-            simulated_hash = secrets.token_hex(28)
-            self.onion_address = f"sovereign_{simulated_hash[:16]}.onion (en attente de bootstrap réseau)"
+            # Tor has not finished generating the real Ed25519 hidden service key yet
+            # (or failed to start). Never fabricate an address: report it as pending.
+            self.bootstrap_pending = True
+            logger.warning(
+                "[ONION] Tor hidden service key not yet available in "
+                f"{hostname_path} - onion address still pending, no address returned."
+            )
+        else:
+            self.bootstrap_pending = False
 
     async def _run_internal_server(self):
         """Runs the authenticated lightweight asyncio HTTP server."""
@@ -225,13 +232,24 @@ class SovereignOnionPortal:
 
         self.onion_address = None
         self.auth_token = None
+        self.bootstrap_pending = False
         return True
 
     def get_status(self) -> Dict[str, Any]:
-        """Returns the security and operational status of the Onion V3 portal."""
+        """Returns the security and operational status of the Onion V3 portal.
+        onion_address is only ever a real Ed25519 hostname read from Tor, or an
+        explicit "not available" state - never a fabricated placeholder."""
+        if self.is_active and self.onion_address:
+            address_status = self.onion_address
+        elif self.is_active and self.bootstrap_pending:
+            address_status = "En attente de bootstrap réseau Tor (clé Ed25519 pas encore générée)"
+        else:
+            address_status = "Inactif (Démarrage requis)"
+
         return {
             "is_active": self.is_active,
-            "onion_address": self.onion_address or "Inactif (Démarrage requis)",
+            "onion_address": address_status,
+            "bootstrap_pending": self.bootstrap_pending,
             "auth_token": self.auth_token if self.is_active else "Non généré",
             "port": self.port,
             "security": "Ed25519 End-to-End Encryption + Bearer Token HMAC",

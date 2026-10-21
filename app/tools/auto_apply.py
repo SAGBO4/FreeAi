@@ -22,6 +22,7 @@ from pathlib import Path
 
 from app.tools.career_bridge import CareerBridge
 from app.tools.morning_briefing import MorningBriefingEngine
+from app.tools.live_review_browser import LiveApplicationReviewSession
 
 logger = logging.getLogger("auto_apply")
 
@@ -45,6 +46,7 @@ class AutoApplyEngine:
         self.career_bridge = career_bridge or CareerBridge()
         self.profile = MorningBriefingEngine.MICHAEL_PROFILE
         self._applied_cache: Set[str] = self._load_applied_urls()
+        self._live_review_sessions: Dict[str, LiveApplicationReviewSession] = {}
 
     def _load_applied_urls(self) -> Set[str]:
         """Loads cached URLs of jobs already applied to avoid duplicate submissions."""
@@ -248,6 +250,107 @@ class AutoApplyEngine:
             "success": True,
             "package": package
         }
+
+    async def prepare_live_review_application(self, job_index: int = 1, target_chat_id: Optional[str] = None) -> Dict[str, Any]:
+        """Opens a REAL, visible browser on the target job's application page, pre-fills
+        the fields it can confidently identify (name, email, phone, cover letter, resume
+        upload), and exposes that live session as a noVNC web link on the local network.
+        The human opens the link, reviews the pre-filled form with their own eyes, and
+        clicks Submit themselves - this method never submits anything on its own.
+
+        Field matching is heuristic and best-effort: the result honestly lists which
+        fields were actually filled and which were not found on this particular page,
+        rather than claiming a blanket success."""
+        briefing_engine = MorningBriefingEngine(telegram_vault=self.telegram_vault, career_bridge=self.career_bridge)
+        jobs = briefing_engine.get_todays_career_highlights()
+        if not jobs:
+            return {"success": False, "error": "Aucune offre active trouvée dans le radar."}
+
+        idx = max(0, min(job_index - 1, len(jobs) - 1))
+        target_job = jobs[idx]
+        job_url = target_job.get("url", "")
+        if not job_url:
+            return {"success": False, "error": "L'offre sélectionnée n'a pas d'URL exploitable."}
+
+        package = self.generate_full_application_package(target_job)
+
+        session = LiveApplicationReviewSession()
+        try:
+            await session.start(job_url)
+
+            resume_html = (
+                f"<html><body style='font-family: Arial, sans-serif;'>"
+                f"<h1>{self.profile['name']}</h1><h3>{self.profile['title']}</h3>"
+                f"<p>{package['tailored_resume'].replace(chr(10), '<br>')}</p>"
+                f"</body></html>"
+            )
+            resume_pdf_path = await session.generate_resume_pdf(resume_html)
+
+            report = await session.autofill(
+                profile_values={
+                    "full_name": self.profile["name"],
+                    "first_name": self.profile["name"].split()[0],
+                    "last_name": self.profile["name"].split()[-1],
+                    "email": "contact@michaelsagbo.tech",
+                    "phone": self.profile.get("phone"),
+                    "city": self.profile.get("city"),
+                    "linkedin": self.profile["linkedin"],
+                    "github": self.profile["github"],
+                    "portfolio": self.profile["portfolio"],
+                    "cover_letter": package["cover_letter"],
+                },
+                resume_pdf_path=resume_pdf_path,
+            )
+            await session.schedule_auto_close(idle_minutes=25)
+        except Exception as e:
+            await session.close()
+            return {"success": False, "error": f"Échec de préparation de la session de revue : {e}"}
+
+        self._live_review_sessions[session.session_id] = session
+        review_url = session.get_review_url()
+
+        if self.telegram_vault and self.telegram_vault.is_configured:
+            chat = target_chat_id or self.telegram_vault.group_chat_id or self.telegram_vault.chat_id
+            career_topic_id = self.telegram_vault.topic_map.get("career", 97)
+            filled_str = ", ".join(report.filled) or "aucun"
+            missing_str = ", ".join(report.not_found) or "aucun"
+
+            tg_message = (
+                f"👀 <b>[CANDIDATURE PRÉ-REMPLIE - À VALIDER PAR TOI]</b>\n\n"
+                f"• <b>Poste :</b> {package['job_title']} chez {package['company']}\n"
+                f"• 🔗 <b>Offre :</b> <a href=\"{job_url}\">👉 Voir l'offre</a>\n\n"
+                f"Le formulaire a été ouvert et pré-rempli dans un vrai navigateur. "
+                f"Ouvre ce lien pour le vérifier et cliquer toi-même sur Envoyer :\n"
+                f"🖥️ <a href=\"{review_url}\">{review_url}</a>\n\n"
+                f"✔ <b>Champs remplis :</b> {filled_str}\n"
+                f"⚠️ <b>Champs non trouvés sur cette page :</b> {missing_str}\n\n"
+                f"<i>Ce lien reste actif 25 minutes ou jusqu'à ce que tu fermes la session. "
+                f"Personne d'autre n'y a accès sans le mot de passe inclus dans l'URL.</i>"
+            )
+            await self.telegram_vault.send_message(
+                tg_message,
+                message_thread_id=career_topic_id,
+                target_chat_id=chat
+            )
+
+        return {
+            "success": True,
+            "session_id": session.session_id,
+            "review_url": review_url,
+            "job_title": package["job_title"],
+            "company": package["company"],
+            "job_url": job_url,
+            "autofill_report": report.to_dict(),
+        }
+
+    async def close_live_review_session(self, session_id: str) -> bool:
+        """Closes a live review session on demand (e.g. once the human has submitted
+        or decided to skip), terminating the browser, display and VNC bridge."""
+        session = self._live_review_sessions.pop(session_id, None)
+        if not session:
+            return False
+        await session.close()
+        return True
 
     async def run_offline_autonomous_cycle(self, target_chat_id: Optional[str] = None) -> Dict[str, Any]:
         """Runs the autonomous offline application cycle.

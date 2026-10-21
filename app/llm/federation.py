@@ -125,6 +125,41 @@ class OnlineModelFederation:
             "default_model": "models/gemini-flash-lite-latest",
             "env_key": "GEMINI_API_KEY",
             "desc": "Moteur agentique et architectural Google Antigravity 18 mois."
+        },
+        "opencode_free": {
+            "name": "OpenCode Zen Gateway (DeepSeek V4.1 Flash, GLM 5.3 Flash - 100% Gratuit)",
+            "endpoint": "https://opencode.ai/inference/v1/chat/completions",
+            "default_model": "deepseek-v4.1-flash-free",
+            "env_key": "OPENCODE_FREE",
+            "desc": "Accès direct sans clé API ni compte au pool public OpenCode (DeepSeek V4.1 Flash, GLM 5.3 Flash, 1M tokens)."
+        },
+        "kilo_free": {
+            "name": "Kilo AI Keyless Gateway (Modèles Libres 100% Gratuits)",
+            "endpoint": "https://api.kilo.ai/api/gateway/chat/completions",
+            "default_model": "kilo-auto/free",
+            "env_key": "KILO_FREE",
+            "desc": "Passerelle publique Kilo AI sans authentification avec auto-routeur libre."
+        },
+        "our_free_model_local": {
+            "name": "OurFreeModel Local Standalone Gateway",
+            "endpoint": "http://127.0.0.1:18900/v1/chat/completions",
+            "default_model": "deepseek-v4.1-flash-free",
+            "env_key": "OUR_FREE_MODEL_LOCAL",
+            "desc": "Passerelle locale dsh-our-free-model détectée sur localhost (ports 18900, 18899, 18923)."
+        },
+        "kimi_web": {
+            "name": "Kimi K3 Web Direct (Moonshot AI - 100% Gratuit)",
+            "endpoint": "https://kimi.moonshot.cn/api/chat",
+            "default_model": "kimi-k3-web",
+            "env_key": "KIMI_REFRESH_TOKEN",
+            "desc": "Accès cloud direct sans serveur local à Kimi K3 via le protocole Kimi Web."
+        },
+        "kimi": {
+            "name": "Kimi / Moonshot AI (Plateforme Officielle)",
+            "endpoint": "https://api.moonshot.cn/v1/chat/completions",
+            "default_model": "moonshot-v1-auto",
+            "env_key": "KIMI_API_KEY",
+            "desc": "Modèle souverain chinois à contexte long (Moonshot AI K2.5 / K3)."
         }
     }
 
@@ -156,6 +191,8 @@ class OnlineModelFederation:
         self.groq_api_key = groq_api_key or os.getenv("GROQ_API_KEY")
         self.remote_ollama_url = remote_ollama_url or os.getenv("REMOTE_OLLAMA_URL")
         self.remote_gpu_url = remote_gpu_url or os.getenv("REMOTE_GPU_URL")
+        self.kimi_api_key = os.getenv("KIMI_API_KEY") or os.getenv("MOONSHOT_API_KEY")
+        self.kimi_refresh_token = os.getenv("KIMI_REFRESH_TOKEN") or os.getenv("MOONSHOT_REFRESH_TOKEN")
 
         # Current active online model & provider configuration
         self.current_provider = os.getenv("ONLINE_PROVIDER", "auto").lower()
@@ -188,6 +225,117 @@ class OnlineModelFederation:
 
     def list_supported_online_models(self) -> Dict[str, Any]:
         return self.CATALOG
+
+    async def query_specific_provider(
+        self,
+        provider: str,
+        prompt: str,
+        model: Optional[str] = None,
+        system_prompt: Optional[str] = None,
+        timeout_sec: int = 25
+    ) -> Optional[Dict[str, Any]]:
+        """Queries one named CATALOG provider directly (no cascade/fallback).
+        Returns None if the provider is unknown, has no API key configured, or the call fails -
+        never a fabricated answer."""
+        p_clean = provider.strip().lower()
+        meta = self.CATALOG.get(p_clean)
+        if not meta:
+            return None
+
+        # Keyless zero-cost providers
+        if p_clean == "opencode_free":
+            from app.llm.our_free_model import OurFreeModelBridge
+            bridge = OurFreeModelBridge.get_instance()
+            chosen_model = model or meta["default_model"]
+            res = await bridge.query_opencode(
+                prompt=prompt,
+                model=chosen_model,
+                system_prompt=system_prompt,
+                timeout_sec=timeout_sec,
+            )
+            if res and "content" in res:
+                return {"provider": p_clean, "model": chosen_model, "content": res["content"]}
+            return None
+
+        if p_clean == "kilo_free":
+            from app.llm.our_free_model import OurFreeModelBridge
+            bridge = OurFreeModelBridge.get_instance()
+            chosen_model = model or meta["default_model"]
+            res = await bridge.query_kilo(
+                prompt=prompt,
+                model=chosen_model,
+                system_prompt=system_prompt,
+                timeout_sec=timeout_sec,
+            )
+            if res and "content" in res:
+                return {"provider": p_clean, "model": chosen_model, "content": res["content"]}
+            return None
+
+        if p_clean == "our_free_model_local":
+            from app.llm.our_free_model import detect_local_forward_gateway
+            gw = await detect_local_forward_gateway()
+            if not gw:
+                return None
+            chosen_model = model or meta["default_model"]
+            answer = await self._query_openai_compatible(
+                endpoint=f"{gw['base_url']}/v1/chat/completions",
+                api_key=gw["api_key"],
+                model=chosen_model,
+                prompt=prompt,
+                system_prompt=system_prompt,
+                timeout_sec=timeout_sec,
+            )
+            if answer is None:
+                return None
+            return {"provider": p_clean, "model": chosen_model, "content": answer}
+
+        if p_clean == "kimi_web":
+            from app.llm.kimi_web_bridge import KimiWebBridge
+            bridge = KimiWebBridge.get_instance()
+            res = await bridge.query_kimi_web(
+                prompt=prompt,
+                system_prompt=system_prompt,
+                timeout_sec=timeout_sec,
+            )
+            if res and "content" in res:
+                return {"provider": p_clean, "model": model or meta["default_model"], "content": res["content"]}
+            return None
+
+        if p_clean == "kimi":
+            from app.llm.kimi_web_bridge import KimiWebBridge
+            bridge = KimiWebBridge.get_instance()
+            res = await bridge.query_kimi_official(
+                prompt=prompt,
+                model=model or meta["default_model"],
+                system_prompt=system_prompt,
+                timeout_sec=timeout_sec,
+            )
+            if res and "content" in res:
+                return {"provider": p_clean, "model": res["model"], "content": res["content"]}
+            res_web = await bridge.query_kimi_web(
+                prompt=prompt,
+                system_prompt=system_prompt,
+                timeout_sec=timeout_sec,
+            )
+            if res_web and "content" in res_web:
+                return {"provider": p_clean, "model": model or meta["default_model"], "content": res_web["content"]}
+            return None
+
+        api_key = getattr(self, meta["env_key"].lower(), None)
+        if not api_key:
+            return None
+        chosen_model = model or meta["default_model"]
+        answer = await self._query_openai_compatible(
+            endpoint=meta["endpoint"],
+            api_key=api_key,
+            model=chosen_model,
+            prompt=prompt,
+            system_prompt=system_prompt,
+            timeout_sec=timeout_sec
+        )
+        if answer is None:
+            return None
+        return {"provider": p_clean, "model": chosen_model, "content": answer}
 
     def _purge_disk_cache(self):
         """Purges any lingering database files from disk to preserve 0-byte disk footprint."""
@@ -751,6 +899,27 @@ class OnlineModelFederation:
             self.save_to_cache(clean_query, "ollama", ollama_res["model"], ollama_res["response"])
             return ollama_res
 
+        # 5.a Explicitly targeted OurFreeModel & Kimi zero-cost providers
+        already_tried_free_provider = None
+        if self.current_provider in ("opencode_free", "kilo_free", "our_free_model_local", "kimi", "kimi_web"):
+            already_tried_free_provider = self.current_provider
+            res = await self.query_specific_provider(
+                provider=self.current_provider,
+                prompt=clean_query,
+                model=self.current_model if self.current_model != "auto" else None,
+                system_prompt=system_prompt,
+                timeout_sec=timeout_sec,
+            )
+            if res and res.get("content"):
+                self.save_to_cache(clean_query, self.current_provider, res["model"], res["content"])
+                return {
+                    "success": True,
+                    "source": "our_free_model_direct",
+                    "provider": self.current_provider,
+                    "model": res["model"],
+                    "response": res["content"]
+                }
+
         # 5.bis Google AI Pro / Gemini & Antigravity Sovereign Model (18-Month License, 1M+ context)
         if self.gemini_api_key or self.current_provider in ("gemini", "google", "antigravity"):
             gemini_ans = await self._query_google_gemini(
@@ -841,6 +1010,40 @@ class OnlineModelFederation:
             if ans:
                 self.save_to_cache(clean_query, "openrouter", target_model, ans)
                 return {"success": True, "source": "online_remote_model", "provider": f"OpenRouter:{target_model}", "model": target_model, "response": ans}
+
+        # 9.bis OurFreeModel Sovereign Bridge (Zero-Key OpenCode & Kilo AI Gateways)
+        # Delegates to query_specific_provider (single source of truth for how each
+        # provider is called) and skips whichever provider step 5.a already tried and
+        # failed, instead of retrying the identical call.
+        _FREE_PROVIDER_LABELS = {
+            "our_free_model_local": ("our_free_model_local", "OurFreeModel_Local_Forward"),
+            "opencode_free": ("online_remote_model", "OpenCode_Zen_Gateway"),
+            "kilo_free": ("online_remote_model", "Kilo_AI_Keyless"),
+            "kimi_web": ("online_remote_model", "Kimi_Web_Bridge"),
+            "kimi": ("online_remote_model", "Moonshot_Direct_API"),
+        }
+        try:
+            for p in ("our_free_model_local", "opencode_free", "kilo_free", "kimi_web", "kimi"):
+                if p == already_tried_free_provider:
+                    continue
+                res = await self.query_specific_provider(
+                    provider=p,
+                    prompt=clean_query,
+                    system_prompt=system_prompt,
+                    timeout_sec=timeout_sec,
+                )
+                if res and res.get("content"):
+                    source, label = _FREE_PROVIDER_LABELS[p]
+                    self.save_to_cache(clean_query, p, res["model"], res["content"])
+                    return {
+                        "success": True,
+                        "source": source,
+                        "provider": label,
+                        "model": res["model"],
+                        "response": res["content"]
+                    }
+        except Exception as e:
+            logger.debug(f"[FEDERATION] OurFreeModel bridge attempt failed: {e}")
 
         # 10. Autonomous Sovereign Fallback (Zero-Network / Offline Heuristic Synthesis)
         offline_synthesis = (

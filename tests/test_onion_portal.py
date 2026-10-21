@@ -1,4 +1,5 @@
 import os
+import shutil
 import pytest
 import asyncio
 from unittest.mock import patch, MagicMock, AsyncMock
@@ -53,6 +54,45 @@ def test_onion_portal_start_and_stop_in_lesaint_mode(monkeypatch):
         assert not portal.is_active
         assert portal.auth_token is None
         assert portal.onion_address is None
+
+    asyncio.run(_test())
+
+
+def test_launch_tor_daemon_reports_pending_instead_of_fake_address(tmp_path, monkeypatch):
+    """Exécute réellement _launch_tor_daemon (non mocké) quand ni 'tor' ni docker ne sont
+    disponibles. Régression ciblée : l'ancien code fabriquait une adresse
+    'sovereign_<hex aléatoire>.onion' dans ce cas. Le code corrigé doit laisser
+    onion_address à None et exposer bootstrap_pending=True, sans rien inventer."""
+    async def _test():
+        portal = SovereignOnionPortal()
+        portal.RAM_DIR = str(tmp_path / "freeai_onion")
+
+        # Simule un hôte sans binaire 'tor' et sans Docker fonctionnel
+        monkeypatch.setattr(shutil, "which", lambda name: None)
+
+        async def fail_docker(*args, **kwargs):
+            raise FileNotFoundError("docker not available in this test")
+        monkeypatch.setattr(asyncio, "create_subprocess_exec", fail_docker)
+
+        # Évite d'attendre réellement les ~10s de polling du fichier hostname
+        monkeypatch.setattr(asyncio, "sleep", AsyncMock())
+
+        portal._ensure_ram_dir()
+        torrc_path = f"{portal.RAM_DIR}/torrc"
+        with open(torrc_path, "w", encoding="utf-8") as f:
+            f.write("")
+
+        await portal._launch_tor_daemon(torrc_path)
+
+        assert portal.onion_address is None
+        assert portal.bootstrap_pending is True
+
+        # Simule l'état "actif" pour vérifier le message honnête de get_status
+        portal.is_active = True
+        status = portal.get_status()
+        assert status["bootstrap_pending"] is True
+        assert ".onion" not in status["onion_address"]
+        assert "attente" in status["onion_address"].lower()
 
     asyncio.run(_test())
 

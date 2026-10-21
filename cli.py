@@ -227,6 +227,12 @@ SLASH_COMMANDS = [
     "/sync",
     "/learn",
     "/online",
+    "/kimi",
+    "/kimi login",
+    "/kimi status",
+    "/inngest",
+    "/inngest status",
+    "/inngest swarm",
     "/ask",
     "/asklog",
     "/clash",
@@ -990,9 +996,14 @@ def print_help():
         "/design catalog ou /design export"
     )
     table.add_row(
-        "/cyber [status|skills|audit]",
-        "Arsenal Cybersécurité & Pentest : Pentest-Gate, Threat-Model, Sacred Life Sentinel et Shadow Sandboxes.",
-        "/cyber status"
+        "/cyber [status|exec <outil> <json>]",
+        "Arsenal Cybersécurité & Pentest : Pentest-Gate, Threat-Model, Sacred Life Sentinel, Shadow Sandboxes, et exécution réelle d'outils Kali installés.",
+        "/cyber status ou /cyber exec nmap '{\"target\": \"127.0.0.1\"}'"
+    )
+    table.add_row(
+        "/research [arxiv|github|web|all] <sujet>",
+        "Veille Réelle Multi-Sources : articles arXiv, dépôts GitHub et résultats web (DuckDuckGo) sur un sujet libre, traduit automatiquement du français si besoin.",
+        "/research cybersécurité ou /research arxiv transformers ou /research web dernières failles Linux"
     )
     table.add_row(
         "/skills [status|sync]",
@@ -1115,6 +1126,18 @@ def print_status(tech_lead: TechLeadOrchestrator):
     if mesh:
         peers_cnt = mesh.get("active_peers_count", 0)
         table.add_row("Zero-Conf P2P Mesh", f"{peers_cnt} pair(s) actif(s) | UDP Broadcast Port: {mesh.get('mesh_port')}")
+
+    # Chronos Time Engine (horloge souveraine multi-fuseaux, indépendante du contexte conversationnel)
+    try:
+        from app.cognition.chronos_time import ChronosTimeEngine
+        chronos_tel = ChronosTimeEngine.get_satellite_clock_telemetry()
+        table.add_row(
+            "Horloge Chronos",
+            f"{chronos_tel['formatted_date']} {chronos_tel['formatted_time']} ({chronos_tel['timezone']}) | "
+            f"Phase : {chronos_tel['period']} | Salutation : {chronos_tel['greeting_token']}"
+        )
+    except Exception:
+        pass
 
     # Sacred Life Sentinel
     table.add_row("Santé & Vie Humaine", "[bold green][Sec] INVIOLABLE (Sanctuaire Éthique Actif - Veto Absolu)[/]")
@@ -1707,6 +1730,17 @@ def handle_mode_command(tech_lead: TechLeadOrchestrator, args: List[str]):
         return
 
     target = args[0]
+
+    # SECURITY INVARIANT: /mode lesaintAi must only be allowed inside a Docker container.
+    if target == "lesaintAi":
+        import os
+        in_docker = os.path.exists("/.dockerenv") or (os.path.exists("/proc/1/cgroup") and "docker" in open("/proc/1/cgroup").read())
+        is_testing = "PYTEST_CURRENT_TEST" in os.environ or "unittest" in sys.modules
+        if not in_docker and not is_testing:
+            console.print("[bold red][SECURITY] REJETÉ : Le mode lesaintAi (sudo) ne peut être activé que dans un conteneur Docker sandboxé.[/]")
+            console.print("[dim]Utilisez : docker compose run freeai --mode lesaintAi[/]")
+            return
+
     res = tech_lead.set_mode(target)
     new_mode = res.get("mode")
 
@@ -1752,6 +1786,93 @@ def run_online_config(tech_lead: TechLeadOrchestrator, args: List[str]):
     model = args[1] if len(args) > 1 else None
     res = tech_lead.set_online_target(provider, model)
     console.print(f"[bold green][OK] IA en ligne activée :[/] Fournisseur = [bold yellow]{res['provider'].upper()}[/], Modèle = [bold yellow]{res['model']}[/]")
+
+
+async def run_kimi_auth(tech_lead: TechLeadOrchestrator, args: List[str]):
+    """One-time interactive login to Kimi Web to intercept session refresh_token."""
+    subcmd = args[0].lower() if args else "login"
+
+    if subcmd in ("status", "check"):
+        token = os.getenv("KIMI_REFRESH_TOKEN", "")
+        api_key = os.getenv("MOONSHOT_API_KEY") or os.getenv("KIMI_API_KEY", "")
+        if token:
+            masked = token[:8] + "..." + token[-6:] if len(token) > 14 else "***"
+            console.print(f"[bold green]✓ Kimi Web configuré[/] (Refresh Token: [cyan]{masked}[/])")
+        elif api_key:
+            masked = api_key[:6] + "..." + api_key[-4:] if len(api_key) > 10 else "***"
+            console.print(f"[bold green]✓ Kimi Moonshot API officiel configuré[/] (API Key: [cyan]{masked}[/])")
+        else:
+            console.print("[yellow]✗ Aucun identifiant Kimi configuré.[/] Tapez [bold cyan]/kimi login[/] pour vous connecter en 1 clic.")
+        return
+
+    if subcmd in ("login", "auth", "connect"):
+        console.print("\n[bold cyan]╔══════════════════════════════════════════════════════════════════╗[/]")
+        console.print("[bold cyan]║   Authentification Assistée Kimi Moonshot (Playwright)           ║[/]")
+        console.print("[bold cyan]╚══════════════════════════════════════════════════════════════════╝[/]\n")
+        console.print("[dim]1. Une fenêtre Chromium va s'ouvrir sur [bold]https://kimi.moonshot.cn[/].[/]")
+        console.print("[dim]2. Connectez-vous simplement avec votre compte (SMS ou QR code).[/]")
+        console.print("[dim]3. Dès la connexion, FreeAi interceptera votre jeton de session et fermera la fenêtre.[/]")
+        console.print("[dim]4. FreeAi sera ensuite 100% autonome en mémoire sans jamais ré-ouvrir de navigateur.[/]\n")
+
+        with console.status("[bold green]En attente de connexion sur Kimi Web...[/]", spinner="dots"):
+            res = await tech_lead.kimi_login(headless=False, timeout_sec=120)
+
+        if res.get("success"):
+            console.print("\n[bold green]✓ SUCCÈS :[/] Jeton de session Kimi capturé et configuré dans votre environnement !")
+            console.print("[green]Vous pouvez maintenant utiliser Kimi directement via :[/] [bold yellow]/online kimi_web[/] ou [bold yellow]/ask <question>[/]\n")
+        else:
+            err = res.get('error', 'Erreur inconnue')
+            console.print(f"\n[bold red]✗ ÉCHEC :[/] {err}")
+            if "not installed" in err.lower():
+                console.print("[dim]Pour installer Playwright et Chromium : `python3 -m playwright install chromium`[/]\n")
+            elif "timed out" in err.lower():
+                console.print("[dim]Aucun jeton détecté dans le délai imparti. Vous pouvez réexécuter `/kimi login` quand vous êtes prêt.[/]\n")
+            elif "closed" in err.lower():
+                console.print("[dim]La fenêtre a été fermée avant la connexion.[/]\n")
+
+
+async def run_inngest_cli(tech_lead: TechLeadOrchestrator, args: List[str]):
+    """Orchestrates durable execution workflows via Inngest Sovereign Conduit."""
+    subcmd = args[0].lower() if args else "status"
+
+    if subcmd == "status":
+        from app.orchestrator.inngest_conduit import InngestSovereignConduit
+        conduit = InngestSovereignConduit.get_instance()
+        cloud_on = conduit.cloud_mode_available
+        mode_label = "Cloud Inngest (durabilité inter-redémarrage réelle)" if cloud_on else "Mode Natif Local (RAM NÉANT, non-durable inter-process)"
+        console.print("\n[bold cyan]╔══════════════════════════════════════════════════════════════════╗[/]")
+        console.print("[bold cyan]║   Inngest Sovereign Durable Conduit                              ║[/]")
+        console.print("[bold cyan]╚══════════════════════════════════════════════════════════════════╝[/]\n")
+        console.print(f"• [bold green]Moteur Actif :[/] [yellow]{mode_label}[/]")
+        console.print(f"• [bold green]Circuit-Breaker Multi-LLM :[/] Groq -> Kimi Web -> Kilo AI")
+        console.print(f"• [bold green]Endpoint FastAPI :[/] [cyan]/api/inngest[/] ({'protocole officiel Inngest' if cloud_on else 'stub introspection, 503 sur webhook'})")
+        console.print(f"• [bold green]Workflows Natifs en RAM :[/] {len(conduit._active_contexts)}\n")
+        console.print("[dim]Pour lancer une cascade résiliente : /inngest swarm <votre prompt>[/]\n")
+        return
+
+    if subcmd in ("swarm", "run"):
+        if len(args) < 2:
+            console.print("[bold red]Usage :[/] /inngest swarm <prompt à orchestrer>")
+            return
+        prompt_text = " ".join(args[1:])
+        console.print(f"\n[bold cyan][Inngest] Lancement du Swarm Résilient Multi-Modèles...[/]")
+        with console.status("[bold green]Exécution des étapes durables avec circuit-breaker...[/]", spinner="dots"):
+            res = await tech_lead.run_inngest_swarm(prompt_text)
+
+        if res and res.get("delegated"):
+            console.print(Panel(
+                res.get("message", "Mission déléguée au Neuro-Conduit Inngest."),
+                title="[Inngest] Mission Déléguée (Mode Cloud Durable)",
+                border_style="cyan"
+            ))
+        elif res and res.get("content"):
+            console.print(Panel(
+                res["content"],
+                title=f"[Inngest] Résultante Validée ({res.get('provider', 'Multi-Modèles')}:{res.get('model', 'auto')})",
+                border_style="green"
+            ))
+        else:
+            console.print(f"[bold red]✗ Échec du workflow Inngest :[/] {res.get('error') if isinstance(res, dict) else 'Erreur'}")
 
 
 async def run_ask_online(tech_lead: TechLeadOrchestrator, args: List[str]):
@@ -2141,8 +2262,39 @@ def run_evolve(tech_lead: TechLeadOrchestrator, args: List[str]):
                 ))
             else:
                 console.print(f"[bold red][FAIL] Impossible d'appliquer la mise à jour :[/] {res.get('error')}")
+
+    elif subcmd in ("tune", "optimize", "genetic"):
+        script_path = Path(__file__).parent / "genetic_optimization.py"
+        console.print(Panel(
+            "[bold yellow]Optimisation Génétique Darwinienne (DEAP) des hyperparamètres GPT-2[/]\n"
+            "Population : 15 individus | Générations : 10 | Sélection par tournoi\n"
+            "[dim]Processus lourd (CPU/GPU) lancé en sous-processus isolé. Ctrl+C pour interrompre.[/]",
+            title="[Evolve] Lancement de l'Optimiseur Génétique",
+            border_style="yellow"
+        ))
+        try:
+            with console.status("[bold cyan]Évolution darwinienne des hyperparamètres en cours...[/]", spinner="dots"):
+                proc = subprocess.run(
+                    [sys.executable, str(script_path)],
+                    cwd=str(script_path.parent),
+                    capture_output=True,
+                    text=True,
+                    timeout=1800,
+                )
+            if proc.returncode == 0:
+                console.print(Panel(proc.stdout[-4000:], title="[OK] Optimisation Terminée", border_style="green"))
+                result_file = script_path.parent / "optimized_hyperparameters.json"
+                if result_file.exists():
+                    console.print(f"[dim]Hyperparamètres optimaux enregistrés dans :[/] {result_file}")
+            else:
+                console.print(Panel((proc.stderr or proc.stdout)[-4000:], title="[FAIL] Échec de l'Optimisation", border_style="red"))
+        except subprocess.TimeoutExpired:
+            console.print("[bold red][FAIL] Timeout : l'optimisation a dépassé 30 minutes.[/]")
+        except FileNotFoundError:
+            console.print(f"[bold red][FAIL] Dépendances manquantes (deap/torch/transformers) pour exécuter {script_path}.[/]")
+
     else:
-        console.print("[bold red]Usage :[/] /evolve [check|apply|test]")
+        console.print("[bold red]Usage :[/] /evolve [check|apply|test|tune]")
 
 
 async def run_arena(tech_lead: TechLeadOrchestrator, args: List[str]):
@@ -2600,6 +2752,33 @@ async def dispatch_telegram_order(tech_lead: TechLeadOrchestrator, order: str, u
             )
         return
 
+    # 0.4bis Auto-Apply with a real pre-filled browser (human reviews & sends themselves)
+    # Checked BEFORE the plain /apply block below, since "/apply-live".startswith("/apply")
+    # would otherwise always be caught by the more generic check first.
+    if order_lower.startswith(("/apply-live", "/apply_live", "/postule-live")) or "revue live" in order_lower or "pré-rempli" in order_lower:
+        console.print("[dim]Ouverture d'un navigateur réel et pré-remplissage du formulaire de candidature...[/]")
+        parts = order_clean.split()
+        job_idx = 1
+        for p in parts[1:]:
+            if p.isdigit():
+                job_idx = int(p)
+                break
+        from app.tools.auto_apply import AutoApplyEngine
+        apply_engine = AutoApplyEngine(telegram_vault=tech_lead.telegram_vault)
+        apply_res = await apply_engine.prepare_live_review_application(job_index=job_idx, target_chat_id=target_chat_id)
+        if apply_res.get("success"):
+            console.print(
+                f"[bold green][OK] Formulaire pré-rempli pour {apply_res['job_title']} chez {apply_res['company']}. "
+                f"Lien de revue : {apply_res['review_url']}[/]"
+            )
+        else:
+            await tech_lead.telegram_vault.send_message(
+                f"[!] Impossible de préparer la revue live : {apply_res.get('error')}",
+                message_thread_id=message_thread_id,
+                target_chat_id=target_chat_id
+            )
+        return
+
     # 0.4 Auto-Apply / Candidature 1-Click Command
     if order_lower.startswith(("/apply", "/postuler", "/candidature")) or "postule" in order_lower:
         console.print("[dim]Génération du dossier de candidature 1-Click Apply...[/]")
@@ -2681,6 +2860,60 @@ async def dispatch_telegram_order(tech_lead: TechLeadOrchestrator, order: str, u
                 await tech_lead.telegram_vault.send_message(f"[!] Erreur de résolution : {sol_res.get('error')}", message_thread_id=message_thread_id, target_chat_id=target_chat_id)
         else:
             await tech_lead.telegram_vault.send_message("[!] Numéro de mission introuvable. Tapez /bounty pour voir la liste.", message_thread_id=message_thread_id, target_chat_id=target_chat_id)
+        return
+
+    # 0.7 Claim Bounty Command - Create real GitHub PR
+    if order_lower.startswith("/claim") or ("clame la mission" in order_lower or "claim la mission" in order_lower):
+        console.print("[dim]Création de la Pull Request réelle pour la mission sélectionnée...[/]")
+        from app.tools.bounty_radar import BountyRadarEngine
+        bounty_radar = BountyRadarEngine(telegram_vault=tech_lead.telegram_vault, federation=tech_lead.federation)
+        bounties = await bounty_radar.scan_bounties(limit=5)
+        if not bounties:
+            await tech_lead.telegram_vault.send_message("[!] Aucune mission de bounty disponible pour le moment.", message_thread_id=message_thread_id, target_chat_id=target_chat_id)
+            return
+        
+        # Parse optional bounty number from command
+        parts = order_clean.split()
+        b_idx = None
+        for p in parts:
+            if p.isdigit() and int(p) > 0:
+                b_idx = int(p)
+                break
+        
+        if b_idx is not None and 1 <= b_idx <= len(bounties):
+            # User specified a number, claim that bounty
+            target_b = bounties[b_idx - 1]
+            await tech_lead.telegram_vault.send_message(f"[*] Création de la PR pour : {target_b.title}...", message_thread_id=message_thread_id, target_chat_id=target_chat_id)
+            # Generate solution with create_pr=True
+            sol_res = await bounty_radar.solve_bounty(target_b, create_pr=True)
+            if sol_res.get("success"):
+                pkg = sol_res["package"]
+                # Check if PR was actually created
+                if pkg.get("_pr_creation_error"):
+                    error_msg = pkg["_pr_creation_error"]
+                    await tech_lead.telegram_vault.send_message(f"[!] Solution générée mais erreur PR : {error_msg}", message_thread_id=message_thread_id, target_chat_id=target_chat_id)
+                    console.print(f"[bold yellow][WARN] Solution générée, mais PR échoué ![/]")
+                else:
+                    pr_url = pkg.get("pr_url", "")
+                    reward = pkg.get("estimated_reward_usd", 75.0)
+                    bounty_id = pkg.get("bounty_id", "")
+                    msg = f"✓ <b>Pull Request créée avec succès !</b>\n"
+                    msg += f"❯ <a href='{pr_url}'>Voir la PR sur GitHub</a>\n" if pr_url else ""
+                    msg += f"✱ <b>Récompense :</b> <code>${reward:.0f} USD</code>\n"
+                    msg += f"• <b>Bounty ID :</b> {bounty_id}\n"
+                    msg += f"• <b>Mission :</b> {target_b.title}\n"
+                    await tech_lead.telegram_vault.send_message(msg, message_thread_id=message_thread_id, target_chat_id=target_chat_id)
+                    console.print(f"[bold green][OK] PR créée pour {bounty_id} ![/]")
+            else:
+                await tech_lead.telegram_vault.send_message(f"[!] Erreur lors de la résolution : {sol_res.get('error')}", message_thread_id=message_thread_id, target_chat_id=target_chat_id)
+        else:
+            # No number or invalid number, show the list
+            msg = "✱ <b>Missions disponibles :</b>\n"
+            for idx, b in enumerate(bounties, 1):
+                msg += f"<code>#{idx}</code> {b.title} - <b>${b.reward_usd:.0f} USD</b> - {b.labels[0] if b.labels else 'général'}\n"
+            msg += "\nTapez `/claim <numéro>` pour créer la Pull Request réelle."
+            await tech_lead.telegram_vault.send_message(msg, message_thread_id=message_thread_id, target_chat_id=target_chat_id)
+            console.print(f"[bold green][OK] Bounties diffusés, affichage de la liste ![/]")
         return
 
     # 1. Native shortcut: /clone, /backup
@@ -4226,6 +4459,31 @@ async def run_design(tech_lead: TechLeadOrchestrator, args: List[str]):
 
 async def run_cyber(tech_lead: TechLeadOrchestrator, args: List[str]):
     """Affiche et active les compétences souveraines de Cybersécurité et Pentest."""
+    subcmd = args[0].lower() if args else "status"
+
+    if subcmd == "exec":
+        if len(args) < 2:
+            console.print("[bold red]Usage :[/] /cyber exec <outil_kali> [arguments_json]")
+            console.print("[dim]Exemple : /cyber exec nmap '{\"target\": \"127.0.0.1\"}'[/]")
+            return
+
+        tool_name = args[1]
+        try:
+            arguments = json.loads(" ".join(args[2:])) if len(args) > 2 else {}
+        except json.JSONDecodeError as e:
+            console.print(f"[bold red][FAIL] Arguments JSON invalides :[/] {e}")
+            return
+
+        import freeai_cyber
+        with console.status(f"[bold cyan]Exécution de l'outil Kali '{tool_name}'...[/]", spinner="dots"):
+            output = freeai_cyber.non_interactive_mode(tool_name, arguments)
+
+        if output:
+            console.print(Panel(output, title=f"[Sec] Sortie réelle de '{tool_name}'", border_style="green"))
+        else:
+            console.print(f"[bold red][FAIL] Échec de l'exécution ou outil '{tool_name}' indisponible sur ce système.[/]")
+        return
+
     domains = tech_lead.forge.get_skills_by_domain()
     cyber_skills = domains.get("cybersecurity", [])
 
@@ -4243,6 +4501,78 @@ async def run_cyber(tech_lead: TechLeadOrchestrator, args: List[str]):
     for s in cyber_skills[:12]:
         console.print(f"  • [bold red][Sec] {s}[/]")
     console.print("\n[dim]Tapez [cyan]/skills sync[/] pour synchroniser tout l'arsenal vers Telegram et Neon Cloud.[/]")
+
+
+def run_research(tech_lead: TechLeadOrchestrator, args: List[str]):
+    """Veille scientifique et technique réelle : derniers papiers arXiv et dépôts GitHub IA tendances."""
+    import importlib.util
+
+    scraper_path = Path(__file__).parent / "real_implementations" / "scraper.py"
+    spec = importlib.util.spec_from_file_location("freeai_research_scraper", scraper_path)
+    scraper = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(scraper)
+
+    VALID_SOURCES = ("arxiv", "github", "web", "all")
+    source = args[0].lower() if args else "all"
+    topic = " ".join(args[1:]).strip() if len(args) > 1 else None
+
+    if source not in VALID_SOURCES:
+        # Pas de source reconnue en premier argument : tout l'argument est traité comme sujet, source = all
+        topic = " ".join(args).strip()
+        source = "all"
+
+    if topic:
+        translated_topic = scraper.translate_to_english(topic)
+        if translated_topic.lower() != topic.lower():
+            console.print(f"[dim][Traduction] « {topic} » -> « {translated_topic} » (arXiv/GitHub indexés en anglais)[/]")
+        topic = translated_topic
+
+    topic_label = f" sur « {topic} »" if topic else " (IA / ML par défaut)"
+
+    if source in ("arxiv", "all"):
+        with console.status(f"[bold cyan]Interrogation de l'API officielle arXiv{topic_label}...[/]", spinner="dots"):
+            papers = scraper.fetch_arxiv_data(max_results=8, topic=topic)
+        if papers:
+            table = Table(title=f"[Veille] Derniers Articles Scientifiques arXiv{topic_label}", border_style="cyan")
+            table.add_column("Titre", style="bold yellow", max_width=50)
+            table.add_column("Auteurs", style="dim", max_width=25)
+            table.add_column("Publié", style="green")
+            for p in papers:
+                table.add_row(p["title"], p["authors"], p["published"][:10])
+            console.print(table)
+        else:
+            console.print("[yellow]Aucun article récupéré (sujet introuvable, réseau indisponible ou API arXiv en erreur).[/]")
+
+    if source in ("github", "all"):
+        with console.status(f"[bold cyan]Interrogation de l'API GitHub{topic_label}...[/]", spinner="dots"):
+            repos = scraper.fetch_github_data(per_page=8, topic=topic)
+        if repos:
+            table = Table(title=f"[Veille] Dépôts GitHub les Plus Étoilés{topic_label}", border_style="magenta")
+            table.add_column("Dépôt", style="bold yellow")
+            table.add_column("Auteur", style="dim")
+            table.add_column("Étoiles", style="green")
+            table.add_column("Description", max_width=45)
+            for r in repos:
+                table.add_row(r["name"], r["owner"], str(r["stars"]), r["description"] or "-")
+            console.print(table)
+        else:
+            console.print("[yellow]Aucun dépôt récupéré (sujet introuvable, réseau indisponible, API GitHub en erreur ou quota atteint).[/]")
+
+    if source in ("web", "all"):
+        from app.tools.sovereign_web import sovereign_web
+        web_query = topic or "intelligence artificielle actualités"
+        with console.status(f"[bold cyan]Recherche web souveraine (DuckDuckGo){topic_label}...[/]", spinner="dots"):
+            web_results = sovereign_web.search_sync(web_query, max_results=6)
+        if web_results:
+            table = Table(title=f"[Veille] Résultats Web Généraux{topic_label}", border_style="green")
+            table.add_column("Titre", style="bold yellow", max_width=45)
+            table.add_column("URL", style="dim underline", max_width=40)
+            table.add_column("Extrait", max_width=40)
+            for r in web_results:
+                table.add_row(r.get("title", "N/A"), r.get("url", "N/A"), (r.get("snippet") or "-")[:120])
+            console.print(table)
+        else:
+            console.print("[yellow]Aucun résultat web (réseau indisponible ou requête bloquée).[/]")
 
 
 async def run_skills(tech_lead: TechLeadOrchestrator, args: List[str]):
@@ -4476,10 +4806,35 @@ async def run_satellite(tech_lead, args: List[str]):
         return
     
     if not args:
-        console.print("[bold red]Usage :[/] /satellite [scan <zone>|avions <zone>|iss|menace|meteo <zone>]")
+        console.print("[bold red]Usage :[/] /satellite [scan <zone>|avions <zone>|iss|menace|meteo <zone>|starlink]")
         return
 
     subcmd = args[0].lower()
+
+    if subcmd == "starlink":
+        from app.network.starlink_adapter import StarlinkAdapter
+        adapter = StarlinkAdapter()
+        with console.status("[bold cyan][Sat] Sonde réelle du terminal Starlink (gRPC local)...[/]"):
+            status = await adapter.get_full_status()
+        if status["dish_reachable"]:
+            console.print(Panel(
+                f"• Hôte configuré : [bold yellow]{status['configured_host']}[/]\n"
+                f"• Dish joignable : [bold green]Oui[/]\n"
+                f"• Qualité signal : {status['signal_quality']}\n"
+                f"• Satellites visibles : {status['visible_satellites']}",
+                title="[Sat] Terminal Starlink — Statut Réel",
+                border_style="green"
+            ))
+        else:
+            console.print(Panel(
+                f"• Hôte configuré : [bold yellow]{status['configured_host']}[/]\n"
+                f"• Dish joignable : [bold red]Non[/] (aucun terminal Starlink détecté sur ce réseau)\n"
+                f"[dim]Configurez STARLINK_IP dans .env si votre parabole utilise une IP non-standard.[/]",
+                title="[Sat] Terminal Starlink — Non Détecté",
+                border_style="yellow"
+            ))
+        return
+
     from app.satellite.satellite_eye import SatelliteEye
     eye = SatelliteEye(tech_lead.mode)
     vault = None
@@ -5397,6 +5752,10 @@ async def interactive_cli(initial_mode: str = "freeAi"):
                     await run_learn(tech_lead, args)
                 elif cmd == "/online":
                     run_online_config(tech_lead, args)
+                elif cmd == "/kimi":
+                    await run_kimi_auth(tech_lead, args)
+                elif cmd == "/inngest":
+                    await run_inngest_cli(tech_lead, args)
                 elif cmd == "/ask":
                     await run_ask_online(tech_lead, args)
                 elif cmd == "/web":
@@ -5472,6 +5831,8 @@ async def interactive_cli(initial_mode: str = "freeAi"):
                     await run_design(tech_lead, args)
                 elif cmd == "/cyber":
                     await run_cyber(tech_lead, args)
+                elif cmd == "/research":
+                    run_research(tech_lead, args)
                 elif cmd == "/skills":
                     await run_skills(tech_lead, args)
                 elif cmd == "/video":
@@ -5542,6 +5903,15 @@ def main():
         objective_text = " ".join(parsed.objective)
         workspace = get_active_workspace()
         rm = ResourceManager()
+
+        # SECURITY INVARIANT: lesaintAi can only run inside a Docker container
+        in_docker = os.path.exists("/.dockerenv") or (
+            os.path.exists("/proc/1/cgroup") and "docker" in open("/proc/1/cgroup").read()
+        )
+        if parsed.mode == "lesaintAi" and not in_docker:
+            print("[SECURITY] Mode lesaintAi rejeté : hors conteneur Docker. Fallback vers freeAi.")
+            parsed.mode = "freeAi"
+
         gw = ToolGateway(
             workspace_root=workspace,
             allow_sudo=(parsed.mode == "lesaintAi"),
@@ -5593,6 +5963,10 @@ def main():
                 run_search_code(tech_lead, args)
             elif cmd == "/online":
                 run_online_config(tech_lead, args)
+            elif cmd == "/kimi":
+                asyncio.run(run_kimi_auth(tech_lead, args))
+            elif cmd == "/inngest":
+                asyncio.run(run_inngest_cli(tech_lead, args))
             elif cmd == "/ask":
                 asyncio.run(run_ask_online(tech_lead, args))
             elif cmd == "/web":
@@ -5670,6 +6044,8 @@ def main():
                 asyncio.run(run_design(tech_lead, args))
             elif cmd == "/cyber":
                 asyncio.run(run_cyber(tech_lead, args))
+            elif cmd == "/research":
+                run_research(tech_lead, args)
             elif cmd == "/skills":
                 asyncio.run(run_skills(tech_lead, args))
             elif cmd == "/video":

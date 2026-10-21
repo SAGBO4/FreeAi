@@ -61,6 +61,8 @@ from app.tools.brag_engine import BragEngine
 from app.evolution.omni_chimera import OmniChimeraOrchestrator
 from app.cluster.aether_legion import AetherLegionOrchestrator
 from app.cluster.autonomous_members import AutonomousMemberSwarm, AutonomousMission
+from app.orchestrator.sovereign_resultant import SovereignResultantEngine
+from app.network.sovereign_voice_conduit import SovereignVoiceConduit, VoiceCognitiveBridge, PeerIdentity
 
 logger = logging.getLogger("tech_lead_orchestrator")
 
@@ -195,6 +197,13 @@ class TechLeadOrchestrator:
             federation=self.free_ai.federation,
             tool_gateway=self.tool_gateway
         )
+
+        # Feature F-31: The Sovereign Resultant Engine (ThreatSentinel + StealthConduit + HermesAuditor)
+        self.sovereign_resultant = SovereignResultantEngine()
+
+        # Feature F-32: Sovereign P2P Voice Conduit & Mesh (Carrier-free audio streaming in RAM)
+        self.voice_conduit = SovereignVoiceConduit(node_id=f"freeai_{self.mode}", secret_key=b"freeai_mesh_voice_key")
+        self.voice_bridge = VoiceCognitiveBridge()
 
         # Specialized agents under Tech Lead supervision
         self.code_agent = CodeAgent(tool_gateway, forge_bridge=self.forge)
@@ -347,6 +356,20 @@ class TechLeadOrchestrator:
             max_turns=max_turns
         )
 
+    async def run_hermes_adaptive_loop(
+        self,
+        objective: str,
+        max_turns: int = 5,
+        goal_evaluator: Optional[Any] = None
+    ) -> Dict[str, Any]:
+        """Runs an autonomous self-healing ReAct loop: executes tools, listens to output, and self-corrects until convergence."""
+        return await self.hermes_cognition.execute_adaptive_react_loop(
+            objective=objective,
+            executor=self,
+            max_turns=max_turns,
+            goal_evaluator=goal_evaluator
+        )
+
     async def start_onion_portal(self) -> Dict[str, Any]:
         """Launches the Tor Onion V3 portal. Strictly restricted to 'lesaintAi' mode."""
         return await self.onion_portal.start_portal(mode=self.mode)
@@ -474,6 +497,18 @@ class TechLeadOrchestrator:
         """Streams cloud LLM tokens in real-time."""
         async for token in self.free_ai.federation.stream_free_online_model(prompt):
             yield token
+
+    async def kimi_login(self, headless: bool = False, timeout_sec: float = 120.0) -> Dict[str, Any]:
+        """Launches interactive Playwright session to intercept Kimi refresh_token cookie."""
+        from app.llm.kimi_authenticator import KimiPlaywrightAuthenticator
+        authenticator = KimiPlaywrightAuthenticator()
+        return await authenticator.launch_interactive_login(headless=headless, timeout_sec=timeout_sec)
+
+    async def run_inngest_swarm(self, prompt: str) -> Dict[str, Any]:
+        """Executes resilient multi-model workflow via Inngest Sovereign Conduit."""
+        from app.orchestrator.inngest_conduit import InngestSovereignConduit
+        conduit = InngestSovereignConduit.get_instance()
+        return await conduit.execute_resilient_swarm(prompt)
 
     async def ask_online_with_log(self, prompt: str, log_path: str, max_lines: int = 150) -> Dict[str, Any]:
         """Reads a log file from anywhere on the PC and submits it to the remote online AI (DeepSeek/Grok/Qwen) with a question."""
@@ -762,6 +797,62 @@ class TechLeadOrchestrator:
                 "stats": self.resource_manager.get_system_stats()
             }
 
+        # 1.1 Direct routing for Sovereign Resultant Engine (Feature F-31)
+        if any(k in objective.lower() for k in ("/resultant", "la resultante", "resultante")):
+            resultant_rep = await self.sovereign_resultant.execute_resultant_mission(
+                target_url=None,
+                target_ip=None,
+                recon_query=objective
+            )
+            return {
+                "success": resultant_rep.success,
+                "status": "completed",
+                "assigned_agent": "sovereign_resultant",
+                "resultant": resultant_rep.to_dict(),
+                "output": resultant_rep.summary
+            }
+
+        # 1.2 Direct routing for Sovereign Voice Conduit (Feature F-32)
+        if any(k in objective.lower() for k in ("/call", "p2p call", "appel p2p", "voice conduit", "conduit vocal")):
+            tor_status = self.voice_conduit.probe_tor_conduit()
+            output_msg = (
+                f"🎙️ [SOVEREIGN VOICE CONDUIT - F-32]\n"
+                f"• Statut Nœud P2P : Actif (Node: {self.voice_conduit.node_id})\n"
+                f"• Port d'écoute : {self.voice_conduit.port} (0 opérateur télécom, 0€)\n"
+                f"• Routage : {tor_status['mode']} (Tor SOCKS5: {'En ligne' if tor_status['is_tor_active'] else 'Repli direct socket'})\n"
+                f"• Mode NÉANT : Audio streaming 100% en RAM, zéro persistance disque\n"
+                f"• Identité cryptographique : p2p://{self.voice_conduit.node_id}\n"
+                f"• AI Cognitive Loopback : Opérationnel ({self.voice_bridge.buffered_audio_bytes} bytes en attente)"
+            )
+            return {
+                "success": True,
+                "status": "completed",
+                "assigned_agent": "sovereign_voice_conduit",
+                "output": output_msg,
+                "tor_status": tor_status,
+            }
+
+        # 1.3 Direct routing for Zero-Touch Local Intercom (Feature F-33)
+        if any(k in objective.lower() for k in ("/intercom", "zero touch", "intercom local", "freeai.local")):
+            service_info = self.sovereign_resultant.intercom.get_service_info()
+            output_msg = (
+                f"📡 [ZERO-TOUCH LOCAL INTERCOM - F-33]\n"
+                f"• Accès Web Universel (ZÉRO-INSTALLATION) : {service_info['access_url']}\n"
+                f"• Hôte mDNS Zeroconf (sans QR code) : http://{service_info['hostname']}:{service_info['port']}/intercom\n"
+                f"• Adresse IP Locale : {service_info['local_ip']} (Port: {service_info['port']})\n"
+                f"• Mode NÉANT : Page HTML5 & WebRTC 100% en RAM, zéro I/O disque\n"
+                f"• Schémas de données : Validés par Pydantic (AudioSignalPayload)\n"
+                f"• Pairs connectés : {len(self.sovereign_resultant.intercom.connected_peers)} actif(s)\n"
+                f"• Buffer audio en mémoire : {self.sovereign_resultant.intercom.buffered_bytes} octets"
+            )
+            return {
+                "success": True,
+                "status": "completed",
+                "assigned_agent": "zero_touch_intercom",
+                "output": output_msg,
+                "service_info": service_info,
+            }
+
         # 2. Checkpoint workspace via Git before autonomous changes
         if autonomous:
             logger.info("[TECH LEAD] Creating safety checkpoint before autonomous execution...")
@@ -788,7 +879,20 @@ class TechLeadOrchestrator:
             "online_knowledge": online_knowledge
         }
 
-        if agent_type == "security":
+        if any(k in objective.lower() for k in ("/resultant", "la resultante", "resultante")):
+            resultant_rep = await self.sovereign_resultant.execute_resultant_mission(
+                target_url=context.get("target_url"),
+                target_ip=context.get("target_ip"),
+                recon_query=objective
+            )
+            result = {
+                "success": resultant_rep.success,
+                "status": "completed",
+                "assigned_agent": "sovereign_resultant",
+                "resultant": resultant_rep.to_dict(),
+                "output": resultant_rep.summary
+            }
+        elif agent_type == "security":
             result = await self.security_agent.execute_task(objective, context)
         elif agent_type == "git":
             result = await self.git_agent.execute_task(objective, context)

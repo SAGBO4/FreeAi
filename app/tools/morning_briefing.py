@@ -32,6 +32,8 @@ class MorningBriefingEngine:
         "portfolio": "https://michaelsagbo.tech",
         "github": "https://github.com/SAGBO4",
         "linkedin": "https://linkedin.com/in/michaelsagbo",
+        "phone": "+2290152617561",
+        "city": "Cotonou",
         "core_stack": [
             "Next.js", "React", "Vue.js", "Nest.js", "Node.js", "TypeScript",
             "Laravel", "Python", "Docker", "Web3", "Crypto Payment Gateways",
