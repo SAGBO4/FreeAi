@@ -119,7 +119,7 @@ def test_swarm_consensus_reflects_only_real_responses(aether_swarm, monkeypatch)
     asyncio.run(_run())
 
 
-def test_cli_dispatch_swarm_command():
+def test_cli_dispatch_swarm_command(monkeypatch):
     from unittest.mock import AsyncMock, patch
     from app.tools.gateway import ToolGateway
     from app.resource_manager.watchdog import ResourceManager
@@ -129,6 +129,10 @@ def test_cli_dispatch_swarm_command():
     gw = ToolGateway(workspace_root="/tmp")
     rm = ResourceManager()
     orch = TechLeadOrchestrator(tool_gateway=gw, resource_manager=rm)
+
+    async def fake_provider_response(provider, prompt, model=None, **kwargs):
+        return {"provider": provider, "model": model, "content": f"Réponse réelle de test ({provider})"}
+    monkeypatch.setattr(orch.aether_swarm.federation, "query_specific_provider", fake_provider_response)
 
     async def _run():
         with patch.object(orch.telegram_vault, "send_message", new_callable=AsyncMock) as mock_send_msg, \
