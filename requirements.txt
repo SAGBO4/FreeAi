@@ -10,6 +10,17 @@ httpx>=0.27.0
 numpy>=1.26.0
 lz4>=4.3.3
 
+# Threat intelligence (app/tools/threat_sentinel.py)
+phonenumbers>=8.13.0
+
+# Worker/coordinator HTTP calls (backend/worker/worker.py)
+requests>=2.31.0
+
+# Browser automation for Kimi web auth / live-review auto-apply (tests patch
+# playwright.async_api directly, so the package must be importable even
+# without browser binaries installed)
+playwright>=1.44.0
+
 # System & Resource Monitoring
 psutil>=5.9.8
 
