@@ -1,6 +1,7 @@
 """Unit tests for AutoApplyEngine with presence gating and human camouflage."""
 
 import pytest
+import shutil
 import time
 import asyncio
 import re
@@ -98,6 +99,9 @@ def test_live_review_application_fills_real_form_and_never_submits():
     were genuinely written into the DOM (not just claimed), that a real resume PDF
     file was generated and attached to the file input, that a working noVNC review
     URL was produced, and that closing the session leaves no process behind."""
+    if not shutil.which("x11vnc") or not shutil.which("websockify"):
+        pytest.skip("x11vnc/websockify not available on this host (sudo apt-get install x11vnc novnc).")
+
     async def _test():
         mock_career = MagicMock()
         mock_career.get_rich_offers.return_value = [
