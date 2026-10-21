@@ -954,7 +954,7 @@ class MainScreen(Screen):
                         )
                     with Horizontal(id="prompt-meta-row"):
                         yield Label(f"{app.mode} · Groq LPU · auto", id="prompt-meta-left")
-                        yield Label("ctrl+b: sidebar · ctrl+p: palette · ctrl+n: session · ctrl+c: quitter", id="prompt-meta-right")
+                        yield Label("ctrl+b: sidebar · ctrl+p: palette · ctrl+n: session · ctrl+q: quitter", id="prompt-meta-right")
 
             # Zone 6: Split In-TUI Code Editor Pane (Right 50%)
             with EditorPane(id="editor-pane"):
@@ -1137,7 +1137,6 @@ class FreeAITUIApp(App):
         Binding("ctrl+e", "ai_explain_split_editor", "AI Explain", show=False),
         Binding("f4", "ai_explain_split_editor", "AI Explain", show=False),
         Binding("ctrl+w", "close_split_editor", "Close Editor", show=False),
-        Binding("ctrl+c", "quit_app", "Quit", show=False),
         Binding("ctrl+q", "quit_app", "Quit", show=False),
         Binding("escape", "escape_action", "Dismiss", show=False),
     ]
