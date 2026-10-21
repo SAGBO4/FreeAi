@@ -5,6 +5,7 @@ Tests unitaires pour les fonctionnalités liées à KaliToolRegistry et HermesSc
 
 import sys
 import os
+import shutil
 import unittest
 from unittest.mock import patch
 from app.tools.kali_registry import KaliToolRegistry
@@ -27,8 +28,18 @@ class TestFreeAICyber(unittest.TestCase):
         self.assertTrue(len(installed_tools) > 0, "Aucun outil Kali détecté.")
 
     def test_get_hermes_tool_schemas(self):
-        """Test de la génération des schémas d'outils."""
-        schemas = self.registry.get_hermes_tool_schemas()
+        """Test de la génération des schémas d'outils (sqlmap forcé présent : sa détection
+        réelle dépend du binaire installé sur l'hôte, absent sur un runner CI propre)."""
+        real_which = shutil.which
+
+        def fake_which(cmd, *args, **kwargs):
+            if cmd == "sqlmap":
+                return "/usr/bin/sqlmap"
+            return real_which(cmd, *args, **kwargs)
+
+        with patch("app.tools.kali_registry.shutil.which", side_effect=fake_which):
+            schemas = self.registry.get_hermes_tool_schemas()
+
         self.assertTrue(len(schemas) > 0, "Aucun schéma d'outil généré.")
         self.assertTrue(any(schema["name"] == "kali_sqlmap" for schema in schemas), "Le schéma pour kali_sqlmap n'est pas trouvé.")
 
